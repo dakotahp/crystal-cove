@@ -69,8 +69,11 @@ func TestSyncOutputRecognizesChunkedHeartbeatAndPreservesOutput(t *testing.T) {
 func TestSuperviseVaultRestartsRunningProcessWithStaleHeartbeat(t *testing.T) {
 	b, argsLog := newTestBootstrapper(t, `case "$1" in sync) exec sleep 60;; *) exit 0;; esac`)
 	b.cfg.Vaults = b.cfg.Vaults[:1]
-	b.watchdogAfter = 25 * time.Millisecond
-	b.watchdogPoll = 5 * time.Millisecond
+	// The watchdog has to outlast the fake ob script's startup. Below that, the
+	// child is killed before its shell logs the call, and the assertion sees no
+	// invocations at all. Process start is slower on macOS than on CI Linux.
+	b.watchdogAfter = 500 * time.Millisecond
+	b.watchdogPoll = 25 * time.Millisecond
 	b.stableRun = 0
 
 	ctx, cancel := context.WithCancel(context.Background())
