@@ -41,8 +41,14 @@ That means:
 - It runs 24/7 wherever you host containers: a NAS, a VPS, Kubernetes, or a
   Raspberry Pi (images are amd64 + arm64).
 
-Requirements: an Obsidian account with a **Sync subscription**. The account
-must not have MFA enabled (use a dedicated sync account if yours does).
+Requirements: an Obsidian account with a **Sync subscription**.
+
+If the account has MFA enabled, no one can type the code inside a container,
+so set `OBSIDIAN_AUTH_TOKEN` instead of the email and password. Run `ob login`
+once on any machine, answer the MFA prompt, then copy the token from
+`~/.config/obsidian-headless/auth_token` (Linux) or
+`~/.obsidian-headless/auth_token` (macOS). The server then skips `ob login`
+and uses that session. Repeat the step if the token ever stops working.
 
 ## Quick start
 
@@ -125,8 +131,9 @@ exponential backoff; the MCP process and other vault syncs remain running.
 
 | Variable | Required | Description |
 | --- | --- | --- |
-| `OBSIDIAN_EMAIL` | yes | Obsidian account email. |
-| `OBSIDIAN_PASSWORD` | yes | Obsidian account password. |
+| `OBSIDIAN_EMAIL` | yes* | Obsidian account email. Not needed with `OBSIDIAN_AUTH_TOKEN`. |
+| `OBSIDIAN_PASSWORD` | yes* | Obsidian account password. Not needed with `OBSIDIAN_AUTH_TOKEN`. |
+| `OBSIDIAN_AUTH_TOKEN` | no | An existing `obsidian-headless` session token, used instead of email and password. Required for accounts with MFA enabled. |
 | `OBSIDIAN_VAULTS` | yes | Comma-separated remote vault names, each optionally `Name:encryption-password`. |
 | `OBSIDIAN_VAULT_PASSWORD` | no | End-to-end encryption password applied to vaults that don't carry their own. |
 | `MCP_AUTH_TOKEN` | yes* | Static bearer token (API key) clients may present. Optional when `OAUTH_ISSUER` is set; at least one of the two is required. |

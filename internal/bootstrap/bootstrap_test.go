@@ -80,6 +80,34 @@ func TestLogin(t *testing.T) {
 	}
 }
 
+func TestLoginSkippedWithObsidianAuthToken(t *testing.T) {
+	b, argsLog := newTestBootstrapper(t, "exit 0")
+	b.cfg.ObsidianAuthToken = "sync-token"
+	if err := b.Login(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(argsLog); !os.IsNotExist(err) {
+		t.Errorf("ob was invoked with a sync token configured: %v", err)
+	}
+}
+
+func TestObInheritsObsidianAuthTokenFromEnvironment(t *testing.T) {
+	t.Setenv("OBSIDIAN_AUTH_TOKEN", "sync-token")
+	b, _ := newTestBootstrapper(t, `echo "seen=$OBSIDIAN_AUTH_TOKEN"; exit 1`)
+	err := b.SetupVaults(context.Background())
+	if err == nil || !strings.Contains(err.Error(), "seen=sync-token") {
+		t.Errorf("err = %v, want ob to see OBSIDIAN_AUTH_TOKEN", err)
+	}
+}
+
+func TestLoginMFAPromptNamesTokenOption(t *testing.T) {
+	b, _ := newTestBootstrapper(t, "echo 'Login failed: 2FA code required'; exit 2")
+	err := b.Login(context.Background())
+	if err == nil || !strings.Contains(err.Error(), "OBSIDIAN_AUTH_TOKEN") {
+		t.Errorf("err = %v, want mention of OBSIDIAN_AUTH_TOKEN", err)
+	}
+}
+
 func TestLoginFailure(t *testing.T) {
 	b, _ := newTestBootstrapper(t, "echo bad credentials; exit 1")
 	err := b.Login(context.Background())

@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -81,9 +82,19 @@ func (b *Bootstrapper) VaultPath(v config.Vault) string {
 
 // Login authenticates the Obsidian account.
 func (b *Bootstrapper) Login(ctx context.Context) error {
+	if b.cfg.ObsidianAuthToken != "" {
+		// ob login with credentials signs out and replaces any existing
+		// session token, so logging in here would revoke the configured one.
+		b.log.Info("using OBSIDIAN_AUTH_TOKEN, skipping ob login")
+		return nil
+	}
 	b.log.Info("logging in to Obsidian", "email", b.cfg.Email)
 	args := []string{"login", "--email", b.cfg.Email, "--password", b.cfg.Password}
 	if err := b.runOb(ctx, args, []string{"--password"}); err != nil {
+		if strings.Contains(err.Error(), "2FA code") {
+			return fmt.Errorf("ob login failed: this account has MFA enabled, which cannot be answered in a container; "+
+				"run ob login once by hand and set OBSIDIAN_AUTH_TOKEN to the resulting token: %w", err)
+		}
 		return fmt.Errorf("ob login failed: %w", err)
 	}
 	return nil

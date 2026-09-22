@@ -23,7 +23,10 @@ Deliberate MVP boundaries (do not "fix" these without being asked):
   provider-agnostic: discovery + JWKS only, validated in
   `internal/oidcauth`; the server advertises RFC 9728 protected-resource
   metadata so MCP clients can bootstrap the OAuth flow.
-- The Obsidian account must not have MFA.
+- Obsidian account auth is either `OBSIDIAN_EMAIL` + `OBSIDIAN_PASSWORD`, or
+  `OBSIDIAN_AUTH_TOKEN` (an existing `ob` session token). Accounts with MFA
+  must use the token: `ob login` would prompt for a code that nothing can
+  answer, and running it with credentials revokes the token already in use.
 - Deletes are soft by default: notes move to the vault's `.trash`
   (Obsidian's own convention) so they sync and stay recoverable.
 - `read_note` returns at most 10,240 characters per call

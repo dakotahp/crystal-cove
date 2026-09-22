@@ -57,8 +57,13 @@ type OAuth struct {
 // Config holds the full server configuration.
 type Config struct {
 	// Email and Password authenticate the Obsidian account (ob login).
+	// Both are unused when ObsidianAuthToken is set.
 	Email    string
 	Password string
+	// ObsidianAuthToken is an existing obsidian-headless session token. When
+	// set, ob login is skipped and ob reads the token from the environment
+	// instead, which is the only way to run against an account with MFA on.
+	ObsidianAuthToken string
 	// DeviceName identifies this client in sync version history.
 	DeviceName string
 	// Vaults lists the remote vaults to sync and expose over MCP.
@@ -85,15 +90,18 @@ type Getenv func(key string) string
 // entropy for the generated device name and is typically crypto/rand.Reader.
 func Load(getenv Getenv, randSource io.Reader) (*Config, error) {
 	cfg := &Config{
-		Email:     getenv("OBSIDIAN_EMAIL"),
-		Password:  getenv("OBSIDIAN_PASSWORD"),
-		AuthToken: getenv("MCP_AUTH_TOKEN"),
+		Email:             getenv("OBSIDIAN_EMAIL"),
+		Password:          getenv("OBSIDIAN_PASSWORD"),
+		ObsidianAuthToken: getenv("OBSIDIAN_AUTH_TOKEN"),
+		AuthToken:         getenv("MCP_AUTH_TOKEN"),
 	}
-	if cfg.Email == "" {
-		return nil, errors.New("OBSIDIAN_EMAIL must be set")
-	}
-	if cfg.Password == "" {
-		return nil, errors.New("OBSIDIAN_PASSWORD must be set")
+	if cfg.ObsidianAuthToken == "" {
+		if cfg.Email == "" {
+			return nil, errors.New("OBSIDIAN_EMAIL must be set, or OBSIDIAN_AUTH_TOKEN instead of both account credentials")
+		}
+		if cfg.Password == "" {
+			return nil, errors.New("OBSIDIAN_PASSWORD must be set, or OBSIDIAN_AUTH_TOKEN instead of both account credentials")
+		}
 	}
 	oauth, publicURL, err := parseOAuth(getenv)
 	if err != nil {

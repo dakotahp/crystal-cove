@@ -76,6 +76,29 @@ func TestLoadNoHomeFallsBackToRoot(t *testing.T) {
 	}
 }
 
+func TestLoadObsidianAuthTokenReplacesAccountCredentials(t *testing.T) {
+	m := validEnv()
+	delete(m, "OBSIDIAN_EMAIL")
+	delete(m, "OBSIDIAN_PASSWORD")
+	m["OBSIDIAN_AUTH_TOKEN"] = "sync-token"
+	cfg, err := Load(env(m), rand.Reader)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if cfg.ObsidianAuthToken != "sync-token" {
+		t.Errorf("ObsidianAuthToken = %q", cfg.ObsidianAuthToken)
+	}
+}
+
+func TestLoadRequiresCredentialsOrObsidianAuthToken(t *testing.T) {
+	m := validEnv()
+	delete(m, "OBSIDIAN_PASSWORD")
+	_, err := Load(env(m), rand.Reader)
+	if err == nil || !strings.Contains(err.Error(), "OBSIDIAN_AUTH_TOKEN") {
+		t.Errorf("err = %v, want mention of OBSIDIAN_AUTH_TOKEN", err)
+	}
+}
+
 func TestLoadMissingRequired(t *testing.T) {
 	for _, key := range []string{"OBSIDIAN_EMAIL", "OBSIDIAN_PASSWORD", "MCP_AUTH_TOKEN", "OBSIDIAN_VAULTS"} {
 		t.Run(key, func(t *testing.T) {
