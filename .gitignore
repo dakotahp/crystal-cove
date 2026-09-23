@@ -8,3 +8,7 @@ coverage.out
 /obsidian-mcp
 bin/
 .local-ca.crt
+
+# Local tooling caches, never committed
+.serena/
+.claude/worktrees/
