@@ -23,25 +23,25 @@ func newTitleVault(t *testing.T, paths ...string) *Vault {
 }
 
 func TestMatchTitlesFindsNoteByName(t *testing.T) {
-	v := newTitleVault(t, "2_Areas/Meal Planning/Meal Planning.md", "0_Inbox/today.md")
+	v := newTitleVault(t, "Areas/Bike Maintenance/Bike Maintenance.md", "Inbox/today.md")
 
-	got, truncated, err := v.MatchTitles("Meal Planning", false, 0)
+	got, truncated, err := v.MatchTitles("Bike Maintenance", false, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if truncated {
 		t.Error("truncated = true")
 	}
-	want := []string{"2_Areas/Meal Planning/Meal Planning.md"}
+	want := []string{"Areas/Bike Maintenance/Bike Maintenance.md"}
 	if !slices.Equal(got, want) {
 		t.Errorf("MatchTitles = %q, want %q", got, want)
 	}
 }
 
 func TestMatchTitlesIgnoresCaseByDefault(t *testing.T) {
-	v := newTitleVault(t, "1_Projects/Chemo Navigator/Chemo Navigator.md")
+	v := newTitleVault(t, "Projects/Harbor Bridge/Harbor Bridge.md")
 
-	got, _, err := v.MatchTitles("chemo navigator", false, 0)
+	got, _, err := v.MatchTitles("harbor bridge", false, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -49,7 +49,7 @@ func TestMatchTitlesIgnoresCaseByDefault(t *testing.T) {
 		t.Fatalf("MatchTitles = %q, want one match", got)
 	}
 
-	got, _, err = v.MatchTitles("chemo navigator", true, 0)
+	got, _, err = v.MatchTitles("harbor bridge", true, 0)
 	if err != nil {
 		t.Fatal(err)
 	}

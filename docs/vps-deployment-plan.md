@@ -46,10 +46,11 @@ for now. A small single-user OAuth mode built into this server would remove
    so the laptop and the server can each hold one. Copy the token from
    `~/.config/obsidian-headless/auth_token`.
 3. **Write the server's `.env`**: `OBSIDIAN_AUTH_TOKEN` from step 2,
-   `OBSIDIAN_VAULTS=Personal`, `OBSIDIAN_VAULT_PASSWORD` (this vault is
-   end-to-end encrypted, so sync-setup fails without it), `MCP_AUTH_TOKEN` set
-   to the token `auth.py` returns, and `OBSIDIAN_DEVICE_NAME=vps-mcp` so Sync
-   version history names the device clearly.
+   `OBSIDIAN_VAULTS` with the vault name, `OBSIDIAN_VAULT_PASSWORD` when the
+   vault is end-to-end encrypted, because sync-setup fails without it,
+   `MCP_AUTH_TOKEN` set to the token `auth.py` returns, and
+   `OBSIDIAN_DEVICE_NAME=vps-mcp` so Sync version history names the device
+   clearly.
 4. **Bind the port to loopback.** The compose file publishes `${PORT}:8080` on
    every interface. On a public server that exposes the MCP endpoint directly,
    with no TLS and no Caddy in front. It must be `127.0.0.1:8787:8080`.
@@ -79,7 +80,7 @@ for now. A small single-user OAuth mode built into this server would remove
   feature to add.
 - **Search has no ranking.** Results come back in ripgrep order, not by
   relevance. Frontmatter is searchable today, because ripgrep reads the whole
-  file as text, so the `agent-context` convention does work.
+  file as text, so frontmatter properties are searchable.
 - **Token lifetime is unknown.** Obsidian does not document how long a session
   token stays valid. If sync starts failing to authenticate, repeat step 2.
 - **Disk.** The server holds a second full copy of the vault in a Docker

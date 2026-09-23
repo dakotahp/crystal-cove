@@ -24,10 +24,10 @@ func writeInstructions(t *testing.T, v *vault.Vault, body string) {
 
 func TestInstructionsFromSingleVaultOmitHeading(t *testing.T) {
 	v := vault.New("Personal", t.TempDir())
-	writeInstructions(t, v, "Daily notes live in 0_Inbox.\n")
+	writeInstructions(t, v, "Daily notes live in Inbox.\n")
 
 	got := New([]*vault.Vault{v}, search.New("rg", nil), func() bool { return true }).instructions
-	if got != "Daily notes live in 0_Inbox." {
+	if got != "Daily notes live in Inbox." {
 		t.Errorf("instructions = %q", got)
 	}
 }
@@ -36,10 +36,10 @@ func TestInstructionsFromSeveralVaultsAreLabelled(t *testing.T) {
 	work := vault.New("Work", t.TempDir())
 	personal := vault.New("Personal", t.TempDir())
 	writeInstructions(t, work, "Work notes use ticket ids.")
-	writeInstructions(t, personal, "Daily notes live in 0_Inbox.")
+	writeInstructions(t, personal, "Daily notes live in Inbox.")
 
 	got := New([]*vault.Vault{work, personal}, search.New("rg", nil), func() bool { return true }).instructions
-	for _, want := range []string{"## Vault: Work", "ticket ids", "## Vault: Personal", "0_Inbox"} {
+	for _, want := range []string{"## Vault: Work", "ticket ids", "## Vault: Personal", "Inbox"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("instructions = %q, want mention of %q", got, want)
 		}
@@ -77,20 +77,20 @@ func TestInstructionsEmptyWithoutFile(t *testing.T) {
 func TestInstructionsSkipVaultsWithoutFile(t *testing.T) {
 	work := vault.New("Work", t.TempDir())
 	personal := vault.New("Personal", t.TempDir())
-	writeInstructions(t, personal, "Daily notes live in 0_Inbox.")
+	writeInstructions(t, personal, "Daily notes live in Inbox.")
 
 	got := New([]*vault.Vault{work, personal}, search.New("rg", nil), func() bool { return true }).instructions
 	if strings.Contains(got, "Work") {
 		t.Errorf("instructions = %q, want no section for the vault without a file", got)
 	}
-	if !strings.Contains(got, "0_Inbox") {
+	if !strings.Contains(got, "Inbox") {
 		t.Errorf("instructions = %q, want the vault with a file", got)
 	}
 }
 
 func TestInstructionsReachClientOnInitialize(t *testing.T) {
 	v := vault.New("Personal", t.TempDir())
-	writeInstructions(t, v, "Daily notes live in 0_Inbox.")
+	writeInstructions(t, v, "Daily notes live in Inbox.")
 	srv := New([]*vault.Vault{v}, search.New("rg", nil), func() bool { return true })
 
 	ts := httptest.NewServer(srv.Handler(AuthConfig{StaticToken: "secret"}))
@@ -106,7 +106,7 @@ func TestInstructionsReachClientOnInitialize(t *testing.T) {
 	}
 	defer session.Close()
 
-	if got := session.InitializeResult().Instructions; got != "Daily notes live in 0_Inbox." {
+	if got := session.InitializeResult().Instructions; got != "Daily notes live in Inbox." {
 		t.Errorf("Instructions = %q", got)
 	}
 }

@@ -11,9 +11,9 @@ import (
 
 // MatchTitles returns the vault-relative paths of notes whose name matches
 // pattern, a regular expression applied to the file name without its
-// extension. In Obsidian a note's name is usually its subject, so a note
-// about meal planning may never contain the words "meal planning" in its
-// body; a content search alone misses it.
+// extension. In Obsidian a note's name is usually its subject, and such a note
+// often never repeats that subject in its body, so a content search alone
+// misses the note a person would have opened by name.
 //
 // Matching ignores case unless caseSensitive is set. Hidden directories such
 // as .obsidian and .trash are skipped, as they are for listing and content
