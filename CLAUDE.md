@@ -70,6 +70,11 @@ Key invariants:
   heartbeat. A silent continuous-sync child is restarted by the supervisor;
   `/livez` must remain process-only so transient network failures do not
   restart the whole container.
+- **`search_notes` covers names as well as content.** A note's name is
+  usually its subject, so a content-only search misses the note a person
+  would have opened by name. `vault.MatchTitles` walks for name matches and
+  the handler puts them first, flagged `title_match`; content search stays in
+  `internal/search`.
 - **Path sandboxing lives in `internal/vault`**, not in tool handlers.
   New file operations must use `resolve()`.
 - **Secrets never reach logs**: `bootstrap.redact()` masks `--password`

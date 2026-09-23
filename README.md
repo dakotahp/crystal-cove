@@ -208,7 +208,7 @@ The boot log reports how many characters were loaded.
 | `read_note` | Read a note, paged at 10,240 characters per call with `offset`/`next_offset` for longer notes. |
 | `get_section` | Read a heading section’s body (including subsections), with character paging. |
 | `replace_section` | Replace a heading section’s body and subsections while preserving its heading. |
-| `search_notes` | ripgrep-backed regex search: glob filters, context lines, case sensitivity, result caps. |
+| `search_notes` | Searches note names and content. Name matches come first, flagged `title_match`. Content search is ripgrep-backed regex: glob filters, context lines, case sensitivity, result caps. |
 | `create_note` | Create a new note; fails if it already exists. |
 | `append_note` | Append to a note, creating it if needed. |
 | `edit_note` | Exact find/replace; the snippet must be unique unless `replace_all` is set. |

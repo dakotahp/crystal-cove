@@ -52,8 +52,11 @@ type Line struct {
 type FileMatches struct {
 	// Path is the vault-relative path of the file.
 	Path string `json:"path"`
-	// Lines are the matching and context lines, in file order.
+	// Lines are the matching and context lines, in file order. It is empty
+	// when only the note's name matched.
 	Lines []Line `json:"lines"`
+	// TitleMatch reports that the note's name matched the query.
+	TitleMatch bool `json:"title_match,omitempty"`
 }
 
 // Result is the outcome of a search.

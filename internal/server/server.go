@@ -86,8 +86,10 @@ func (s *Server) MCPServer() *mcp.Server {
 
 	mcp.AddTool(srv, &mcp.Tool{
 		Name: "search_notes",
-		Description: "Full-text regex search across a vault (ripgrep syntax). Returns matching lines grouped by file, " +
-			"optionally with surrounding context lines. Case-insensitive unless case_sensitive is set.",
+		Description: "Search a vault by note name and by content (regex, ripgrep syntax). Notes whose name matches come " +
+			"first, flagged with title_match and carrying no lines when only the name matched; content matches follow as " +
+			"matching lines grouped by file, optionally with surrounding context lines. Case-insensitive unless " +
+			"case_sensitive is set.",
 	}, s.searchNotes)
 
 	mcp.AddTool(srv, &mcp.Tool{
@@ -289,7 +291,46 @@ func (s *Server) searchNotes(ctx context.Context, _ *mcp.CallToolRequest, in sea
 	if err != nil {
 		return nil, nil, err
 	}
-	return nil, res, nil
+	limit := in.MaxResults
+	if limit <= 0 {
+		limit = search.DefaultMaxResults
+	}
+	titles, truncated, err := v.MatchTitles(in.Query, in.CaseSensitive, limit)
+	if err != nil {
+		return nil, nil, err
+	}
+	return nil, withTitleMatches(res, titles, truncated), nil
+}
+
+// withTitleMatches moves the notes whose name matched to the front of the
+// result, keeping any body matches they also have. A note matched only by
+// name is added with no lines.
+func withTitleMatches(res *search.Result, titles []string, truncated bool) *search.Result {
+	if len(titles) == 0 {
+		return res
+	}
+	byPath := make(map[string]search.FileMatches, len(res.Files))
+	for _, f := range res.Files {
+		byPath[f.Path] = f
+	}
+	files := make([]search.FileMatches, 0, len(res.Files)+len(titles))
+	for _, path := range titles {
+		f, ok := byPath[path]
+		if !ok {
+			f = search.FileMatches{Path: path}
+		}
+		f.TitleMatch = true
+		files = append(files, f)
+		delete(byPath, path)
+	}
+	for _, f := range res.Files {
+		if _, ok := byPath[f.Path]; ok {
+			files = append(files, f)
+		}
+	}
+	res.Files = files
+	res.Truncated = res.Truncated || truncated
+	return res
 }
 
 type writeNoteInput struct {
