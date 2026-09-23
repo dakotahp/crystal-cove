@@ -27,6 +27,9 @@ type Server struct {
 	searcher *search.Searcher
 	// syncReady reports whether every vault has a fresh sync heartbeat.
 	syncReady func() bool
+	// instructions is the vault guidance sent to clients, read once at
+	// startup. An edit to a vault's InstructionsFile needs a restart.
+	instructions string
 }
 
 // New returns a Server over the given vaults.
@@ -35,8 +38,16 @@ func New(vaults []*vault.Vault, searcher *search.Searcher, syncReady func() bool
 	for _, v := range vaults {
 		m[v.Name()] = v
 	}
-	return &Server{vaults: m, searcher: searcher, syncReady: syncReady}
+	return &Server{
+		vaults:       m,
+		searcher:     searcher,
+		syncReady:    syncReady,
+		instructions: loadInstructions(vaults),
+	}
 }
+
+// Instructions returns the vault guidance advertised to MCP clients.
+func (s *Server) Instructions() string { return s.instructions }
 
 // MCPServer builds the MCP server with all tools registered.
 func (s *Server) MCPServer() *mcp.Server {
@@ -44,7 +55,7 @@ func (s *Server) MCPServer() *mcp.Server {
 		Name:    "obsidian-hosted-mcp",
 		Title:   "Obsidian Hosted MCP",
 		Version: Version,
-	}, nil)
+	}, &mcp.ServerOptions{Instructions: s.instructions})
 
 	mcp.AddTool(srv, &mcp.Tool{
 		Name:        "list_vaults",

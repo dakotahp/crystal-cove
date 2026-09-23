@@ -27,6 +27,11 @@ Deliberate MVP boundaries (do not "fix" these without being asked):
   `OBSIDIAN_AUTH_TOKEN` (an existing `ob` session token). Accounts with MFA
   must use the token: `ob login` would prompt for a code that nothing can
   answer, and running it with credentials revokes the token already in use.
+- MCP `instructions` come from a vault-root file, read once at startup:
+  `.mcp-instructions.md` (server-local; Obsidian Sync does not carry arbitrary
+  dotfiles) or `mcp-instructions.md` (an ordinary note, so it syncs). Several
+  contributing vaults are labelled `## Vault: <name>`. Missing or unreadable
+  files are not an error: guidance never blocks serving.
 - Deletes are soft by default: notes move to the vault's `.trash`
   (Obsidian's own convention) so they sync and stay recoverable.
 - `read_note` returns at most 10,240 characters per call

@@ -178,6 +178,27 @@ Your IdP must issue tokens whose `aud` (or `azp`) contains
 mapper, made a realm default so dynamically-registered MCP clients pick it
 up automatically.
 
+## Vault instructions
+
+A vault can tell the model how it is organised. At startup the server reads
+one file from each vault root and sends it to MCP clients as the server's
+`instructions`, the same field other connectors use for usage guidance. Use it
+for folder conventions, note naming, and anything you would otherwise repeat
+in every conversation.
+
+Two file names are accepted, in this order:
+
+| File | Syncs? | Use it when |
+| --- | --- | --- |
+| `.mcp-instructions.md` | No | You keep the guidance on the server only. Obsidian Sync does not carry arbitrary dotfiles, so you place this one by hand. |
+| `mcp-instructions.md` | Yes | You want to edit the guidance in Obsidian from any device. It is an ordinary note. |
+
+The first one found per vault wins. Vaults without either file add nothing. If
+several vaults supply guidance, each section is labelled `## Vault: <name>`.
+
+The file is read once at startup, so restart the container after editing it.
+The boot log reports how many characters were loaded.
+
 ## MCP tools
 
 | Tool | Description |
