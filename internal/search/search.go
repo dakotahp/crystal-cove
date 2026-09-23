@@ -14,12 +14,16 @@ import (
 	"strings"
 )
 
-// DefaultMaxResults caps matches returned when the caller does not specify
-// a limit.
+// DefaultMaxResults caps the notes returned when the caller does not
+// specify a limit.
 const DefaultMaxResults = 50
 
-// MaxResultsCeiling is the hard upper bound on matches per search.
+// MaxResultsCeiling is the hard upper bound on notes per search.
 const MaxResultsCeiling = 500
+
+// DefaultLinesPerNote caps how many lines one note contributes, so a long
+// note cannot fill a whole result. A negative MaxLinesPerFile lifts it.
+const DefaultLinesPerNote = 5
 
 // Mode selects how a query's text is read.
 type Mode string
@@ -47,8 +51,8 @@ type Options struct {
 	Query string
 	// Mode selects how Query is read. The zero value is ModeAuto.
 	Mode Mode
-	// MaxLinesPerFile caps the lines returned for any one note; zero means
-	// no cap. It stops one verbose note from filling the whole result.
+	// MaxLinesPerFile caps the lines returned for any one note. Zero means
+	// DefaultLinesPerNote, and a negative value returns every line.
 	MaxLinesPerFile int
 	// Glob optionally restricts the search to matching paths,
 	// e.g. "*.md" or "daily/**".
@@ -58,7 +62,7 @@ type Options struct {
 	// ContextLines is the number of lines of context to include around
 	// each match.
 	ContextLines int
-	// MaxResults caps the number of matching lines returned; zero means
+	// MaxResults caps the number of notes returned; zero means
 	// DefaultMaxResults.
 	MaxResults int
 }
@@ -78,20 +82,23 @@ type Line struct {
 type FileMatches struct {
 	// Path is the vault-relative path of the file.
 	Path string `json:"path"`
-	// Lines are the matching and context lines, in file order. It is empty
-	// when only the note's name matched.
+	// Lines are the matching and context lines, in file order, capped by
+	// MaxLinesPerFile. It is empty when only the note's name matched.
 	Lines []Line `json:"lines"`
+	// TotalMatches counts this note's matching lines, including any the
+	// line cap left out.
+	TotalMatches int `json:"total_matches"`
 	// TitleMatch reports that the note's name matched the query.
 	TitleMatch bool `json:"title_match,omitempty"`
 }
 
 // Result is the outcome of a search.
 type Result struct {
-	// Files lists each file with matches, in path order.
+	// Files lists each note with matches.
 	Files []FileMatches `json:"files"`
-	// TotalMatches counts matching lines across all files.
+	// TotalMatches counts matching lines across every note returned.
 	TotalMatches int `json:"total_matches"`
-	// Truncated reports whether MaxResults cut the result off.
+	// Truncated reports whether notes were left out by MaxResults.
 	Truncated bool `json:"truncated"`
 }
 
@@ -145,6 +152,10 @@ func (s *Searcher) Search(ctx context.Context, root string, opts Options) (*Resu
 		maxResults = DefaultMaxResults
 	}
 	maxResults = min(maxResults, MaxResultsCeiling)
+	maxLines := opts.MaxLinesPerFile
+	if maxLines == 0 {
+		maxLines = DefaultLinesPerNote
+	}
 
 	args := []string{"--json", "--no-ignore", "--sort", "path"}
 	if !opts.CaseSensitive {
@@ -177,7 +188,7 @@ func (s *Searcher) Search(ctx context.Context, root string, opts Options) (*Resu
 	if exitCode > 1 {
 		return nil, fmt.Errorf("search failed: %s", strings.TrimSpace(string(stderr)))
 	}
-	res, err := parseJSONEvents(stdout, maxResults, opts.MaxLinesPerFile)
+	res, err := parseJSONEvents(stdout, maxResults, maxLines)
 	if err != nil {
 		return nil, err
 	}
@@ -272,20 +283,22 @@ func parseJSONEvents(out []byte, maxResults, maxLinesPerFile int) (*Result, erro
 		if ev.Type != "match" && ev.Type != "context" {
 			continue
 		}
-		if ev.Type == "match" && res.TotalMatches >= maxResults {
-			res.Truncated = true
-			break
-		}
 		path := strings.TrimPrefix(ev.Data.Path.Text, "./")
 		if current == nil || current.Path != path {
+			// The budget counts notes, so a long note cannot crowd the
+			// others out of the result.
+			if len(res.Files) == maxResults {
+				res.Truncated = true
+				break
+			}
 			res.Files = append(res.Files, FileMatches{Path: path})
 			current = &res.Files[len(res.Files)-1]
 		}
+		if ev.Type == "match" {
+			current.TotalMatches++
+			res.TotalMatches++
+		}
 		if maxLinesPerFile > 0 && len(current.Lines) >= maxLinesPerFile {
-			if ev.Type == "match" {
-				res.TotalMatches++
-				res.Truncated = true
-			}
 			continue
 		}
 		current.Lines = append(current.Lines, Line{
@@ -293,9 +306,6 @@ func parseJSONEvents(out []byte, maxResults, maxLinesPerFile int) (*Result, erro
 			Text:   strings.TrimRight(ev.Data.Lines.Text, "\n"),
 			Match:  ev.Type == "match",
 		})
-		if ev.Type == "match" {
-			res.TotalMatches++
-		}
 	}
 	if err := scanner.Err(); err != nil {
 		return nil, fmt.Errorf("scanning search output: %w", err)

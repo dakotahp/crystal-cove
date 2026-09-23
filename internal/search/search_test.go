@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -68,16 +69,17 @@ func TestSearchTruncatesAtMaxResults(t *testing.T) {
 
 func TestSearchMaxResultsCeiling(t *testing.T) {
 	var events strings.Builder
-	for range MaxResultsCeiling + 10 {
-		events.WriteString(`{"type":"match","data":{"path":{"text":"./a.md"},"lines":{"text":"hit\n"},"line_number":1}}` + "\n")
+	for i := range MaxResultsCeiling + 10 {
+		fmt.Fprintf(&events,
+			`{"type":"match","data":{"path":{"text":"./n%d.md"},"lines":{"text":"hit\n"},"line_number":1}}`+"\n", i)
 	}
 	s := New("rg", fakeRun(events.String(), "", 0, nil))
 	res, err := s.Search(context.Background(), "/vault", Options{Query: "hit", MaxResults: 10000})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if res.TotalMatches != MaxResultsCeiling || !res.Truncated {
-		t.Fatalf("got TotalMatches=%d Truncated=%v", res.TotalMatches, res.Truncated)
+	if len(res.Files) != MaxResultsCeiling || !res.Truncated {
+		t.Fatalf("got %d notes, Truncated=%v; want the ceiling to cap notes", len(res.Files), res.Truncated)
 	}
 }
 

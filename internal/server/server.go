@@ -92,7 +92,7 @@ func (s *Server) MCPServer() *mcp.Server {
 			"word, in any order; a query with regular-expression characters is read as a regex (ripgrep syntax), and mode " +
 			"forces either reading. Results are ranked: notes named after the query first, flagged title_match, then notes " +
 			"covering more of the query's words, then notes with more matching lines. Case-insensitive unless " +
-			"case_sensitive is set; max_lines_per_note keeps one long note from filling the result.",
+			"case_sensitive is set. max_results counts notes, and each note returns at most 5 matching lines unless max_lines_per_note says otherwise; every note reports its own total_matches.",
 	}, s.searchNotes)
 
 	mcp.AddTool(srv, &mcp.Tool{
@@ -329,7 +329,7 @@ type searchNotesInput struct {
 	Vault           string `json:"vault,omitempty" jsonschema:"name of the vault to search; optional when the server holds one vault"`
 	Query           string `json:"query" jsonschema:"words to look for, or a regular expression in ripgrep syntax"`
 	Mode            string `json:"mode,omitempty" jsonschema:"how to read the query: words (every word, any order), regex, or auto (the default: regex when the query holds regex characters, words otherwise)"`
-	MaxLinesPerNote int    `json:"max_lines_per_note,omitempty" jsonschema:"cap the lines returned for any one note, so a long note cannot fill the result"`
+	MaxLinesPerNote int    `json:"max_lines_per_note,omitempty" jsonschema:"lines to return per note (default 5); use -1 for every matching line"`
 	Glob            string `json:"glob,omitempty" jsonschema:"restrict the search to paths matching this glob, e.g. *.md or daily/**"`
 	CaseSensitive   bool   `json:"case_sensitive,omitempty" jsonschema:"match case exactly instead of the default case-insensitive search"`
 	ContextLines    int    `json:"context_lines,omitempty" jsonschema:"lines of context to include around each match"`
