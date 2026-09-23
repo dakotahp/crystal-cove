@@ -1,7 +1,7 @@
 services:
   obsidian-mcp:
     build: .
-    image: ghcr.io/andyjmorgan/obsidian-hosted-mcp:latest
+    image: ghcr.io/dakotahp/vault-bridge:latest
     restart: unless-stopped
     env_file:
       - path: .env
