@@ -180,8 +180,8 @@ func (v *Vault) ReplaceSection(rel string, headingPath []string, content string)
 		}
 	}
 	updated := prefix + content + string(data[s.end:])
-	if err := os.WriteFile(abs, []byte(updated), 0o644); err != nil {
-		return fmt.Errorf("writing %q: %w", rel, err)
+	if err := writeAtomic(abs, []byte(updated)); err != nil {
+		return err
 	}
 	return nil
 }

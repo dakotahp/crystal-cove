@@ -178,6 +178,9 @@ Your IdP must issue tokens whose `aud` (or `azp`) contains
 mapper, made a realm default so dynamically-registered MCP clients pick it
 up automatically.
 
+Every tool takes a `vault` name. It is optional when the server holds a single
+vault, which is the usual case, and required otherwise.
+
 ## Vault instructions
 
 A vault can tell the model how it is organised. At startup the server reads
@@ -209,6 +212,7 @@ The boot log reports how many characters were loaded.
 | `get_section` | Read a heading section’s body (including subsections), with character paging. |
 | `replace_section` | Replace a heading section’s body and subsections while preserving its heading. |
 | `search_notes` | Searches note names and content. Name matches come first, flagged `title_match`. Content search is ripgrep-backed regex: glob filters, context lines, case sensitivity, result caps. |
+| `recent_notes` | Notes changed most recently, newest first, with modified times. Takes `since` (RFC 3339) and `limit`. |
 | `list_tags` | Every tag in the vault with the number of notes carrying it, most used first. Reads frontmatter `tags` and inline hashtags. |
 | `find_notes` | Query by metadata instead of text: notes carrying all the given tags, and/or a frontmatter field, with the value optional so a key alone finds every note that has it. |
 | `get_frontmatter` | One note's frontmatter fields and tags, without its body. |

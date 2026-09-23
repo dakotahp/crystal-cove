@@ -19,7 +19,7 @@ import (
 const DefaultNoteResults = 50
 
 type listTagsInput struct {
-	Vault string `json:"vault" jsonschema:"the vault to scan"`
+	Vault string `json:"vault,omitempty" jsonschema:"the vault to scan; optional when the server holds one vault"`
 }
 
 // TagCount is one tag and how many notes carry it.
@@ -66,7 +66,7 @@ func (s *Server) listTags(_ context.Context, _ *mcp.CallToolRequest, in listTags
 }
 
 type findNotesInput struct {
-	Vault string   `json:"vault" jsonschema:"the vault to search"`
+	Vault string   `json:"vault,omitempty" jsonschema:"the vault to search; optional when the server holds one vault"`
 	Tags  []string `json:"tags,omitempty" jsonschema:"notes must carry every tag listed"`
 	Key   string   `json:"frontmatter_key,omitempty" jsonschema:"notes must carry this frontmatter field"`
 	Value string   `json:"frontmatter_value,omitempty" jsonschema:"the field must equal this value; omit to match any value"`
@@ -160,7 +160,7 @@ func matchesField(n *notes.Note, key, value string) bool {
 }
 
 type noteRef struct {
-	Vault string `json:"vault" jsonschema:"the vault holding the note"`
+	Vault string `json:"vault,omitempty" jsonschema:"the vault holding the note; optional when the server holds one vault"`
 	Path  string `json:"path" jsonschema:"vault-relative path of the note"`
 }
 
@@ -191,7 +191,7 @@ func (s *Server) getFrontmatter(_ context.Context, _ *mcp.CallToolRequest, in no
 }
 
 type updateFrontmatterInput struct {
-	Vault  string         `json:"vault" jsonschema:"the vault holding the note"`
+	Vault  string         `json:"vault,omitempty" jsonschema:"the vault holding the note; optional when the server holds one vault"`
 	Path   string         `json:"path" jsonschema:"vault-relative path of the note"`
 	Set    map[string]any `json:"set,omitempty" jsonschema:"fields to add or replace"`
 	Remove []string       `json:"remove,omitempty" jsonschema:"field names to delete"`

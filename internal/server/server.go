@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/http"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/auth"
@@ -91,6 +92,13 @@ func (s *Server) MCPServer() *mcp.Server {
 			"matching lines grouped by file, optionally with surrounding context lines. Case-insensitive unless " +
 			"case_sensitive is set.",
 	}, s.searchNotes)
+
+	mcp.AddTool(srv, &mcp.Tool{
+		Name: "recent_notes",
+		Description: "List the notes changed most recently, newest first, with their modified time. Pass since as an " +
+			"RFC 3339 timestamp to see only what changed after it. Use this to pick up where work left off, which a " +
+			"path-ordered listing cannot answer.",
+	}, s.recentNotes)
 
 	mcp.AddTool(srv, &mcp.Tool{
 		Name: "list_tags",
@@ -231,11 +239,32 @@ func verifyToken(cfg AuthConfig) auth.TokenVerifier {
 }
 
 func (s *Server) vault(name string) (*vault.Vault, error) {
+	// Most deployments serve one vault, and naming it on every call is
+	// noise a model can get wrong. With several vaults there is nothing to
+	// guess, so the error names them.
+	if name == "" {
+		if len(s.vaults) == 1 {
+			for _, v := range s.vaults {
+				return v, nil
+			}
+		}
+		return nil, fmt.Errorf("name a vault: this server holds %s", strings.Join(s.vaultNames(), ", "))
+	}
 	v, ok := s.vaults[name]
 	if !ok {
 		return nil, fmt.Errorf("unknown vault %q: use list_vaults to see available vaults", name)
 	}
 	return v, nil
+}
+
+// vaultNames returns the served vault names in a stable order.
+func (s *Server) vaultNames() []string {
+	names := make([]string, 0, len(s.vaults))
+	for name := range s.vaults {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names
 }
 
 type listVaultsOutput struct {
@@ -252,7 +281,7 @@ func (s *Server) listVaults(context.Context, *mcp.CallToolRequest, any) (*mcp.Ca
 }
 
 type listNotesInput struct {
-	Vault     string `json:"vault" jsonschema:"name of the vault to list"`
+	Vault     string `json:"vault,omitempty" jsonschema:"name of the vault to list; optional when the server holds one vault"`
 	Dir       string `json:"dir,omitempty" jsonschema:"vault-relative directory to list; defaults to the vault root"`
 	Recursive bool   `json:"recursive,omitempty" jsonschema:"list subdirectories recursively"`
 }
@@ -274,7 +303,7 @@ func (s *Server) listNotes(_ context.Context, _ *mcp.CallToolRequest, in listNot
 }
 
 type readNoteInput struct {
-	Vault  string `json:"vault" jsonschema:"name of the vault"`
+	Vault  string `json:"vault,omitempty" jsonschema:"name of the vault; optional when the server holds one vault"`
 	Path   string `json:"path" jsonschema:"vault-relative path of the note"`
 	Offset int    `json:"offset,omitempty" jsonschema:"character offset to start reading from; use next_offset from a previous truncated read"`
 }
@@ -292,7 +321,7 @@ func (s *Server) readNote(_ context.Context, _ *mcp.CallToolRequest, in readNote
 }
 
 type searchNotesInput struct {
-	Vault         string `json:"vault" jsonschema:"name of the vault to search"`
+	Vault         string `json:"vault,omitempty" jsonschema:"name of the vault to search; optional when the server holds one vault"`
 	Query         string `json:"query" jsonschema:"regular expression to search for (ripgrep syntax)"`
 	Glob          string `json:"glob,omitempty" jsonschema:"restrict the search to paths matching this glob, e.g. *.md or daily/**"`
 	CaseSensitive bool   `json:"case_sensitive,omitempty" jsonschema:"match case exactly instead of the default case-insensitive search"`
@@ -358,7 +387,7 @@ func withTitleMatches(res *search.Result, titles []string, truncated bool) *sear
 }
 
 type writeNoteInput struct {
-	Vault   string `json:"vault" jsonschema:"name of the vault"`
+	Vault   string `json:"vault,omitempty" jsonschema:"name of the vault; optional when the server holds one vault"`
 	Path    string `json:"path" jsonschema:"vault-relative path of the note"`
 	Content string `json:"content" jsonschema:"markdown content"`
 }
@@ -390,7 +419,7 @@ func (s *Server) appendNote(_ context.Context, _ *mcp.CallToolRequest, in writeN
 }
 
 type editNoteInput struct {
-	Vault      string `json:"vault" jsonschema:"name of the vault"`
+	Vault      string `json:"vault,omitempty" jsonschema:"name of the vault; optional when the server holds one vault"`
 	Path       string `json:"path" jsonschema:"vault-relative path of the note"`
 	Find       string `json:"find" jsonschema:"exact text to replace; must occur exactly once unless replace_all is set"`
 	Replace    string `json:"replace" jsonschema:"replacement text"`
@@ -414,7 +443,7 @@ func (s *Server) editNote(_ context.Context, _ *mcp.CallToolRequest, in editNote
 }
 
 type moveNoteInput struct {
-	Vault   string `json:"vault" jsonschema:"name of the vault"`
+	Vault   string `json:"vault,omitempty" jsonschema:"name of the vault; optional when the server holds one vault"`
 	Path    string `json:"path" jsonschema:"current vault-relative path of the note"`
 	NewPath string `json:"new_path" jsonschema:"destination vault-relative path"`
 }
@@ -431,7 +460,7 @@ func (s *Server) moveNote(_ context.Context, _ *mcp.CallToolRequest, in moveNote
 }
 
 type deleteNoteInput struct {
-	Vault     string `json:"vault" jsonschema:"name of the vault"`
+	Vault     string `json:"vault,omitempty" jsonschema:"name of the vault; optional when the server holds one vault"`
 	Path      string `json:"path" jsonschema:"vault-relative path of the note"`
 	Permanent bool   `json:"permanent,omitempty" jsonschema:"remove the note outright instead of moving it to .trash"`
 }
@@ -444,7 +473,7 @@ type deleteNoteOutput struct {
 }
 
 type restoreNoteInput struct {
-	Vault string `json:"vault" jsonschema:"name of the vault"`
+	Vault string `json:"vault,omitempty" jsonschema:"name of the vault; optional when the server holds one vault"`
 	Path  string `json:"path" jsonschema:"vault-relative path of the note inside .trash"`
 	To    string `json:"to,omitempty" jsonschema:"destination vault-relative path; defaults to the note's path inside .trash"`
 }
@@ -480,7 +509,7 @@ func (s *Server) deleteNote(_ context.Context, _ *mcp.CallToolRequest, in delete
 }
 
 type getSectionInput struct {
-	Vault       string   `json:"vault" jsonschema:"name of the vault"`
+	Vault       string   `json:"vault,omitempty" jsonschema:"name of the vault; optional when the server holds one vault"`
 	Path        string   `json:"path" jsonschema:"vault-relative path of the note"`
 	HeadingPath []string `json:"heading_path" jsonschema:"one or more exact heading titles from ancestor to target; a unique suffix of the full hierarchy"`
 	Offset      int      `json:"offset,omitempty" jsonschema:"character offset within the section body; defaults to zero"`
@@ -496,7 +525,7 @@ func (s *Server) getSection(_ context.Context, _ *mcp.CallToolRequest, in getSec
 }
 
 type replaceSectionInput struct {
-	Vault       string   `json:"vault" jsonschema:"name of the vault"`
+	Vault       string   `json:"vault,omitempty" jsonschema:"name of the vault; optional when the server holds one vault"`
 	Path        string   `json:"path" jsonschema:"vault-relative path of the note"`
 	HeadingPath []string `json:"heading_path" jsonschema:"one or more exact heading titles from ancestor to target; a unique suffix of the full hierarchy"`
 	Content     string   `json:"content" jsonschema:"replacement body including any desired subsections, without the selected heading; empty clears the body"`

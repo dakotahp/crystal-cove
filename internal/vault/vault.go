@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 )
 
 // ReadPageSize is the maximum number of characters returned by a single
@@ -48,6 +49,8 @@ type Entry struct {
 	IsDir bool `json:"is_dir"`
 	// Size is the file size in bytes; zero for directories.
 	Size int64 `json:"size"`
+	// Modified is when the entry last changed, in UTC.
+	Modified time.Time `json:"modified"`
 }
 
 // ReadResult is one page of a note's content.
@@ -146,11 +149,12 @@ func newEntry(root, abs string, d fs.DirEntry) (Entry, error) {
 		return Entry{}, err
 	}
 	e := Entry{Path: filepath.ToSlash(rel), IsDir: d.IsDir()}
+	info, err := d.Info()
+	if err != nil {
+		return Entry{}, err
+	}
+	e.Modified = info.ModTime().UTC()
 	if !d.IsDir() {
-		info, err := d.Info()
-		if err != nil {
-			return Entry{}, err
-		}
 		e.Size = info.Size()
 	}
 	return e, nil
@@ -254,8 +258,8 @@ func (v *Vault) Edit(rel, find, replace string, replaceAll bool) (int, error) {
 	if count > 1 && !replaceAll {
 		return 0, fmt.Errorf("text occurs %d times in %q: provide more surrounding context to make it unique, or set replace_all", count, rel)
 	}
-	if err := os.WriteFile(abs, []byte(strings.ReplaceAll(content, find, replace)), 0o644); err != nil {
-		return 0, fmt.Errorf("writing %q: %w", rel, err)
+	if err := writeAtomic(abs, []byte(strings.ReplaceAll(content, find, replace))); err != nil {
+		return 0, err
 	}
 	return count, nil
 }

@@ -83,6 +83,13 @@ Key invariants:
   on demand: a vault of a few thousand notes is fast enough, so there is no
   index yet. A note whose frontmatter does not parse is skipped during a scan
   rather than failing it, but the single-note tools report the error.
+- **Writes replace a note atomically**: `vault.writeAtomic` writes a temporary
+  file beside the target and renames it over, so the sync client watching the
+  folder never reads a half-written note and an interrupted write leaves the
+  original intact. Keep new write paths on it. One consequence: a read-only
+  note can be replaced, because rename depends on the directory.
+- **A single-vault server takes no vault name.** `Server.vault("")` resolves to
+  the only vault, and errors naming them all when there are several.
 - **Path sandboxing lives in `internal/vault`**, not in tool handlers.
   New file operations must use `resolve()`.
 - **Secrets never reach logs**: `bootstrap.redact()` masks `--password`

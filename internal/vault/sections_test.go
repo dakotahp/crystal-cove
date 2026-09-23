@@ -132,11 +132,15 @@ func TestReplaceSectionWriteError(t *testing.T) {
 		t.Skip("permissions do not restrict root")
 	}
 	v := newTestVault(t)
-	mustWrite(t, v, "note.md", "# Tasks\nold")
-	if err := os.Chmod(filepath.Join(v.Root(), "note.md"), 0o444); err != nil {
+	mustWrite(t, v, "sub/note.md", "# Tasks\nold")
+	// Writes replace a note by renaming a temporary file over it, so the
+	// directory's permissions decide whether a write can happen.
+	dir := filepath.Join(v.Root(), "sub")
+	if err := os.Chmod(dir, 0o555); err != nil {
 		t.Fatal(err)
 	}
-	if err := v.ReplaceSection("note.md", []string{"Tasks"}, "new"); err == nil || !strings.Contains(err.Error(), "writing") {
+	t.Cleanup(func() { _ = os.Chmod(dir, 0o755) })
+	if err := v.ReplaceSection("sub/note.md", []string{"Tasks"}, "new"); err == nil || !strings.Contains(err.Error(), "temporary file") {
 		t.Fatalf("%v", err)
 	}
 }

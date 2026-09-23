@@ -126,7 +126,13 @@ func assertEntries(t *testing.T, got, want []Entry) {
 		t.Fatalf("got %+v, want %+v", got, want)
 	}
 	for i := range got {
-		if got[i] != want[i] {
+		if got[i].Modified.IsZero() {
+			t.Errorf("entry %d has no modified time", i)
+		}
+		// Timestamps come from the filesystem, so compare the rest.
+		gotEntry := got[i]
+		gotEntry.Modified = want[i].Modified
+		if gotEntry != want[i] {
 			t.Errorf("entry %d = %+v, want %+v", i, got[i], want[i])
 		}
 	}

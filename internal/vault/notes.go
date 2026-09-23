@@ -67,8 +67,5 @@ func (v *Vault) WriteAll(rel string, data []byte) error {
 	if err != nil {
 		return err
 	}
-	if err := os.WriteFile(abs, data, 0o644); err != nil {
-		return fmt.Errorf("writing %q: %w", rel, err)
-	}
-	return nil
+	return writeAtomic(abs, data)
 }
