@@ -133,9 +133,13 @@ vault takes a few minutes.
 **4. Point an agent at it.** For Claude Code:
 
 ```sh
-claude mcp add --transport http vault-local http://127.0.0.1:8787/ \
+claude mcp add --scope user --transport http vault-local http://127.0.0.1:8787/ \
   --header "Authorization: Bearer $MCP_AUTH_TOKEN"
 ```
+
+`--scope user` makes the vault available in every folder. Without it, Claude
+Code adds the server to the current folder only. Avoid `--scope project`: it
+writes the token into a `.mcp.json` file that is meant to be committed.
 
 Then `claude mcp list` should show it connected. Other MCP clients take the
 same URL and `Authorization` header.
@@ -187,7 +191,7 @@ The endpoint is the server root (`/`) over streamable HTTP.
 **Claude Code**
 
 ```sh
-claude mcp add --transport http obsidian https://your-host/ \
+claude mcp add --scope user --transport http obsidian https://your-host/ \
   --header "Authorization: Bearer <MCP_AUTH_TOKEN>"
 ```
 
