@@ -323,8 +323,9 @@ Two file names are accepted, in this order:
 The first one found per vault wins. Vaults without either file add nothing. If
 several vaults supply guidance, each section is labelled `## Vault: <name>`.
 
-The file is read once at startup, so restart the container after editing it.
-The boot log reports how many characters were loaded.
+The file is re-read for each new session, so an edit made on another device
+reaches the next conversation once it syncs. The boot log reports how many
+characters were loaded at startup.
 
 ## MCP tools
 

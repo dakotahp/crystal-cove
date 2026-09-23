@@ -24,13 +24,12 @@ const Version = "0.7.0"
 
 // Server wires vaults and search into an MCP tool set.
 type Server struct {
-	vaults   map[string]*vault.Vault
-	searcher *search.Searcher
+	vaults map[string]*vault.Vault
+	// vaultList keeps the configured order for instruction loading.
+	vaultList []*vault.Vault
+	searcher  *search.Searcher
 	// syncReady reports whether every vault has a fresh sync heartbeat.
 	syncReady func() bool
-	// instructions is the vault guidance sent to clients, read once at
-	// startup. An edit to a vault's InstructionsFile needs a restart.
-	instructions string
 }
 
 // New returns a Server over the given vaults.
@@ -40,15 +39,17 @@ func New(vaults []*vault.Vault, searcher *search.Searcher, syncReady func() bool
 		m[v.Name()] = v
 	}
 	return &Server{
-		vaults:       m,
-		searcher:     searcher,
-		syncReady:    syncReady,
-		instructions: loadInstructions(vaults),
+		vaults:    m,
+		vaultList: vaults,
+		searcher:  searcher,
+		syncReady: syncReady,
 	}
 }
 
-// Instructions returns the vault guidance advertised to MCP clients.
-func (s *Server) Instructions() string { return s.instructions }
+// Instructions returns the vault guidance advertised to MCP clients. It is
+// read from disk on each call, so guidance edited on another device reaches
+// the next session once it syncs, with no restart.
+func (s *Server) Instructions() string { return loadInstructions(s.vaultList) }
 
 // MCPServer builds the MCP server with all tools registered.
 func (s *Server) MCPServer() *mcp.Server {
@@ -56,7 +57,7 @@ func (s *Server) MCPServer() *mcp.Server {
 		Name:    "obsidian-hosted-mcp",
 		Title:   "Obsidian Hosted MCP",
 		Version: Version,
-	}, &mcp.ServerOptions{Instructions: s.instructions})
+	}, &mcp.ServerOptions{Instructions: s.Instructions()})
 
 	mcp.AddTool(srv, &mcp.Tool{
 		Name:        "list_vaults",
@@ -314,6 +315,9 @@ func (s *Server) readNote(_ context.Context, _ *mcp.CallToolRequest, in readNote
 	if err != nil {
 		return nil, nil, err
 	}
+	if err := requireNote(in.Path); err != nil {
+		return nil, nil, err
+	}
 	res, err := v.Read(in.Path, in.Offset)
 	if err != nil {
 		return nil, nil, err
@@ -434,6 +438,9 @@ func (s *Server) createNote(_ context.Context, _ *mcp.CallToolRequest, in writeN
 	if err != nil {
 		return nil, okOutput{}, err
 	}
+	if err := requireNote(in.Path); err != nil {
+		return nil, okOutput{}, err
+	}
 	if err := v.Create(in.Path, in.Content); err != nil {
 		return nil, okOutput{}, err
 	}
@@ -443,6 +450,9 @@ func (s *Server) createNote(_ context.Context, _ *mcp.CallToolRequest, in writeN
 func (s *Server) appendNote(_ context.Context, _ *mcp.CallToolRequest, in writeNoteInput) (*mcp.CallToolResult, okOutput, error) {
 	v, err := s.vault(in.Vault)
 	if err != nil {
+		return nil, okOutput{}, err
+	}
+	if err := requireNote(in.Path); err != nil {
 		return nil, okOutput{}, err
 	}
 	if err := v.Append(in.Path, in.Content); err != nil {
@@ -468,6 +478,9 @@ func (s *Server) editNote(_ context.Context, _ *mcp.CallToolRequest, in editNote
 	if err != nil {
 		return nil, editNoteOutput{}, err
 	}
+	if err := requireNote(in.Path); err != nil {
+		return nil, editNoteOutput{}, err
+	}
 	n, err := v.Edit(in.Path, in.Find, in.Replace, in.ReplaceAll)
 	if err != nil {
 		return nil, editNoteOutput{}, err
@@ -484,6 +497,12 @@ type moveNoteInput struct {
 func (s *Server) moveNote(_ context.Context, _ *mcp.CallToolRequest, in moveNoteInput) (*mcp.CallToolResult, okOutput, error) {
 	v, err := s.vault(in.Vault)
 	if err != nil {
+		return nil, okOutput{}, err
+	}
+	if err := requireNote(in.Path); err != nil {
+		return nil, okOutput{}, err
+	}
+	if err := requireNote(in.NewPath); err != nil {
 		return nil, okOutput{}, err
 	}
 	if err := v.Move(in.Path, in.NewPath); err != nil {
@@ -522,6 +541,9 @@ func (s *Server) restoreNote(_ context.Context, _ *mcp.CallToolRequest, in resto
 	if err != nil {
 		return nil, restoreNoteOutput{}, err
 	}
+	if err := requireNote(in.Path); err != nil {
+		return nil, restoreNoteOutput{}, err
+	}
 	restoredTo, err := v.Restore(in.Path, in.To)
 	if err != nil {
 		return nil, restoreNoteOutput{}, err
@@ -532,6 +554,9 @@ func (s *Server) restoreNote(_ context.Context, _ *mcp.CallToolRequest, in resto
 func (s *Server) deleteNote(_ context.Context, _ *mcp.CallToolRequest, in deleteNoteInput) (*mcp.CallToolResult, deleteNoteOutput, error) {
 	v, err := s.vault(in.Vault)
 	if err != nil {
+		return nil, deleteNoteOutput{}, err
+	}
+	if err := requireNote(in.Path); err != nil {
 		return nil, deleteNoteOutput{}, err
 	}
 	trashedTo, err := v.Delete(in.Path, in.Permanent)
@@ -553,6 +578,9 @@ func (s *Server) getSection(_ context.Context, _ *mcp.CallToolRequest, in getSec
 	if err != nil {
 		return nil, nil, err
 	}
+	if err := requireNote(in.Path); err != nil {
+		return nil, nil, err
+	}
 	out, err := v.GetSection(in.Path, in.HeadingPath, in.Offset)
 	return nil, out, err
 }
@@ -567,6 +595,9 @@ type replaceSectionInput struct {
 func (s *Server) replaceSection(_ context.Context, _ *mcp.CallToolRequest, in replaceSectionInput) (*mcp.CallToolResult, okOutput, error) {
 	v, err := s.vault(in.Vault)
 	if err != nil {
+		return nil, okOutput{}, err
+	}
+	if err := requireNote(in.Path); err != nil {
 		return nil, okOutput{}, err
 	}
 	if err := v.ReplaceSection(in.Path, in.HeadingPath, in.Content); err != nil {

@@ -26,7 +26,7 @@ func TestInstructionsFromSingleVaultOmitHeading(t *testing.T) {
 	v := vault.New("Personal", t.TempDir())
 	writeInstructions(t, v, "Daily notes live in Inbox.\n")
 
-	got := New([]*vault.Vault{v}, search.New("rg", nil), func() bool { return true }).instructions
+	got := New([]*vault.Vault{v}, search.New("rg", nil), func() bool { return true }).Instructions()
 	if got != "Daily notes live in Inbox." {
 		t.Errorf("instructions = %q", got)
 	}
@@ -38,7 +38,7 @@ func TestInstructionsFromSeveralVaultsAreLabelled(t *testing.T) {
 	writeInstructions(t, work, "Work notes use ticket ids.")
 	writeInstructions(t, personal, "Daily notes live in Inbox.")
 
-	got := New([]*vault.Vault{work, personal}, search.New("rg", nil), func() bool { return true }).instructions
+	got := New([]*vault.Vault{work, personal}, search.New("rg", nil), func() bool { return true }).Instructions()
 	for _, want := range []string{"## Vault: Work", "ticket ids", "## Vault: Personal", "Inbox"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("instructions = %q, want mention of %q", got, want)
@@ -51,7 +51,7 @@ func TestInstructionsFallBackToSyncedFile(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(v.Root(), SyncedInstructionsFile), []byte("synced guidance"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if got := New([]*vault.Vault{v}, search.New("rg", nil), func() bool { return true }).instructions; got != "synced guidance" {
+	if got := New([]*vault.Vault{v}, search.New("rg", nil), func() bool { return true }).Instructions(); got != "synced guidance" {
 		t.Errorf("instructions = %q", got)
 	}
 }
@@ -62,14 +62,14 @@ func TestInstructionsPreferDotfileOverSyncedFile(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(v.Root(), SyncedInstructionsFile), []byte("synced copy"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if got := New([]*vault.Vault{v}, search.New("rg", nil), func() bool { return true }).instructions; got != "server copy" {
+	if got := New([]*vault.Vault{v}, search.New("rg", nil), func() bool { return true }).Instructions(); got != "server copy" {
 		t.Errorf("instructions = %q", got)
 	}
 }
 
 func TestInstructionsEmptyWithoutFile(t *testing.T) {
 	v := vault.New("Personal", t.TempDir())
-	if got := New([]*vault.Vault{v}, search.New("rg", nil), func() bool { return true }).instructions; got != "" {
+	if got := New([]*vault.Vault{v}, search.New("rg", nil), func() bool { return true }).Instructions(); got != "" {
 		t.Errorf("instructions = %q, want empty", got)
 	}
 }
@@ -79,7 +79,7 @@ func TestInstructionsSkipVaultsWithoutFile(t *testing.T) {
 	personal := vault.New("Personal", t.TempDir())
 	writeInstructions(t, personal, "Daily notes live in Inbox.")
 
-	got := New([]*vault.Vault{work, personal}, search.New("rg", nil), func() bool { return true }).instructions
+	got := New([]*vault.Vault{work, personal}, search.New("rg", nil), func() bool { return true }).Instructions()
 	if strings.Contains(got, "Work") {
 		t.Errorf("instructions = %q, want no section for the vault without a file", got)
 	}
