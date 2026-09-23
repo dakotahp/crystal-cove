@@ -109,7 +109,11 @@ func (s *Server) findNotes(_ context.Context, _ *mcp.CallToolRequest, in findNot
 			out.Truncated = true
 			return nil
 		}
-		out.Notes = append(out.Notes, NoteMeta{Path: path, Tags: n.Tags})
+		tags := n.Tags
+		if tags == nil {
+			tags = []string{}
+		}
+		out.Notes = append(out.Notes, NoteMeta{Path: path, Tags: tags})
 		return nil
 	})
 	if err != nil {

@@ -81,6 +81,20 @@ func TestFindNotesByTagRequiresEveryTag(t *testing.T) {
 	}
 }
 
+func TestFindNotesReturnsAnEmptyTagListNotNull(t *testing.T) {
+	s, _ := metaServer(t, map[string]string{"Inbox/a.md": "---\nstatus: active\n---\n\nbody\n"})
+
+	_, res, err := s.findNotes(context.Background(), &mcp.CallToolRequest{}, findNotesInput{
+		Vault: "Personal", Key: "status",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(res.Notes) != 1 || res.Notes[0].Tags == nil {
+		t.Errorf("Notes = %+v, want an empty tag list so it marshals as []", res.Notes)
+	}
+}
+
 func TestFindNotesByFrontmatterKeyOnly(t *testing.T) {
 	s, _ := metaServer(t, map[string]string{
 		"Inbox/a.md": "---\nstatus: active\n---\n\nbody\n",
