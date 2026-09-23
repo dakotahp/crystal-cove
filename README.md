@@ -50,7 +50,91 @@ once on any machine, answer the MFA prompt, then copy the token from
 `~/.obsidian-headless/auth_token` (macOS). The server then skips `ob login`
 and uses that session. Repeat the step if the token ever stops working.
 
-## Quick start
+## Which setup do you need?
+
+The same container covers two quite different jobs. Start with the first
+one: it is simpler, and it needs no domain name and no OAuth.
+
+| | **On one machine** | **On a server** |
+| --- | --- | --- |
+| Who connects | Agents on that machine: Claude Code, Cursor, and other local MCP clients | claude.ai in a browser, the Claude mobile app, and anything else on the internet |
+| Reached at | `http://127.0.0.1:8787/` | `https://notes.example.com/` |
+| Auth | A static bearer token you generate | OAuth, because claude.ai cannot send a fixed token (see below) |
+| You also need | Docker | A domain name, TLS, and a reverse proxy |
+| Good for | Trying it out, daily agent work on a laptop or work computer, giving an agent your notes without giving it your whole disk | Reaching your vault from a phone, and agents that run while your computer is off |
+
+Both keep the vault in sync through Obsidian Sync, so a note written by an
+agent on one machine appears on your phone and your desktop like any other
+edit.
+
+## Run it on one machine
+
+This is the quickest way to try the server, and it is enough for daily work
+with a local agent.
+
+**You need:** Docker, an Obsidian account with a
+[Sync](https://obsidian.md/sync) subscription, and the vault's end-to-end
+encryption password if you set one.
+
+**1. Get a sync token.** In a terminal, log in once with the official
+headless client and answer any MFA prompt:
+
+```sh
+npx -y obsidian-headless login
+cat ~/.obsidian-headless/auth_token          # macOS
+cat ~/.config/obsidian-headless/auth_token   # Linux
+```
+
+**2. Write a `.env`** next to `docker-compose.yml`:
+
+```sh
+OBSIDIAN_AUTH_TOKEN=the-token-from-step-1
+OBSIDIAN_VAULTS=YourVaultName
+#OBSIDIAN_VAULT_PASSWORD=only-if-the-vault-is-encrypted
+MCP_AUTH_TOKEN=generate-one-with-openssl-rand-hex-32
+PORT=8787
+```
+
+Not sure of the vault's name? `OBSIDIAN_AUTH_TOKEN=... npx -y
+obsidian-headless sync-list-remote --json` lists them as Obsidian Sync
+spells them.
+
+**3. Start it and wait for the first sync:**
+
+```sh
+docker compose up -d
+docker compose logs -f          # wait for "Fully synced", then Ctrl-C
+curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8787/readyz   # 200
+```
+
+The first sync downloads the whole vault into a Docker volume, so a large
+vault takes a few minutes.
+
+**4. Point an agent at it.** For Claude Code:
+
+```sh
+claude mcp add --transport http vault-local http://127.0.0.1:8787/ \
+  --header "Authorization: Bearer $MCP_AUTH_TOKEN"
+```
+
+Then `claude mcp list` should show it connected. Other MCP clients take the
+same URL and `Authorization` header.
+
+**Stopping and cleaning up:** `docker compose stop` leaves the synced copy
+in place for next time. `docker compose down -v` also deletes the volume
+holding the vault copy, so the next start re-syncs from scratch.
+
+**Worth knowing before you run this on a work computer.** The container
+keeps a full copy of the vault on that machine, in a Docker volume, and it
+stays a registered Obsidian Sync device until you remove it. The MCP
+endpoint listens on localhost only, and `MCP_AUTH_TOKEN` keeps other local
+processes from using it.
+
+## Starting it without compose
+
+One container, credentials on the command line. Use `OBSIDIAN_AUTH_TOKEN`
+instead of the email and password if the account has MFA enabled, and note
+that nothing is persisted here, so every restart re-syncs the vault:
 
 ```sh
 docker run -d \
@@ -62,8 +146,8 @@ docker run -d \
   ghcr.io/andyjmorgan/obsidian-hosted-mcp:latest
 ```
 
-Or with Docker Compose (persists the synced vaults and the sync client's
-credential store across restarts):
+Docker Compose is the better default, because it keeps the synced vaults
+and the sync client's credential store across restarts:
 
 ```sh
 cp .env.example .env   # fill in credentials, vaults, and a generated token
@@ -88,9 +172,10 @@ claude mcp add --transport http obsidian https://your-host/ \
 ```
 
 **claude.ai / Claude Desktop** — add a custom connector with URL
-`https://your-host/`. With the static token, paste it as a bearer header
-where supported; with OAuth configured (below), the connector discovers the
-flow automatically and sends your users through your identity provider.
+`https://your-host/`. With OAuth configured (below), the connector
+discovers the flow and signs you in. A static token only works where the
+client offers a request-header field, which a personal plan does not; see
+[What claude.ai needs](#what-claudeai-needs).
 
 **ChatGPT** — add an MCP connector (Settings → Connectors) pointing at
 `https://your-host/`. OAuth-configured servers let ChatGPT run the
@@ -100,24 +185,63 @@ authorization flow itself.
 "Streamable HTTP", URL `https://your-host/`, header
 `Authorization: Bearer <token>`.
 
-## Deploying it for yourself
+## Run it on a server
+
+Do this when you want your vault from a phone, from claude.ai in a browser,
+or from agents that run while your computer is off. Everything in the
+single-machine setup still applies; the rest of this section is what the
+internet adds.
 
 1. **Pick a host** that can run a container and be reached over HTTPS. TLS
    is non-negotiable — tokens travel in a header. A reverse proxy
    (Caddy/Traefik/nginx), a platform ingress, or a
    [Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/)
    all work; the container itself speaks plain HTTP on 8080.
-2. **Use a dedicated vault (or account) first.** The server can create,
+2. **Publish the port to loopback only**, so the proxy is the only way in.
+   The compose file's `"${PORT:-8080}:8080"` binds every interface, which on
+   a public host exposes the MCP endpoint directly, without TLS. Change it
+   to `"127.0.0.1:${PORT:-8080}:8080"`.
+3. **Give the server its own sync token and device name.** Run `ob login`
+   over SSH for a token of its own, and set `OBSIDIAN_DEVICE_NAME` so Sync
+   version history names it clearly. A new login does not revoke tokens held
+   elsewhere, so your laptop keeps working.
+4. **Use a dedicated vault (or account) first.** The server can create,
    edit, move, and delete notes. Deletes are soft by default (they land in
    the vault's `.trash` and stay recoverable everywhere), but start with a
    test vault until you trust your setup.
-3. **Persist `/home/obsidian`** (a named volume or PVC). It holds the sync
+5. **Persist `/home/obsidian`** (a named volume or PVC). It holds the sync
    client's credential store and the local vault copies; losing it is
    recoverable but costs a full re-sync on next boot.
-4. **Run one replica.** Two sync processes on the same vault copy fight
+6. **Run one replica.** Two sync processes on the same vault copy fight
    over the sync client's lock. On Kubernetes use `strategy: Recreate`.
-5. **Pick auth**: a static API key (`MCP_AUTH_TOKEN`), OAuth via your
-   identity provider (below), or both side by side.
+7. **Pick auth**: a static API key (`MCP_AUTH_TOKEN`), OAuth via your
+   identity provider (below), or both side by side. Which one you can use
+   depends on the client, so read the next section before choosing.
+
+### What claude.ai needs
+
+A bearer token is enough for Claude Code and for most local MCP clients. It
+is **not** enough for claude.ai in a browser or the Claude mobile app: on a
+personal plan, a custom connector has no field for a fixed token. Sending
+one as a request header is a beta limited to some organizations, so a
+personal account needs OAuth. See Anthropic's
+[connector authentication docs](https://claude.com/docs/connectors/building/authentication)
+for the current state.
+
+That leaves two ways to reach this server from a phone:
+
+- **Point `OAUTH_ISSUER` at an identity provider** you already run, such as
+  Keycloak, Auth0 or Entra ID. This is the supported path, described below.
+- **Put a small OAuth shim in front of it**, at the same host name, that
+  serves discovery, `/authorize` and `/oauth/token`, and hands back one
+  fixed token that you also set as `MCP_AUTH_TOKEN`. That is far less
+  machinery than a full identity provider for a single user, and the server
+  needs no changes: it just sees a bearer token. Your reverse proxy routes
+  the OAuth paths to the shim and everything else to the container.
+
+Once the connector is added, set the write tools to "Always allow" if you
+plan to use it hands-free, for example in a car. A tool approval prompt may
+not be answerable there.
 
 Startup is fail-fast: if login, any vault's `sync-setup`, or OAuth
 discovery fails, the container exits non-zero so your orchestrator surfaces
