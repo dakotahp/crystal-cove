@@ -317,7 +317,7 @@ func withTitleMatches(res *search.Result, titles []string, truncated bool) *sear
 	for _, path := range titles {
 		f, ok := byPath[path]
 		if !ok {
-			f = search.FileMatches{Path: path}
+			f = search.FileMatches{Path: path, Lines: []search.Line{}}
 		}
 		f.TitleMatch = true
 		files = append(files, f)

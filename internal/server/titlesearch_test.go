@@ -50,6 +50,9 @@ func TestSearchFindsNoteByTitleWhenBodyDoesNotMatch(t *testing.T) {
 	if f.Path != "2_Areas/Meal Planning/Meal Planning.md" || !f.TitleMatch {
 		t.Errorf("Files[0] = %+v, want the note flagged as a title match", f)
 	}
+	if f.Lines == nil {
+		t.Error("Files[0].Lines = nil, want an empty list so it marshals as []")
+	}
 }
 
 func TestSearchPutsTitleMatchesFirst(t *testing.T) {
