@@ -73,6 +73,11 @@ Key invariants:
   heartbeat. A silent continuous-sync child is restarted by the supervisor;
   `/livez` must remain process-only so transient network failures do not
   restart the whole container.
+- **Search reads a query as words unless it looks like a regex.** Two or more
+  plain words mean "a note holding all of them, in any order"; any of the
+  characters in `search.regexChars` make the query a regex. `mode` overrides
+  the guess. Ranking lives in `server/rank.go`: name match, then how many of
+  the query's words the note covers, then match count, then path order.
 - **`search_notes` covers names as well as content.** A note's name is
   usually its subject, so a content-only search misses the note a person
   would have opened by name. `vault.MatchTitles` walks for name matches and

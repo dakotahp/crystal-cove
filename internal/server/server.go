@@ -87,10 +87,11 @@ func (s *Server) MCPServer() *mcp.Server {
 
 	mcp.AddTool(srv, &mcp.Tool{
 		Name: "search_notes",
-		Description: "Search a vault by note name and by content (regex, ripgrep syntax). Notes whose name matches come " +
-			"first, flagged with title_match and carrying no lines when only the name matched; content matches follow as " +
-			"matching lines grouped by file, optionally with surrounding context lines. Case-insensitive unless " +
-			"case_sensitive is set.",
+		Description: "Search a vault by note name and by content. A plain multi-word query finds notes holding every " +
+			"word, in any order; a query with regular-expression characters is read as a regex (ripgrep syntax), and mode " +
+			"forces either reading. Results are ranked: notes named after the query first, flagged title_match, then notes " +
+			"covering more of the query's words, then notes with more matching lines. Case-insensitive unless " +
+			"case_sensitive is set; max_lines_per_note keeps one long note from filling the result.",
 	}, s.searchNotes)
 
 	mcp.AddTool(srv, &mcp.Tool{
@@ -321,12 +322,14 @@ func (s *Server) readNote(_ context.Context, _ *mcp.CallToolRequest, in readNote
 }
 
 type searchNotesInput struct {
-	Vault         string `json:"vault,omitempty" jsonschema:"name of the vault to search; optional when the server holds one vault"`
-	Query         string `json:"query" jsonschema:"regular expression to search for (ripgrep syntax)"`
-	Glob          string `json:"glob,omitempty" jsonschema:"restrict the search to paths matching this glob, e.g. *.md or daily/**"`
-	CaseSensitive bool   `json:"case_sensitive,omitempty" jsonschema:"match case exactly instead of the default case-insensitive search"`
-	ContextLines  int    `json:"context_lines,omitempty" jsonschema:"lines of context to include around each match"`
-	MaxResults    int    `json:"max_results,omitempty" jsonschema:"maximum matching lines to return (default 50, max 500)"`
+	Vault           string `json:"vault,omitempty" jsonschema:"name of the vault to search; optional when the server holds one vault"`
+	Query           string `json:"query" jsonschema:"words to look for, or a regular expression in ripgrep syntax"`
+	Mode            string `json:"mode,omitempty" jsonschema:"how to read the query: words (every word, any order), regex, or auto (the default: regex when the query holds regex characters, words otherwise)"`
+	MaxLinesPerNote int    `json:"max_lines_per_note,omitempty" jsonschema:"cap the lines returned for any one note, so a long note cannot fill the result"`
+	Glob            string `json:"glob,omitempty" jsonschema:"restrict the search to paths matching this glob, e.g. *.md or daily/**"`
+	CaseSensitive   bool   `json:"case_sensitive,omitempty" jsonschema:"match case exactly instead of the default case-insensitive search"`
+	ContextLines    int    `json:"context_lines,omitempty" jsonschema:"lines of context to include around each match"`
+	MaxResults      int    `json:"max_results,omitempty" jsonschema:"maximum matching lines to return (default 50, max 500)"`
 }
 
 func (s *Server) searchNotes(ctx context.Context, _ *mcp.CallToolRequest, in searchNotesInput) (*mcp.CallToolResult, *search.Result, error) {
@@ -334,13 +337,20 @@ func (s *Server) searchNotes(ctx context.Context, _ *mcp.CallToolRequest, in sea
 	if err != nil {
 		return nil, nil, err
 	}
-	res, err := s.searcher.Search(ctx, v.Root(), search.Options{
-		Query:         in.Query,
-		Glob:          in.Glob,
-		CaseSensitive: in.CaseSensitive,
-		ContextLines:  in.ContextLines,
-		MaxResults:    in.MaxResults,
-	})
+	mode, err := searchMode(in.Mode)
+	if err != nil {
+		return nil, nil, err
+	}
+	opts := search.Options{
+		Query:           in.Query,
+		Mode:            mode,
+		MaxLinesPerFile: in.MaxLinesPerNote,
+		Glob:            in.Glob,
+		CaseSensitive:   in.CaseSensitive,
+		ContextLines:    in.ContextLines,
+		MaxResults:      in.MaxResults,
+	}
+	res, err := s.searcher.Search(ctx, v.Root(), opts)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -348,11 +358,34 @@ func (s *Server) searchNotes(ctx context.Context, _ *mcp.CallToolRequest, in sea
 	if limit <= 0 {
 		limit = search.DefaultMaxResults
 	}
-	titles, truncated, err := v.MatchTitles(in.Query, in.CaseSensitive, limit)
+	words := search.QueryWords(opts)
+	titles, truncated, err := matchTitles(v, in.Query, words, in.CaseSensitive, limit)
 	if err != nil {
 		return nil, nil, err
 	}
-	return nil, withTitleMatches(res, titles, truncated), nil
+	res = withTitleMatches(res, titles, truncated)
+	rankFiles(res, in.Query, words)
+	return nil, res, nil
+}
+
+// searchMode converts the tool's mode argument, naming the choices when it
+// is not one of them.
+func searchMode(mode string) (search.Mode, error) {
+	switch search.Mode(mode) {
+	case search.ModeAuto, search.ModeWords, search.ModeRegex:
+		return search.Mode(mode), nil
+	default:
+		return "", fmt.Errorf("mode %q is not one of auto, words or regex", mode)
+	}
+}
+
+// matchTitles finds notes by name the same way the content search read the
+// query: every word in any order, or the raw pattern for a regex query.
+func matchTitles(v *vault.Vault, query string, words []string, caseSensitive bool, limit int) ([]string, bool, error) {
+	if len(words) > 0 {
+		return v.MatchTitleWords(words, caseSensitive, limit)
+	}
+	return v.MatchTitles(query, caseSensitive, limit)
 }
 
 // withTitleMatches moves the notes whose name matched to the front of the

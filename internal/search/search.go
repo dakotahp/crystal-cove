@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"os/exec"
+	"regexp"
 	"strings"
 )
 
@@ -20,10 +21,35 @@ const DefaultMaxResults = 50
 // MaxResultsCeiling is the hard upper bound on matches per search.
 const MaxResultsCeiling = 500
 
+// Mode selects how a query's text is read.
+type Mode string
+
+const (
+	// ModeAuto reads a query holding regular-expression characters as a
+	// regex, and anything else as a set of words.
+	ModeAuto Mode = ""
+	// ModeWords requires every word of the query, in any order, ignoring
+	// regular-expression characters.
+	ModeWords Mode = "words"
+	// ModeRegex reads the whole query as one regular expression.
+	ModeRegex Mode = "regex"
+)
+
+// regexChars are the characters that make a query a regular expression
+// under ModeAuto. A person typing two plain words means both words; a
+// person typing "^tags:" means an anchored pattern.
+const regexChars = `^$\.[]()|*+?{}`
+
 // Options configures a single search.
 type Options struct {
-	// Query is the regular expression to search for (ripgrep syntax).
+	// Query is the text to search for: words, or a regular expression in
+	// ripgrep syntax, as Mode decides.
 	Query string
+	// Mode selects how Query is read. The zero value is ModeAuto.
+	Mode Mode
+	// MaxLinesPerFile caps the lines returned for any one note; zero means
+	// no cap. It stops one verbose note from filling the whole result.
+	MaxLinesPerFile int
 	// Glob optionally restricts the search to matching paths,
 	// e.g. "*.md" or "daily/**".
 	Glob string
@@ -130,7 +156,18 @@ func (s *Searcher) Search(ctx context.Context, root string, opts Options) (*Resu
 	if opts.Glob != "" {
 		args = append(args, "--glob", opts.Glob)
 	}
-	args = append(args, "--regexp", opts.Query, "--", ".")
+	words := QueryWords(opts)
+	if len(words) > 0 {
+		// One pass finds any word; notes missing a word are dropped below.
+		quoted := make([]string, len(words))
+		for i, w := range words {
+			quoted[i] = regexp.QuoteMeta(w)
+		}
+		args = append(args, "--regexp", strings.Join(quoted, "|"))
+	} else {
+		args = append(args, "--regexp", opts.Query)
+	}
+	args = append(args, "--", ".")
 
 	stdout, stderr, exitCode, err := s.run(ctx, root, s.binary, args...)
 	if err != nil {
@@ -140,7 +177,66 @@ func (s *Searcher) Search(ctx context.Context, root string, opts Options) (*Resu
 	if exitCode > 1 {
 		return nil, fmt.Errorf("search failed: %s", strings.TrimSpace(string(stderr)))
 	}
-	return parseJSONEvents(stdout, maxResults)
+	res, err := parseJSONEvents(stdout, maxResults, opts.MaxLinesPerFile)
+	if err != nil {
+		return nil, err
+	}
+	if len(words) > 0 {
+		keepNotesHoldingEveryWord(res, words)
+	}
+	return res, nil
+}
+
+// QueryWords returns the words a query asks for, or nothing when the query
+// is a regular expression. Callers use it to rank results and to match
+// note names the same way the content search did.
+func QueryWords(opts Options) []string {
+	switch opts.Mode {
+	case ModeRegex:
+		return nil
+	case ModeWords:
+		return strings.Fields(opts.Query)
+	}
+	words := strings.Fields(opts.Query)
+	if len(words) < 2 || strings.ContainsAny(opts.Query, regexChars) {
+		return nil
+	}
+	return words
+}
+
+// keepNotesHoldingEveryWord drops notes whose matched lines do not cover
+// every word, which is what makes a multi-word query mean "all of these".
+func keepNotesHoldingEveryWord(res *Result, words []string) {
+	kept := make([]FileMatches, 0, len(res.Files))
+	total := 0
+	for _, f := range res.Files {
+		var text strings.Builder
+		for _, l := range f.Lines {
+			if l.Match {
+				text.WriteString(strings.ToLower(l.Text))
+				text.WriteByte('\n')
+			}
+		}
+		body := text.String()
+		holdsAll := true
+		for _, w := range words {
+			if !strings.Contains(body, strings.ToLower(w)) {
+				holdsAll = false
+				break
+			}
+		}
+		if !holdsAll {
+			continue
+		}
+		kept = append(kept, f)
+		for _, l := range f.Lines {
+			if l.Match {
+				total++
+			}
+		}
+	}
+	res.Files = kept
+	res.TotalMatches = total
 }
 
 // event is the subset of ripgrep's --json output the parser consumes.
@@ -157,7 +253,7 @@ type event struct {
 	} `json:"data"`
 }
 
-func parseJSONEvents(out []byte, maxResults int) (*Result, error) {
+func parseJSONEvents(out []byte, maxResults, maxLinesPerFile int) (*Result, error) {
 	// Files starts non-nil so a zero-match result marshals as "files": []
 	// rather than "files": null.
 	res := &Result{Files: []FileMatches{}}
@@ -184,6 +280,13 @@ func parseJSONEvents(out []byte, maxResults int) (*Result, error) {
 		if current == nil || current.Path != path {
 			res.Files = append(res.Files, FileMatches{Path: path})
 			current = &res.Files[len(res.Files)-1]
+		}
+		if maxLinesPerFile > 0 && len(current.Lines) >= maxLinesPerFile {
+			if ev.Type == "match" {
+				res.TotalMatches++
+				res.Truncated = true
+			}
+			continue
 		}
 		current.Lines = append(current.Lines, Line{
 			Number: ev.Data.LineNumber,

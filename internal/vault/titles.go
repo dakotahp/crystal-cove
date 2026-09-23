@@ -28,8 +28,38 @@ func (v *Vault) MatchTitles(pattern string, caseSensitive bool, limit int) ([]st
 		return nil, false, fmt.Errorf("invalid title pattern: %w", err)
 	}
 
+	return v.matchNames(re.MatchString, limit)
+}
+
+// MatchTitleWords returns notes whose name holds every word, in any order,
+// which is what a multi-word search means. Go's regexp engine has no
+// lookahead, so this cannot be expressed as one pattern.
+func (v *Vault) MatchTitleWords(words []string, caseSensitive bool, limit int) ([]string, bool, error) {
+	prepared := make([]string, len(words))
+	for i, w := range words {
+		if caseSensitive {
+			prepared[i] = w
+		} else {
+			prepared[i] = strings.ToLower(w)
+		}
+	}
+	holdsAll := func(name string) bool {
+		if !caseSensitive {
+			name = strings.ToLower(name)
+		}
+		for _, w := range prepared {
+			if !strings.Contains(name, w) {
+				return false
+			}
+		}
+		return true
+	}
+	return v.matchNames(holdsAll, limit)
+}
+
+func (v *Vault) matchNames(matches func(name string) bool, limit int) ([]string, bool, error) {
 	var paths []string
-	err = filepath.WalkDir(v.root, func(p string, d fs.DirEntry, walkErr error) error {
+	err := filepath.WalkDir(v.root, func(p string, d fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
 		}
@@ -46,7 +76,7 @@ func (v *Vault) MatchTitles(pattern string, caseSensitive bool, limit int) ([]st
 			return nil
 		}
 		name := strings.TrimSuffix(d.Name(), filepath.Ext(d.Name()))
-		if !re.MatchString(name) {
+		if !matches(name) {
 			return nil
 		}
 		rel, err := filepath.Rel(v.root, p)
