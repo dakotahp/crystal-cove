@@ -49,6 +49,9 @@ internal/bootstrap/    drives the ob CLI: login, sync-setup per vault, and a
 internal/vault/        sandboxed filesystem ops rooted at one vault; ALL path
                        handling goes through resolve(), which rejects absolute
                        paths and `..` escapes
+internal/notes/        YAML frontmatter parsing, tag collection (frontmatter
+                       `tags` plus inline hashtags, code fences excluded), and
+                       frontmatter rewriting that preserves key order and body
 internal/search/       ripgrep runner; parses `rg --json` events; hidden dirs
                        (.obsidian, .trash) excluded because rg skips hidden
                        files by default; --no-ignore so stray ignore files
@@ -75,6 +78,11 @@ Key invariants:
   would have opened by name. `vault.MatchTitles` walks for name matches and
   the handler puts them first, flagged `title_match`; content search stays in
   `internal/search`.
+- **Metadata queries are separate from text search.** `find_notes` filters by
+  tags and frontmatter; `search_notes` searches words. Scans read every note
+  on demand: a vault of a few thousand notes is fast enough, so there is no
+  index yet. A note whose frontmatter does not parse is skipped during a scan
+  rather than failing it, but the single-note tools report the error.
 - **Path sandboxing lives in `internal/vault`**, not in tool handlers.
   New file operations must use `resolve()`.
 - **Secrets never reach logs**: `bootstrap.redact()` masks `--password`

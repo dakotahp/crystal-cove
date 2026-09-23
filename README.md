@@ -209,6 +209,10 @@ The boot log reports how many characters were loaded.
 | `get_section` | Read a heading section’s body (including subsections), with character paging. |
 | `replace_section` | Replace a heading section’s body and subsections while preserving its heading. |
 | `search_notes` | Searches note names and content. Name matches come first, flagged `title_match`. Content search is ripgrep-backed regex: glob filters, context lines, case sensitivity, result caps. |
+| `list_tags` | Every tag in the vault with the number of notes carrying it, most used first. Reads frontmatter `tags` and inline hashtags. |
+| `find_notes` | Query by metadata instead of text: notes carrying all the given tags, and/or a frontmatter field, with the value optional so a key alone finds every note that has it. |
+| `get_frontmatter` | One note's frontmatter fields and tags, without its body. |
+| `update_frontmatter` | Add, replace or delete frontmatter fields. Untouched fields keep their value and order, and the body is unchanged. |
 | `create_note` | Create a new note; fails if it already exists. |
 | `append_note` | Append to a note, creating it if needed. |
 | `edit_note` | Exact find/replace; the snippet must be unique unless `replace_all` is set. |

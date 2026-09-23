@@ -93,6 +93,30 @@ func (s *Server) MCPServer() *mcp.Server {
 	}, s.searchNotes)
 
 	mcp.AddTool(srv, &mcp.Tool{
+		Name: "list_tags",
+		Description: "List every tag used in a vault with the number of notes carrying it, most used first. Tags come " +
+			"from the frontmatter tags field and from inline hashtags. Use it to learn what a vault is about before searching.",
+	}, s.listTags)
+
+	mcp.AddTool(srv, &mcp.Tool{
+		Name: "find_notes",
+		Description: "Find notes by metadata rather than text: by tags (a note must carry every tag given) and by a " +
+			"frontmatter field, with frontmatter_value optional so a key on its own finds every note carrying that field. " +
+			"Use search_notes for words in the text.",
+	}, s.findNotes)
+
+	mcp.AddTool(srv, &mcp.Tool{
+		Name:        "get_frontmatter",
+		Description: "Read one note's frontmatter fields and its tags, without its body.",
+	}, s.getFrontmatter)
+
+	mcp.AddTool(srv, &mcp.Tool{
+		Name: "update_frontmatter",
+		Description: "Add, replace or delete frontmatter fields on one note. Fields that are not mentioned keep their " +
+			"value and order, and the note's body is left untouched. Returns the note's fields after the change.",
+	}, s.updateFrontmatter)
+
+	mcp.AddTool(srv, &mcp.Tool{
 		Name:        "create_note",
 		Description: "Create a new note. Parent directories are created automatically; fails if the note already exists.",
 	}, s.createNote)
