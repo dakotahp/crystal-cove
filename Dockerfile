@@ -16,8 +16,10 @@ RUN apk add --no-cache python3 make g++ \
     && cd /usr/local/lib/node_modules/obsidian-headless/node_modules/better-sqlite3 \
     && rm -rf deps src build/deps build/Release/obj build/Release/obj.target
 
-# Bare Alpine runtime: apk nodejs tracks the same Node 22 ABI as the build
-# stage, ripgrep backs search_notes, and tini reaps the ob sync children.
+# Bare Alpine runtime: apk nodejs runs the sync client, ripgrep backs
+# search_notes, and tini reaps the ob sync children. The runtime's Node
+# major need not match the build stage's, because better-sqlite3 is built
+# against Node's stable ABI; scripts/smoke-test.sh loads it to confirm.
 FROM alpine:3.22
 RUN apk add --no-cache nodejs ripgrep tini libstdc++ \
     && adduser -D -h /home/obsidian obsidian

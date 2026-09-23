@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [master]
     tags: ["v*"]
   pull_request:
 
@@ -33,9 +33,19 @@ jobs:
           echo "total coverage: ${total}%"
           awk -v t="$total" 'BEGIN { exit !(t >= 95.0) }' || { echo "coverage ${total}% is below the 95% gate"; exit 1; }
 
+  image:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the runtime image
+        run: docker build -t obsidian-hosted-mcp:ci .
+      - name: Smoke test the image
+        run: ./scripts/smoke-test.sh obsidian-hosted-mcp:ci
+
   publish:
     if: github.event_name == 'push'
-    needs: test
+    needs: [test, image]
     runs-on: ubuntu-latest
     permissions:
       contents: read

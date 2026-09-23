@@ -141,6 +141,10 @@ CI (`.github/workflows/ci.yml`) enforces, in order:
 4. **Total coverage must be ≥ 95%** (currently ~96.7%). If you add code,
    add tests in the same change; prefer refactoring untestable error
    branches away (injection, restructuring) over excluding them.
+4b. `scripts/smoke-test.sh` runs against a freshly built image: building it
+   proves nothing about whether it runs, so this loads the native sqlite
+   module under the runtime's Node, runs `ob` and `rg`, and checks the
+   server binary refuses an empty configuration. No credentials needed.
 5. On push to `main` or `v*` tags: multi-arch (amd64/arm64) image publish
    to `ghcr.io/andyjmorgan/obsidian-hosted-mcp`.
 
