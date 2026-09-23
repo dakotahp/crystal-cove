@@ -340,6 +340,8 @@ characters were loaded at startup.
 | `recent_notes` | Notes changed most recently, newest first, with modified times. Takes `since` (RFC 3339) and `limit`. |
 | `list_tags` | Every tag in the vault with the number of notes carrying it, most used first. Reads frontmatter `tags` and inline hashtags. |
 | `find_notes` | Query by metadata instead of text: notes carrying all the given tags, and/or a frontmatter field, with the value optional so a key alone finds every note that has it. |
+| `get_links` | The wikilinks a note points at, each resolved to the note it names, or flagged unresolved when that note does not exist yet. Headings, aliases and embeds are kept. |
+| `get_backlinks` | The notes that link to a note, with the links they use. |
 | `get_frontmatter` | One note's frontmatter fields and tags, without its body. |
 | `update_frontmatter` | Add, replace or delete frontmatter fields. Untouched fields keep their value and order, and the body is unchanged. |
 | `create_note` | Create a new note; fails if it already exists. |

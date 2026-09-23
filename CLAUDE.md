@@ -51,8 +51,9 @@ internal/vault/        sandboxed filesystem ops rooted at one vault; ALL path
                        handling goes through resolve(), which rejects absolute
                        paths and `..` escapes
 internal/notes/        YAML frontmatter parsing, tag collection (frontmatter
-                       `tags` plus inline hashtags, code fences excluded), and
-                       frontmatter rewriting that preserves key order and body
+                       `tags` plus inline hashtags, code fences excluded),
+                       frontmatter rewriting that preserves key order and body,
+                       and wikilink parsing plus name-based link resolution
 internal/search/       ripgrep runner; parses `rg --json` events; hidden dirs
                        (.obsidian, .trash) excluded because rg skips hidden
                        files by default; --no-ignore so stray ignore files

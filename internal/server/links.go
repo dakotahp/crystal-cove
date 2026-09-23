@@ -1,0 +1,110 @@
+package server
+
+import (
+	"context"
+
+	"github.com/modelcontextprotocol/go-sdk/mcp"
+
+	"github.com/andyjmorgan/obsidian-hosted-mcp/internal/notes"
+)
+
+// ResolvedLink is one wikilink and the note it points at.
+type ResolvedLink struct {
+	notes.Link
+	// Path is the linked note's vault-relative path, empty when the link
+	// points at a note that does not exist.
+	Path string `json:"path,omitempty"`
+	// Resolved reports whether a note with that name exists.
+	Resolved bool `json:"resolved"`
+}
+
+// LinkList is the outcome of get_links.
+type LinkList struct {
+	Path  string         `json:"path"`
+	Links []ResolvedLink `json:"links"`
+}
+
+func (s *Server) getLinks(_ context.Context, _ *mcp.CallToolRequest, in noteRef) (*mcp.CallToolResult, *LinkList, error) {
+	v, err := s.vault(in.Vault)
+	if err != nil {
+		return nil, nil, err
+	}
+	if err := requireNote(in.Path); err != nil {
+		return nil, nil, err
+	}
+	n, err := parseNote(v, in.Path)
+	if err != nil {
+		return nil, nil, err
+	}
+	paths, err := v.Notes()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	out := &LinkList{Path: in.Path, Links: []ResolvedLink{}}
+	for _, link := range notes.Links(n.Body) {
+		resolved := ResolvedLink{Link: link}
+		if path, ok := notes.ResolveLink(link.Target, paths); ok {
+			resolved.Path = path
+			resolved.Resolved = true
+		}
+		out.Links = append(out.Links, resolved)
+	}
+	return nil, out, nil
+}
+
+// Backlink is one note that links to the note asked about.
+type Backlink struct {
+	// Path is the linking note.
+	Path string `json:"path"`
+	// Links are that note's links pointing here, keeping any heading or
+	// alias so the caller can see how it refers to the note.
+	Links []notes.Link `json:"links"`
+}
+
+// BacklinkList is the outcome of get_backlinks.
+type BacklinkList struct {
+	Path      string     `json:"path"`
+	Backlinks []Backlink `json:"backlinks"`
+	// NotesScanned is how many notes were read to find them.
+	NotesScanned int `json:"notes_scanned"`
+}
+
+func (s *Server) getBacklinks(_ context.Context, _ *mcp.CallToolRequest, in noteRef) (*mcp.CallToolResult, *BacklinkList, error) {
+	v, err := s.vault(in.Vault)
+	if err != nil {
+		return nil, nil, err
+	}
+	if err := requireNote(in.Path); err != nil {
+		return nil, nil, err
+	}
+	if _, err := v.ReadAll(in.Path); err != nil {
+		return nil, nil, err
+	}
+	paths, err := v.Notes()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	out := &BacklinkList{Path: in.Path, Backlinks: []Backlink{}}
+	scanned, err := eachNote(v, func(path string, n *notes.Note) error {
+		if path == in.Path {
+			return nil
+		}
+		var hits []notes.Link
+		for _, link := range notes.Links(n.Body) {
+			if target, ok := notes.ResolveLink(link.Target, paths); ok && target == in.Path {
+				hits = append(hits, link)
+			}
+		}
+		if len(hits) > 0 {
+			out.Backlinks = append(out.Backlinks, Backlink{Path: path, Links: hits})
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+	out.NotesScanned = scanned
+	return nil, out, nil
+}

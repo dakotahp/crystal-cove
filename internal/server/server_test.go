@@ -330,7 +330,8 @@ func TestEndToEndOverHTTP(t *testing.T) {
 	slices.Sort(names)
 	want := []string{
 		"append_note", "create_note", "delete_note", "edit_note", "find_notes",
-		"get_frontmatter", "get_section", "list_notes", "list_tags", "list_vaults",
+		"get_backlinks", "get_frontmatter", "get_links",
+		"get_section", "list_notes", "list_tags", "list_vaults",
 		"move_note", "read_note", "recent_notes", "replace_section", "restore_note",
 		"search_notes", "update_frontmatter",
 	}

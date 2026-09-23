@@ -116,6 +116,18 @@ func (s *Server) MCPServer() *mcp.Server {
 	}, s.findNotes)
 
 	mcp.AddTool(srv, &mcp.Tool{
+		Name: "get_links",
+		Description: "List the wikilinks a note points at, each resolved to the note it names, or flagged unresolved " +
+			"when no such note exists yet. Headings, aliases and embeds are reported as written.",
+	}, s.getLinks)
+
+	mcp.AddTool(srv, &mcp.Tool{
+		Name: "get_backlinks",
+		Description: "List the notes that link to a note, with the links they use. This is how notes relate to each " +
+			"other in Obsidian, so use it to find the context around a note rather than searching for its name.",
+	}, s.getBacklinks)
+
+	mcp.AddTool(srv, &mcp.Tool{
 		Name:        "get_frontmatter",
 		Description: "Read one note's frontmatter fields and its tags, without its body.",
 	}, s.getFrontmatter)
