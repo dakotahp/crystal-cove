@@ -4,8 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"path/filepath"
 	"slices"
 	"sort"
+	"strings"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
@@ -178,6 +180,9 @@ func (s *Server) getFrontmatter(_ context.Context, _ *mcp.CallToolRequest, in no
 	if err != nil {
 		return nil, nil, err
 	}
+	if err := requireNote(in.Path); err != nil {
+		return nil, nil, err
+	}
 	n, err := parseNote(v, in.Path)
 	if err != nil {
 		return nil, nil, err
@@ -195,6 +200,9 @@ type updateFrontmatterInput struct {
 func (s *Server) updateFrontmatter(_ context.Context, _ *mcp.CallToolRequest, in updateFrontmatterInput) (*mcp.CallToolResult, *Frontmatter, error) {
 	v, err := s.vault(in.Vault)
 	if err != nil {
+		return nil, nil, err
+	}
+	if err := requireNote(in.Path); err != nil {
 		return nil, nil, err
 	}
 	if len(in.Set) == 0 && len(in.Remove) == 0 {
@@ -229,6 +237,16 @@ func frontmatterOf(path string, n *notes.Note) *Frontmatter {
 		out.Tags = []string{}
 	}
 	return out
+}
+
+// requireNote rejects a path that is not a Markdown note. Frontmatter is a
+// note concept, and without this a caller could prepend a YAML block to a
+// stylesheet or to Obsidian's own config files.
+func requireNote(path string) error {
+	if !strings.EqualFold(filepath.Ext(path), vault.NoteExtension) {
+		return fmt.Errorf("path %q is not a %s note: frontmatter tools work on notes only", path, vault.NoteExtension)
+	}
+	return nil
 }
 
 func parseNote(v *vault.Vault, path string) (*notes.Note, error) {
