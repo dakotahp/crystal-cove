@@ -1,0 +1,47 @@
+version: 2
+
+updates:
+  # Go modules: the MCP SDK, the OIDC library, the YAML and Markdown
+  # parsers. Security fixes here reach the server directly.
+  - package-ecosystem: gomod
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - go
+    assignees:
+      - dakotahp
+    groups:
+      # One pull request for routine patches keeps the noise down; a major
+      # version still arrives on its own, where it gets read properly.
+      go-minor-and-patch:
+        update-types:
+          - minor
+          - patch
+
+  # Base images: the Go builder, the Node stage that installs the headless
+  # client, and the Alpine runtime.
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 3
+    labels:
+      - dependencies
+      - docker
+    assignees:
+      - dakotahp
+
+  # Actions used by the CI workflow.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 3
+    labels:
+      - dependencies
+      - github-actions
+    assignees:
+      - dakotahp

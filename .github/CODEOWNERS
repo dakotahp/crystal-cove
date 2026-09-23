@@ -1,0 +1,4 @@
+# Every pull request, including Dependabot's, requests a review from the
+# owner. Dependabot's `reviewers` key no longer exists, so this file is
+# what puts an update in front of a person.
+*       @dakotahp

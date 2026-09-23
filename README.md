@@ -17,18 +17,26 @@
 
 ## Why this exists
 
-Your Obsidian vault is where your notes, projects, and ideas live — but AI
-assistants can't see it. Plugins that embed an HTTP server inside the
-desktop app only work while that machine is awake, on your network, with
-Obsidian running.
+Giving an AI assistant real access to an Obsidian vault needs three things
+at once. Every other approach I tried has two of them.
 
-This project takes a different approach: a **single, internet-hostable
-container** that is itself a first-class Obsidian Sync device. It logs into
-[Obsidian Sync](https://obsidian.md/sync) with the official
-[headless client](https://help.obsidian.md/install/headless) (no
-reverse-engineered protocols), keeps a live copy of your vaults, and serves
-them to AI assistants over the
-[Model Context Protocol](https://modelcontextprotocol.io) (streamable HTTP).
+1. **The official sync engine.** The vault copy is kept by Obsidian's own
+   [headless client](https://help.obsidian.md/install/headless), so nothing
+   here reimplements Obsidian Sync, and nothing depends on the desktop app
+   being awake or on a socket into it.
+2. **Reach from anywhere.** It speaks the
+   [Model Context Protocol](https://modelcontextprotocol.io) over HTTP with
+   authentication, so a browser, a phone, or a cloud agent can use it while
+   your computer is off.
+3. **Tools that understand notes.** Tags, frontmatter, wikilinks, and a
+   search that ranks a note named after your query above a passing mention
+   of it. Not `read_file` and `list_directory` over a folder.
+
+Drop any one and the result fails in a specific way. Reimplement sync and
+you are trusting a guess about someone else's protocol with your notes.
+Skip the remote part and it only works on one machine, so no phone and no
+cloud. Ship generic file tools and the assistant cannot find anything,
+because a note's name and its frontmatter are where the meaning lives.
 
 That means:
 
@@ -41,6 +49,16 @@ That means:
 - It runs 24/7 wherever you host containers: a NAS, a VPS, Kubernetes, or a
   Raspberry Pi (images are amd64 + arm64).
 
+### It is also the better local option
+
+The remote half is optional. Because the tools understand notes and nothing
+depends on the desktop app, the same server is the most capable way to give
+a **local** agent your vault: point Claude Code at `127.0.0.1` and you get
+tag queries, frontmatter edits, backlinks and ranked search, with no
+Obsidian window open and no socket to race against. One interface on your
+laptop, your work machine and your phone, instead of one tool for local
+work and a different one for everything else.
+
 Requirements: an Obsidian account with a **Sync subscription**.
 
 If the account has MFA enabled, no one can type the code inside a container,
@@ -52,8 +70,10 @@ and uses that session. Repeat the step if the token ever stops working.
 
 ## Which setup do you need?
 
-The same container covers two quite different jobs. Start with the first
-one: it is simpler, and it needs no domain name and no OAuth.
+The same container covers two quite different jobs, and the tools are the
+same either way. Start with the first one: it is simpler, it needs no
+domain name and no OAuth, and it is a complete setup on its own rather than
+a trial run.
 
 | | **On one machine** | **On a server** |
 | --- | --- | --- |
@@ -61,7 +81,7 @@ one: it is simpler, and it needs no domain name and no OAuth.
 | Reached at | `http://127.0.0.1:8787/` | `https://notes.example.com/` |
 | Auth | A static bearer token you generate | OAuth, because claude.ai cannot send a fixed token (see below) |
 | You also need | Docker | A domain name, TLS, and a reverse proxy |
-| Good for | Trying it out, daily agent work on a laptop or work computer, giving an agent your notes without giving it your whole disk | Reaching your vault from a phone, and agents that run while your computer is off |
+| Good for | Daily agent work on a laptop or work computer, in place of a plugin or the Obsidian CLI, with no desktop app running | Reaching your vault from a phone, and agents that run while your computer is off |
 
 Both keep the vault in sync through Obsidian Sync, so a note written by an
 agent on one machine appears on your phone and your desktop like any other
