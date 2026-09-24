@@ -159,7 +159,8 @@ CI (`.github/workflows/ci.yml`) enforces, in order:
 4c. Security jobs: a 20-second fuzz run per `Fuzz*` target, gosec
    (silence a false positive on its own line with `#nosec <rule> --
    reason`, never project-wide), `scripts/vulncheck.sh` (govulncheck under
-   the Dockerfile's Go builder image), and zizmor on the workflows. Fuzz and
+   the Dockerfile's Go builder image), and zizmor on the workflows and
+   Dependabot config (run it on the whole repo, as CI does). Fuzz and
    gosec gate publishing; govulncheck and zizmor only turn CI red.
    Workflow actions are pinned to commit SHAs; keep new ones pinned.
 5. On push to `master`, and weekly on a schedule without the layer cache:
