@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"path"
 	"path/filepath"
 	"slices"
 	"sort"
@@ -248,12 +249,28 @@ func requireNote(path string) error {
 	if !strings.EqualFold(filepath.Ext(path), vault.NoteExtension) {
 		return fmt.Errorf("path %q is not a %s note: these tools work on notes only", path, vault.NoteExtension)
 	}
-	for _, part := range strings.Split(filepath.ToSlash(path), "/") {
-		if strings.HasPrefix(part, ".") && part != vault.TrashDir {
-			return fmt.Errorf("path %q is inside a hidden folder: these tools work on notes only", path)
-		}
+	if inHiddenFolder(filepath.ToSlash(path)) {
+		return fmt.Errorf("path %q is inside a hidden folder: these tools work on notes only", path)
 	}
 	return nil
+}
+
+// requireVisibleDir rejects a directory inside a hidden folder other than
+// the trash, so list_notes cannot enumerate .obsidian or other dotfolders.
+func requireVisibleDir(dir string) error {
+	if clean := path.Clean(filepath.ToSlash(dir)); clean != "." && inHiddenFolder(clean) {
+		return fmt.Errorf("directory %q is a hidden folder: only notes and the %s folder can be listed", dir, vault.TrashDir)
+	}
+	return nil
+}
+
+func inHiddenFolder(slashPath string) bool {
+	for _, part := range strings.Split(slashPath, "/") {
+		if strings.HasPrefix(part, ".") && part != vault.TrashDir {
+			return true
+		}
+	}
+	return false
 }
 
 // requireWritableNote applies requireNote and also refuses the synced
