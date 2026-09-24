@@ -32,7 +32,7 @@ func testEnv(t *testing.T) map[string]string {
 		"OBSIDIAN_EMAIL":    "user@example.com",
 		"OBSIDIAN_PASSWORD": "pw",
 		"OBSIDIAN_VAULTS":   "Notes",
-		"MCP_AUTH_TOKEN":    "secret",
+		"MCP_AUTH_TOKEN":    "0123456789abcdef0123456789abcdef",
 		"VAULTS_DIR":        t.TempDir(),
 		"PORT":              "0",
 	}
