@@ -109,7 +109,9 @@ deliberate rather than occasional.
 
 1. Formatting and `go vet`.
 2. The full test suite, with total coverage held at 95% or above.
-3. A smoke test that runs the built image: it opens a database with the
+3. A short fuzz run against the path sandbox and the rule for which notes
+   the write tools may change.
+4. A smoke test that runs the built image: it opens a database with the
    native sqlite module under the runtime's Node, runs the sync client and
    ripgrep, and checks the server refuses to start with an empty
    configuration. Building an image does not prove it runs, so this gate
