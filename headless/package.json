@@ -1,0 +1,8 @@
+{
+  "name": "vault-bridge-headless",
+  "private": true,
+  "description": "Pins the Obsidian headless sync client installed into the image.",
+  "dependencies": {
+    "obsidian-headless": "0.0.14"
+  }
+}

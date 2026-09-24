@@ -21,6 +21,20 @@ updates:
           - minor
           - patch
 
+  # The Obsidian headless sync client and its dependency tree, pinned by
+  # headless/package-lock.json. It holds the account token and vault
+  # passwords, so every version change arrives as a reviewed pull request.
+  - package-ecosystem: npm
+    directory: /headless
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 3
+    labels:
+      - dependencies
+      - javascript
+    assignees:
+      - dakotahp
+
   # Base images: the Go builder, the Node stage that installs the headless
   # client, and the Alpine runtime.
   - package-ecosystem: docker
