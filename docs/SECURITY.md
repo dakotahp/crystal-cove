@@ -42,7 +42,10 @@ Two layers, because one is not enough:
 
 1. **Path sandboxing.** Every path a tool receives is resolved through a
    single function that rejects absolute paths and any `..` that would
-   escape the vault root. No tool handler builds paths on its own.
+   escape the vault root. The file is then opened through Go's `os.Root`,
+   which refuses a symlink that leads outside the vault, so a link placed
+   in the vault folder cannot expose or overwrite the host. No tool handler
+   builds paths on its own.
 2. **Notes only.** Tools additionally require a `.md` path outside hidden
    folders, so a client cannot read or rewrite Obsidian's own
    configuration, a stylesheet, or a dotfile that happens to sit in the

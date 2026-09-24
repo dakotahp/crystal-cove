@@ -74,6 +74,21 @@ func TestInstructionsEmptyWithoutFile(t *testing.T) {
 	}
 }
 
+func TestInstructionsIgnoreASymlinkOutOfTheVault(t *testing.T) {
+	outside := filepath.Join(t.TempDir(), "secret.md")
+	if err := os.WriteFile(outside, []byte("server secret"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	v := vault.New("Personal", t.TempDir())
+	if err := os.Symlink(outside, filepath.Join(v.Root(), InstructionsFile)); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+
+	if got := New([]*vault.Vault{v}, search.New("rg", nil), func() bool { return true }).Instructions(); got != "" {
+		t.Errorf("instructions = %q, want nothing read through the symlink", got)
+	}
+}
+
 func TestInstructionsSkipVaultsWithoutFile(t *testing.T) {
 	work := vault.New("Work", t.TempDir())
 	personal := vault.New("Personal", t.TempDir())

@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"os"
 	"slices"
 	"strings"
 
@@ -122,23 +121,19 @@ func selectSection(source []byte, headingPath []string) (section, error) {
 	return matches[0], nil
 }
 
-func (v *Vault) loadSection(rel string, headingPath []string) (string, []byte, section, error) {
-	abs, err := v.resolve(rel)
+func (v *Vault) loadSection(rel string, headingPath []string) ([]byte, section, error) {
+	data, err := v.ReadAll(rel)
 	if err != nil {
-		return "", nil, section{}, err
-	}
-	data, err := os.ReadFile(abs)
-	if err != nil {
-		return "", nil, section{}, fmt.Errorf("reading %q: %w", rel, err)
+		return nil, section{}, err
 	}
 	s, err := selectSection(data, headingPath)
-	return abs, data, s, err
+	return data, s, err
 }
 
 // GetSection reads the body of a uniquely selected heading. A heading path is
 // an exact, case-sensitive suffix of the full hierarchy, using Markdown titles.
 func (v *Vault) GetSection(rel string, headingPath []string, offset int) (*SectionResult, error) {
-	_, data, s, err := v.loadSection(rel, headingPath)
+	data, s, err := v.loadSection(rel, headingPath)
 	if err != nil {
 		return nil, err
 	}
@@ -157,7 +152,7 @@ func (v *Vault) GetSection(rel string, headingPath []string, offset int) (*Secti
 // ReplaceSection replaces a body and its subsections, preserving the selected
 // heading and all bytes outside the body. Content excludes the selected heading.
 func (v *Vault) ReplaceSection(rel string, headingPath []string, content string) error {
-	abs, data, s, err := v.loadSection(rel, headingPath)
+	data, s, err := v.loadSection(rel, headingPath)
 	if err != nil {
 		return err
 	}
@@ -180,7 +175,7 @@ func (v *Vault) ReplaceSection(rel string, headingPath []string, content string)
 		}
 	}
 	updated := prefix + content + string(data[s.end:])
-	if err := writeAtomic(abs, []byte(updated)); err != nil {
+	if err := v.WriteAll(rel, []byte(updated)); err != nil {
 		return err
 	}
 	return nil
