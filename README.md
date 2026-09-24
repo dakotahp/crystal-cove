@@ -465,15 +465,24 @@ CI enforces `gofmt`, `go vet`, and a 95% total coverage gate, then publishes
 a multi-arch (amd64/arm64) image to GHCR: `:latest` from `main` and semver
 tags from `v*` releases.
 
-## Security notes
+## Security
 
-- Run behind TLS (a reverse proxy or your platform's ingress); the token
+[docs/SECURITY.md](docs/SECURITY.md) describes the whole picture: what is
+protected, where the boundaries are, how dependencies are kept current,
+what CI proves before an image ships, the known limits, and how to report a
+problem. The short version:
+
+- Every MCP request is authenticated, by a constant-time token check or by
+  an OpenID Connect provider. Only the two health endpoints are open, and
+  neither reads the vault.
+- Run behind TLS and publish the container's port to loopback; the token
   travels in a header.
-- The static bearer token is a shared secret, not user auth. For user
-  identity, set `OAUTH_ISSUER` to delegate authentication to any OpenID
-  Connect provider; both modes can run side by side.
-- Credentials are passed to the `ob` CLI as arguments inside the container
-  and are redacted from this server's logs.
+- Tools reach notes and nothing else: paths are sandboxed to the vault, and
+  restricted to `.md` files outside hidden folders.
+- Secrets arrive by environment variable, stay out of logs and the process
+  table, and `.env` is never committed.
+- Dependabot watches Go modules, base images and CI actions weekly, with
+  security alerts and automated fixes on.
 
 ---
 
