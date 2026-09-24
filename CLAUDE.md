@@ -48,8 +48,9 @@ internal/bootstrap/    drives the ob CLI: login, sync-setup per vault, and a
                        supervisor that restarts `ob sync --continuous` with
                        exponential backoff (reset after stable runs)
 internal/vault/        sandboxed filesystem ops rooted at one vault; ALL path
-                       handling goes through resolve(), which rejects absolute
-                       paths and `..` escapes
+                       handling goes through open(), which rejects absolute
+                       paths and `..` escapes, then works through an os.Root
+                       so symlinks cannot lead outside the vault
 internal/notes/        YAML frontmatter parsing, tag collection (frontmatter
                        `tags` plus inline hashtags, code fences excluded),
                        frontmatter rewriting that preserves key order and body,
@@ -102,7 +103,9 @@ Key invariants:
 - **A single-vault server takes no vault name.** `Server.vault("")` resolves to
   the only vault, and errors naming them all when there are several.
 - **Path sandboxing lives in `internal/vault`**, not in tool handlers.
-  New file operations must use `resolve()`.
+  New file operations must go through `open()` and the `os.Root` it
+  returns, never `os` calls on a joined path, which would follow a symlink
+  out of the vault.
 - **Secrets never reach logs**: `bootstrap.redact()` masks `--password`
   values; keep that property when adding ob invocations.
 - **External processes are injected for tests**: `ob` via a fake script on

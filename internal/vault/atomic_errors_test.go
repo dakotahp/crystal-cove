@@ -87,4 +87,26 @@ func TestNotesAndRecentNotesReportAMissingRoot(t *testing.T) {
 	if _, err := v.RecentNotes(0, time.Time{}); err == nil {
 		t.Error("RecentNotes accepted a missing vault root")
 	}
+	if _, err := v.ReadAll("a.md"); err == nil || !strings.Contains(err.Error(), "opening vault") {
+		t.Errorf("ReadAll err = %v, want it to name the vault", err)
+	}
+	if _, err := v.List("", false); err == nil || !strings.Contains(err.Error(), "opening vault") {
+		t.Errorf("List err = %v, want it to name the vault", err)
+	}
+}
+
+func TestWriteAllReportsATargetItCannotReplace(t *testing.T) {
+	v := newNotesVault(t, "Inbox/today.md/inside.md")
+
+	err := v.WriteAll("Inbox/today.md", []byte("changed\n"))
+	if err == nil || !strings.Contains(err.Error(), "replacing") {
+		t.Fatalf("err = %v, want a failed replace", err)
+	}
+	entries, err := os.ReadDir(filepath.Join(v.Root(), "Inbox"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 1 {
+		t.Errorf("Inbox holds %d entries, want the temporary file removed", len(entries))
+	}
 }
