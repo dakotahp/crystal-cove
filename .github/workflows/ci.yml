@@ -5,6 +5,11 @@ on:
     branches: [master]
     tags: ["v*"]
   pull_request:
+  # A weekly rebuild picks up Alpine, Node and Go security patches that
+  # land without any change to this repository.
+  schedule:
+    - cron: "17 6 * * 1"
+  workflow_dispatch:
 
 # Jobs get a read-only token unless they ask for more.
 permissions:
@@ -86,7 +91,7 @@ jobs:
           output-format: table
 
   publish:
-    if: github.event_name == 'push'
+    if: github.event_name == 'push' || (github.event_name != 'pull_request' && github.ref == 'refs/heads/master')
     needs: [test, fuzz, image]
     runs-on: ubuntu-latest
     permissions:
@@ -118,5 +123,9 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          # Cached layers would skip apk add and keep old packages, so a
+          # rebuild that is not triggered by a push starts from scratch.
+          pull: true
+          no-cache: ${{ github.event_name != 'push' }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
