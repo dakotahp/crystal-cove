@@ -120,7 +120,10 @@ deliberate rather than occasional.
    client's npm tree and the Go binary. A high or critical vulnerability
    that has a fix stops the image, since updating is then all it takes.
 
-Publishing waits on all of it.
+Publishing waits on all of it. Each published image carries an SBOM and
+full build provenance as registry attestations, so what it contains and
+which workflow built it can be checked with `docker buildx imagetools
+inspect`.
 
 CI also rebuilds and republishes `:latest` every week without the layer
 cache, so Alpine, Node and Go security patches reach the image even when

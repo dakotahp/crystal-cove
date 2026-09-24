@@ -123,6 +123,8 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          sbom: true
+          provenance: mode=max
           # Cached layers would skip apk add and keep old packages, so a
           # rebuild that is not triggered by a push starts from scratch.
           pull: true
