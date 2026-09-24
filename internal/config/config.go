@@ -7,6 +7,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
+	"net/url"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -171,8 +173,8 @@ func parseOAuth(getenv Getenv) (*OAuth, string, error) {
 		}
 		return nil, "", nil
 	}
-	if !strings.HasPrefix(issuer, "https://") && !strings.HasPrefix(issuer, "http://") {
-		return nil, "", fmt.Errorf("OAUTH_ISSUER must be an http(s) URL, got %q", issuer)
+	if err := checkIssuerURL(issuer); err != nil {
+		return nil, "", err
 	}
 	o := &OAuth{
 		Issuer:         issuer,
@@ -203,6 +205,28 @@ func parseOAuth(getenv Getenv) (*OAuth, string, error) {
 		return nil, "", errors.New("MCP_PUBLIC_URL must be set when OAUTH_ISSUER is: it is the protected-resource identifier advertised to MCP clients")
 	}
 	return o, publicURL, nil
+}
+
+// checkIssuerURL requires an https issuer. MCP clients are sent to it to
+// sign in, so plain http is allowed only on a loopback host, where a local
+// identity provider commonly runs without TLS.
+func checkIssuerURL(issuer string) error {
+	u, err := url.Parse(issuer)
+	if err != nil || u.Host == "" || (u.Scheme != "https" && u.Scheme != "http") {
+		return fmt.Errorf("OAUTH_ISSUER must be an http(s) URL, got %q", issuer)
+	}
+	if u.Scheme == "http" && !isLoopback(u.Hostname()) {
+		return fmt.Errorf("OAUTH_ISSUER must use https, got %q: plain http is allowed only on a loopback host", issuer)
+	}
+	return nil
+}
+
+func isLoopback(host string) bool {
+	if host == "localhost" {
+		return true
+	}
+	ip := net.ParseIP(host)
+	return ip != nil && ip.IsLoopback()
 }
 
 // parseVaults parses the OBSIDIAN_VAULTS list. Each comma-separated entry is
