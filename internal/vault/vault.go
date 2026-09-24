@@ -68,8 +68,9 @@ type ReadResult struct {
 	NextOffset int `json:"next_offset"`
 }
 
-// resolve maps a vault-relative path to an absolute path, rejecting empty,
-// absolute, and root-escaping paths.
+// resolve cleans a vault-relative path, rejecting empty, absolute, and
+// root-escaping paths. It checks the text only; symlinks are caught by
+// opening the path through the vault's os.Root.
 func (v *Vault) resolve(rel string) (string, error) {
 	if rel == "" {
 		return "", errors.New("path must not be empty")
@@ -81,7 +82,30 @@ func (v *Vault) resolve(rel string) (string, error) {
 	if clean == ".." || strings.HasPrefix(clean, ".."+string(filepath.Separator)) {
 		return "", fmt.Errorf("path %q escapes the vault root", rel)
 	}
-	return filepath.Join(v.root, clean), nil
+	return clean, nil
+}
+
+// open resolves rel and opens the vault directory as an os.Root, which
+// refuses any path, symlinks included, that leads outside the vault. Every
+// file operation goes through it. The caller closes the root.
+func (v *Vault) open(rel string) (*os.Root, string, error) {
+	clean, err := v.resolve(rel)
+	if err != nil {
+		return nil, "", err
+	}
+	root, err := v.openRoot()
+	if err != nil {
+		return nil, "", err
+	}
+	return root, clean, nil
+}
+
+func (v *Vault) openRoot() (*os.Root, error) {
+	root, err := os.OpenRoot(v.root)
+	if err != nil {
+		return nil, fmt.Errorf("opening vault %q: %w", v.name, err)
+	}
+	return root, nil
 }
 
 // List returns entries under dir (vault root when dir is empty), skipping
@@ -89,18 +113,24 @@ func (v *Vault) resolve(rel string) (string, error) {
 // hidden directory such as .trash as dir lists inside it explicitly. When
 // recursive is true it descends into subdirectories.
 func (v *Vault) List(dir string, recursive bool) ([]Entry, error) {
-	base := v.root
+	base := "."
 	if dir != "" {
-		abs, err := v.resolve(dir)
+		clean, err := v.resolve(dir)
 		if err != nil {
 			return nil, err
 		}
-		base = abs
+		base = filepath.ToSlash(clean)
 	}
+	root, err := v.openRoot()
+	if err != nil {
+		return nil, err
+	}
+	defer root.Close()
+	fsys := root.FS()
 	// entries starts non-nil so an empty listing marshals as [], not null.
 	entries := []Entry{}
 	if recursive {
-		err := filepath.WalkDir(base, func(p string, d fs.DirEntry, err error) error {
+		err := fs.WalkDir(fsys, base, func(p string, d fs.DirEntry, err error) error {
 			if err != nil {
 				return err
 			}
@@ -113,7 +143,7 @@ func (v *Vault) List(dir string, recursive bool) ([]Entry, error) {
 				}
 				return nil
 			}
-			e, err := newEntry(v.root, p, d)
+			e, err := entryAt(p, d)
 			if err != nil {
 				return err
 			}
@@ -124,7 +154,7 @@ func (v *Vault) List(dir string, recursive bool) ([]Entry, error) {
 			return nil, fmt.Errorf("listing %q: %w", dir, err)
 		}
 	} else {
-		dirents, err := os.ReadDir(base)
+		dirents, err := fs.ReadDir(fsys, base)
 		if err != nil {
 			return nil, fmt.Errorf("listing %q: %w", dir, err)
 		}
@@ -132,7 +162,7 @@ func (v *Vault) List(dir string, recursive bool) ([]Entry, error) {
 			if strings.HasPrefix(d.Name(), ".") {
 				continue
 			}
-			e, err := newEntry(v.root, filepath.Join(base, d.Name()), d)
+			e, err := entryAt(path.Join(base, d.Name()), d)
 			if err != nil {
 				return nil, err
 			}
@@ -148,7 +178,12 @@ func newEntry(root, abs string, d fs.DirEntry) (Entry, error) {
 	if err != nil {
 		return Entry{}, err
 	}
-	e := Entry{Path: filepath.ToSlash(rel), IsDir: d.IsDir()}
+	return entryAt(filepath.ToSlash(rel), d)
+}
+
+// entryAt describes d, found at the slash-separated vault-relative path rel.
+func entryAt(rel string, d fs.DirEntry) (Entry, error) {
+	e := Entry{Path: rel, IsDir: d.IsDir()}
 	info, err := d.Info()
 	if err != nil {
 		return Entry{}, err
@@ -163,13 +198,9 @@ func newEntry(root, abs string, d fs.DirEntry) (Entry, error) {
 // Read returns one page of up to ReadPageSize characters of the note at
 // path, starting at the character offset.
 func (v *Vault) Read(rel string, offset int) (*ReadResult, error) {
-	abs, err := v.resolve(rel)
+	data, err := v.ReadAll(rel)
 	if err != nil {
 		return nil, err
-	}
-	data, err := os.ReadFile(abs)
-	if err != nil {
-		return nil, fmt.Errorf("reading %q: %w", rel, err)
 	}
 	runes := []rune(string(data))
 	total := len(runes)
@@ -193,14 +224,15 @@ func (v *Vault) Read(rel string, offset int) (*ReadResult, error) {
 // Create writes a new note at path, creating parent directories as needed.
 // It fails if the note already exists.
 func (v *Vault) Create(rel, content string) error {
-	abs, err := v.resolve(rel)
+	root, clean, err := v.open(rel)
 	if err != nil {
 		return err
 	}
-	if err := os.MkdirAll(filepath.Dir(abs), 0o755); err != nil {
+	defer root.Close()
+	if err := root.MkdirAll(filepath.Dir(clean), 0o755); err != nil {
 		return fmt.Errorf("creating parent directories for %q: %w", rel, err)
 	}
-	f, err := os.OpenFile(abs, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
+	f, err := root.OpenFile(clean, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
 	if err != nil {
 		if errors.Is(err, fs.ErrExist) {
 			return fmt.Errorf("note %q already exists: use append_note or edit_note to modify it", rel)
@@ -217,14 +249,15 @@ func (v *Vault) Create(rel, content string) error {
 // Append appends content to the note at path, creating it (and parent
 // directories) if it does not exist.
 func (v *Vault) Append(rel, content string) error {
-	abs, err := v.resolve(rel)
+	root, clean, err := v.open(rel)
 	if err != nil {
 		return err
 	}
-	if err := os.MkdirAll(filepath.Dir(abs), 0o755); err != nil {
+	defer root.Close()
+	if err := root.MkdirAll(filepath.Dir(clean), 0o755); err != nil {
 		return fmt.Errorf("creating parent directories for %q: %w", rel, err)
 	}
-	f, err := os.OpenFile(abs, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0o644)
+	f, err := root.OpenFile(clean, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0o644)
 	if err != nil {
 		return fmt.Errorf("opening %q for append: %w", rel, err)
 	}
@@ -242,13 +275,9 @@ func (v *Vault) Edit(rel, find, replace string, replaceAll bool) (int, error) {
 	if find == "" {
 		return 0, errors.New("find must not be empty")
 	}
-	abs, err := v.resolve(rel)
+	data, err := v.ReadAll(rel)
 	if err != nil {
 		return 0, err
-	}
-	data, err := os.ReadFile(abs)
-	if err != nil {
-		return 0, fmt.Errorf("reading %q: %w", rel, err)
 	}
 	content := string(data)
 	count := strings.Count(content, find)
@@ -258,7 +287,7 @@ func (v *Vault) Edit(rel, find, replace string, replaceAll bool) (int, error) {
 	if count > 1 && !replaceAll {
 		return 0, fmt.Errorf("text occurs %d times in %q: provide more surrounding context to make it unique, or set replace_all", count, rel)
 	}
-	if err := writeAtomic(abs, []byte(strings.ReplaceAll(content, find, replace))); err != nil {
+	if err := v.WriteAll(rel, []byte(strings.ReplaceAll(content, find, replace))); err != nil {
 		return 0, err
 	}
 	return count, nil
@@ -268,24 +297,25 @@ func (v *Vault) Edit(rel, find, replace string, replaceAll bool) (int, error) {
 // destination parent directories as needed. It fails if the destination
 // already exists.
 func (v *Vault) Move(from, to string) error {
-	src, err := v.resolve(from)
-	if err != nil {
-		return err
-	}
 	dst, err := v.resolve(to)
 	if err != nil {
 		return err
 	}
-	if _, err := os.Stat(src); err != nil {
+	root, src, err := v.open(from)
+	if err != nil {
+		return err
+	}
+	defer root.Close()
+	if _, err := root.Stat(src); err != nil {
 		return fmt.Errorf("moving %q: %w", from, err)
 	}
-	if _, err := os.Stat(dst); err == nil {
+	if _, err := root.Lstat(dst); err == nil {
 		return fmt.Errorf("destination %q already exists", to)
 	}
-	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+	if err := root.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
 		return fmt.Errorf("creating parent directories for %q: %w", to, err)
 	}
-	if err := os.Rename(src, dst); err != nil {
+	if err := root.Rename(src, dst); err != nil {
 		return fmt.Errorf("moving %q to %q: %w", from, to, err)
 	}
 	return nil
@@ -323,28 +353,28 @@ func RestoreDestination(rel, to string) (string, error) {
 // .trash directory (recoverable, and the move syncs); when permanent is
 // true the note is removed outright.
 func (v *Vault) Delete(rel string, permanent bool) (trashedTo string, err error) {
-	abs, err := v.resolve(rel)
+	root, clean, err := v.open(rel)
 	if err != nil {
 		return "", err
 	}
-	if _, err := os.Stat(abs); err != nil {
+	defer root.Close()
+	if _, err := root.Stat(clean); err != nil {
 		return "", fmt.Errorf("deleting %q: %w", rel, err)
 	}
 	if strings.HasPrefix(filepath.ToSlash(rel), TrashDir+"/") || rel == TrashDir {
 		permanent = true
 	}
 	if permanent {
-		if err := os.RemoveAll(abs); err != nil {
+		if err := root.RemoveAll(clean); err != nil {
 			return "", fmt.Errorf("deleting %q: %w", rel, err)
 		}
 		return "", nil
 	}
-	trashRoot := filepath.Join(v.root, TrashDir)
-	if err := os.MkdirAll(trashRoot, 0o755); err != nil {
+	if err := root.MkdirAll(TrashDir, 0o755); err != nil {
 		return "", fmt.Errorf("creating trash directory: %w", err)
 	}
-	dst := uniquePath(filepath.Join(trashRoot, filepath.Base(abs)))
-	if err := os.Rename(abs, dst); err != nil {
+	dst := uniquePath(root, filepath.Join(TrashDir, filepath.Base(clean)))
+	if err := root.Rename(clean, dst); err != nil {
 		return "", fmt.Errorf("moving %q to trash: %w", rel, err)
 	}
 	return TrashDir + "/" + filepath.Base(dst), nil
@@ -352,15 +382,15 @@ func (v *Vault) Delete(rel string, permanent bool) (trashedTo string, err error)
 
 // uniquePath returns p, or p with " (n)" inserted before the extension when
 // p already exists, matching how Obsidian resolves trash collisions.
-func uniquePath(p string) string {
-	if _, err := os.Stat(p); errors.Is(err, fs.ErrNotExist) {
+func uniquePath(root *os.Root, p string) string {
+	if _, err := root.Lstat(p); errors.Is(err, fs.ErrNotExist) {
 		return p
 	}
 	ext := filepath.Ext(p)
 	stem := strings.TrimSuffix(p, ext)
 	for i := 1; ; i++ {
 		candidate := fmt.Sprintf("%s (%d)%s", stem, i, ext)
-		if _, err := os.Stat(candidate); errors.Is(err, fs.ErrNotExist) {
+		if _, err := root.Lstat(candidate); errors.Is(err, fs.ErrNotExist) {
 			return candidate
 		}
 	}

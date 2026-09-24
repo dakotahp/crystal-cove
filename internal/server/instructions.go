@@ -2,8 +2,6 @@ package server
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/andyjmorgan/obsidian-hosted-mcp/internal/vault"
@@ -33,7 +31,7 @@ func loadInstructions(vaults []*vault.Vault) string {
 	var sections []section
 	for _, v := range vaults {
 		for _, name := range []string{InstructionsFile, SyncedInstructionsFile} {
-			data, err := os.ReadFile(filepath.Join(v.Root(), name))
+			data, err := v.ReadAll(name)
 			if err != nil {
 				continue
 			}

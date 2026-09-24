@@ -3,6 +3,7 @@ package vault
 import (
 	"fmt"
 	"io/fs"
+	"math/rand/v2"
 	"os"
 	"path/filepath"
 	"sort"
@@ -10,38 +11,37 @@ import (
 	"time"
 )
 
-// writeAtomic replaces the file at abs with data in one step: it writes a
-// temporary file beside it and renames that over the target. A reader, such
-// as the sync client watching this folder, therefore sees either the old
-// note or the new one, never a half-written file, and an interrupted write
-// leaves the original intact.
-func writeAtomic(abs string, data []byte) error {
-	dir := filepath.Dir(abs)
+// writeAtomic replaces the file at rel inside root with data in one step:
+// it writes a temporary file beside it and renames that over the target. A
+// reader, such as the sync client watching this folder, therefore sees
+// either the old note or the new one, never a half-written file, and an
+// interrupted write leaves the original intact.
+func writeAtomic(root *os.Root, rel string, data []byte) error {
 	perm := fs.FileMode(0o644)
-	if info, err := os.Stat(abs); err == nil {
+	if info, err := root.Stat(rel); err == nil {
 		perm = info.Mode().Perm()
 	}
 
-	tmp, err := os.CreateTemp(dir, ".tmp-"+filepath.Base(abs)+"-*")
+	tmpName := filepath.Join(filepath.Dir(rel), fmt.Sprintf(".tmp-%s-%016x", filepath.Base(rel), rand.Uint64()))
+	tmp, err := root.OpenFile(tmpName, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
 	if err != nil {
-		return fmt.Errorf("creating a temporary file beside %q: %w", abs, err)
+		return fmt.Errorf("creating a temporary file beside %q: %w", rel, err)
 	}
-	tmpName := tmp.Name()
-	defer os.Remove(tmpName)
+	defer root.Remove(tmpName)
 
 	if _, err := tmp.Write(data); err != nil {
 		tmp.Close()
-		return fmt.Errorf("writing %q: %w", abs, err)
+		return fmt.Errorf("writing %q: %w", rel, err)
 	}
 	if err := tmp.Chmod(perm); err != nil {
 		tmp.Close()
-		return fmt.Errorf("setting permissions on %q: %w", abs, err)
+		return fmt.Errorf("setting permissions on %q: %w", rel, err)
 	}
 	if err := tmp.Close(); err != nil {
-		return fmt.Errorf("writing %q: %w", abs, err)
+		return fmt.Errorf("writing %q: %w", rel, err)
 	}
-	if err := os.Rename(tmpName, abs); err != nil {
-		return fmt.Errorf("replacing %q: %w", abs, err)
+	if err := root.Rename(tmpName, rel); err != nil {
+		return fmt.Errorf("replacing %q: %w", rel, err)
 	}
 	return nil
 }

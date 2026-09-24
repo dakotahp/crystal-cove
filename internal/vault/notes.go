@@ -3,7 +3,6 @@ package vault
 import (
 	"fmt"
 	"io/fs"
-	"os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -50,11 +49,12 @@ func (v *Vault) Notes() ([]string, error) {
 // ReadAll returns a note's full content. Read pages for MCP clients;
 // this is for code that has to parse a whole note.
 func (v *Vault) ReadAll(rel string) ([]byte, error) {
-	abs, err := v.resolve(rel)
+	root, clean, err := v.open(rel)
 	if err != nil {
 		return nil, err
 	}
-	data, err := os.ReadFile(abs)
+	defer root.Close()
+	data, err := root.ReadFile(clean)
 	if err != nil {
 		return nil, fmt.Errorf("reading %q: %w", rel, err)
 	}
@@ -63,9 +63,10 @@ func (v *Vault) ReadAll(rel string) ([]byte, error) {
 
 // WriteAll replaces a note's content.
 func (v *Vault) WriteAll(rel string, data []byte) error {
-	abs, err := v.resolve(rel)
+	root, clean, err := v.open(rel)
 	if err != nil {
 		return err
 	}
-	return writeAtomic(abs, data)
+	defer root.Close()
+	return writeAtomic(root, clean, data)
 }
