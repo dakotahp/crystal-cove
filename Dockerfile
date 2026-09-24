@@ -9,17 +9,18 @@ RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/obsidian-mcp ./cmd
 
 # Build obsidian-headless separately: better-sqlite3 has no musl prebuilds
 # and needs a node-gyp toolchain; build intermediates are stripped before
-# the copy into the runtime stage.
-FROM node:25-alpine AS headless
-RUN apk add --no-cache python3 make g++ \
+# the copy into the runtime stage. Its native addon is tied to the Node
+# release it was compiled against, so this stage uses the runtime's own
+# Alpine and apk nodejs rather than a node image.
+FROM alpine:3.24 AS headless
+RUN apk add --no-cache nodejs npm python3 make g++ \
     && npm install -g obsidian-headless \
     && cd /usr/local/lib/node_modules/obsidian-headless/node_modules/better-sqlite3 \
     && rm -rf deps src build/deps build/Release/obj build/Release/obj.target
 
 # Bare Alpine runtime: apk nodejs runs the sync client, ripgrep backs
-# search_notes, and tini reaps the ob sync children. The runtime's Node
-# major need not match the build stage's, because better-sqlite3 is built
-# against Node's stable ABI; scripts/smoke-test.sh loads it to confirm.
+# search_notes, and tini reaps the ob sync children. scripts/smoke-test.sh
+# opens a sqlite database to confirm the addon loads under this Node.
 FROM alpine:3.24
 RUN apk add --no-cache nodejs ripgrep tini libstdc++ \
     && adduser -D -h /home/obsidian obsidian
