@@ -68,7 +68,9 @@ Two layers, because one is not enough:
 Each call writes one log line tagged `audit=true`: the tool, the caller
 (the OIDC subject, or `api-key` for the static token), the outcome, the
 time taken, and the vault and paths it named. Note text, search queries
-and edit text are never logged, and long arguments are cut short. A token
+and edit text are never logged, and long arguments are cut short. A
+presented token that is refused is logged too, with the remote address
+and the reason but never the token, so guessing leaves a trace. A token
 used from somewhere unexpected shows up here, so review the log with
 `docker compose logs | grep audit=true`.
 

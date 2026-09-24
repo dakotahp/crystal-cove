@@ -108,6 +108,30 @@ func TestAuditLogRecordsRejectedCalls(t *testing.T) {
 	}
 }
 
+func TestAuditLogRecordsRejectedTokens(t *testing.T) {
+	s := newTestServer(t)
+	logs := &lockedBuffer{}
+	s.SetAuditLog(slog.New(slog.NewTextHandler(logs, nil)))
+	ts := httptest.NewServer(s.Handler(AuthConfig{StaticToken: "secret"}))
+	defer ts.Close()
+
+	req, _ := http.NewRequest(http.MethodPost, ts.URL, strings.NewReader("{}"))
+	req.Header.Set("Authorization", "Bearer GUESSED-TOKEN")
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res.Body.Close()
+
+	got := logs.String()
+	if res.StatusCode != http.StatusUnauthorized || !strings.Contains(got, "rejected bearer token") || !strings.Contains(got, "remote_addr=127.0.0.1") {
+		t.Errorf("status %d, audit log = %q; want a 401 and a logged rejection", res.StatusCode, got)
+	}
+	if strings.Contains(got, "GUESSED-TOKEN") {
+		t.Errorf("audit log recorded the presented token: %q", got)
+	}
+}
+
 func TestAuditLogCapsLongArguments(t *testing.T) {
 	session, logs := auditedSession(t, AuthConfig{StaticToken: "secret"}, "secret")
 

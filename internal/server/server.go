@@ -273,8 +273,23 @@ func (s *Server) Handler(authCfg AuthConfig) http.Handler {
 			BearerMethodsSupported: []string{"header"},
 		}))
 	}
-	mux.Handle("/", auth.RequireBearerToken(verifyToken(authCfg), opts)(mcpHandler))
+	mux.Handle("/", auth.RequireBearerToken(s.logRejections(verifyToken(authCfg)), opts)(mcpHandler))
 	return mux
+}
+
+// logRejections records each presented token that verify refuses, without
+// the token itself, so guessing shows up in the audit log.
+func (s *Server) logRejections(verify auth.TokenVerifier) auth.TokenVerifier {
+	if s.audit == nil {
+		return verify
+	}
+	return func(ctx context.Context, token string, r *http.Request) (*auth.TokenInfo, error) {
+		info, err := verify(ctx, token, r)
+		if err != nil {
+			s.audit.Warn("rejected bearer token", "remote_addr", r.RemoteAddr, "reason", err.Error())
+		}
+		return info, err
+	}
 }
 
 // verifyToken accepts the static token (constant-time compare) when one is
