@@ -1,9 +1,9 @@
 package vault
 
 import (
+	"crypto/rand"
 	"fmt"
 	"io/fs"
-	"math/rand/v2"
 	"os"
 	"path/filepath"
 	"sort"
@@ -22,7 +22,7 @@ func writeAtomic(root *os.Root, rel string, data []byte) error {
 		perm = info.Mode().Perm()
 	}
 
-	tmpName := filepath.Join(filepath.Dir(rel), fmt.Sprintf(".tmp-%s-%016x", filepath.Base(rel), rand.Uint64()))
+	tmpName := filepath.Join(filepath.Dir(rel), ".tmp-"+filepath.Base(rel)+"-"+rand.Text())
 	tmp, err := root.OpenFile(tmpName, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
 	if err != nil {
 		return fmt.Errorf("creating a temporary file beside %q: %w", rel, err)
@@ -30,11 +30,11 @@ func writeAtomic(root *os.Root, rel string, data []byte) error {
 	defer root.Remove(tmpName)
 
 	if _, err := tmp.Write(data); err != nil {
-		tmp.Close()
+		_ = tmp.Close()
 		return fmt.Errorf("writing %q: %w", rel, err)
 	}
 	if err := tmp.Chmod(perm); err != nil {
-		tmp.Close()
+		_ = tmp.Close()
 		return fmt.Errorf("setting permissions on %q: %w", rel, err)
 	}
 	if err := tmp.Close(); err != nil {
