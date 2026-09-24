@@ -15,6 +15,11 @@ import (
 // DefaultPort is the HTTP port used when PORT is not set.
 const DefaultPort = 8080
 
+// MinAuthTokenLength is the shortest static bearer token accepted. The
+// endpoint faces the internet, so a short or placeholder token is refused
+// rather than served. openssl rand -hex 16 produces exactly this length.
+const MinAuthTokenLength = 32
+
 // deviceNamePrefix prefixes the generated device name when
 // OBSIDIAN_DEVICE_NAME is not set.
 const deviceNamePrefix = "ObsidianMCP-"
@@ -111,6 +116,10 @@ func Load(getenv Getenv, randSource io.Reader) (*Config, error) {
 	cfg.PublicURL = publicURL
 	if cfg.AuthToken == "" && cfg.OAuth == nil {
 		return nil, errors.New("MCP_AUTH_TOKEN or OAUTH_ISSUER must be set: the MCP endpoint is bearer-token protected")
+	}
+	if cfg.AuthToken != "" && len(cfg.AuthToken) < MinAuthTokenLength {
+		return nil, fmt.Errorf("MCP_AUTH_TOKEN must be at least %d characters, got %d: generate one with openssl rand -hex 32",
+			MinAuthTokenLength, len(cfg.AuthToken))
 	}
 
 	vaults, err := parseVaults(getenv("OBSIDIAN_VAULTS"), getenv("OBSIDIAN_VAULT_PASSWORD"))
