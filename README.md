@@ -17,9 +17,13 @@
 
 <!-- toc -->
 
-- [Why this exists](#why-this-exists)
+- [The Why](#the-why)
+- [Use Cases](#use-cases)
+  - [Which setup do you need?](#which-setup-do-you-need)
+- [Installation](#installation)
+  - [Local](#local)
+  - [Remote](#remote)
   - [It is also the better local option](#it-is-also-the-better-local-option)
-- [Which setup do you need?](#which-setup-do-you-need)
 - [Run it on one machine](#run-it-on-one-machine)
 - [Starting it without compose](#starting-it-without-compose)
 - [Connect your AI assistant](#connect-your-ai-assistant)
