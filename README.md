@@ -250,10 +250,10 @@ Do this when you want your vault from a phone, from claude.ai in a browser, or f
    (Caddy/Traefik/nginx), a platform ingress, or a
    [Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/)
    all work; the container itself speaks plain HTTP on 8080.
-2. **Publish the port to loopback only**, so the proxy is the only way in.
-   The compose file's `"${PORT:-8080}:8080"` binds every interface, which on
-   a public host exposes the MCP endpoint directly, without TLS. Change it
-   to `"127.0.0.1:${PORT:-8080}:8080"`.
+2. **Keep the port on loopback**, so the proxy is the only way in. The
+   compose file publishes to `127.0.0.1` by default. Do not set
+   `BIND_ADDRESS=0.0.0.0` on a public host: that exposes the MCP endpoint
+   directly, without TLS.
 3. **Give the server its own sync token and device name.** Run `ob login`
    over SSH for a token of its own, and set `OBSIDIAN_DEVICE_NAME` so Sync
    version history names it clearly. A new login does not revoke tokens held

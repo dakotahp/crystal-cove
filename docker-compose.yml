@@ -11,7 +11,14 @@ services:
       # published host port below.
       PORT: 8080
     ports:
-      - "${PORT:-8080}:8080"
+      # Loopback by default: the container speaks plain HTTP, so only a
+      # reverse proxy or tunnel on this host should reach it. Set
+      # BIND_ADDRESS=0.0.0.0 only on a trusted network.
+      - "${BIND_ADDRESS:-127.0.0.1}:${PORT:-8080}:8080"
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
     volumes:
       # Persist synced vaults and the ob client's credential store so
       # restarts don't re-download every vault or re-register a device.
