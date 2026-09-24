@@ -240,6 +240,16 @@ func TestRunWarnsWhenOIDCHasNoRequiredRoles(t *testing.T) {
 	}
 }
 
+func TestRunAppliesAndLogsTheToolPolicy(t *testing.T) {
+	_, logs := runWithOIDC(t, func(env map[string]string) {
+		env["MCP_READ_ONLY"] = "true"
+		env["MCP_ALLOW_PERMANENT_DELETE"] = "true"
+	})
+	if got := logs.String(); !strings.Contains(got, "read_only=true") || !strings.Contains(got, "permanent_delete=true") {
+		t.Errorf("logs = %q, want the tool policy", got)
+	}
+}
+
 func TestRunDoesNotWarnWhenOIDCRequiresRoles(t *testing.T) {
 	_, logs := runWithOIDC(t, func(env map[string]string) { env["OAUTH_REQUIRED_ROLES"] = "vault-owner" })
 	if strings.Contains(logs.String(), "level=WARN") {

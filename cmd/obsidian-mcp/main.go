@@ -58,6 +58,8 @@ func run(ctx context.Context, getenv config.Getenv, logOut io.Writer, onReady fu
 		vaults = append(vaults, vault.New(v.Name, b.VaultPath(v)))
 	}
 	srv := server.New(vaults, search.New("rg", nil), b.SyncReady)
+	srv.SetPolicy(server.Policy{ReadOnly: cfg.ReadOnly, AllowPermanentDelete: cfg.AllowPermanentDelete})
+	logger.Info("tool policy", "read_only", cfg.ReadOnly, "permanent_delete", cfg.AllowPermanentDelete)
 	logger.Info("vault instructions loaded", "characters", len(srv.Instructions()))
 
 	authCfg := server.AuthConfig{StaticToken: cfg.AuthToken}

@@ -320,6 +320,8 @@ exponential backoff; the MCP process and other vault syncs remain running.
 | `OBSIDIAN_DEVICE_NAME` | no | Device name shown in sync version history. Defaults to `ObsidianMCP-` plus 8 random hex characters; set it explicitly so restarts reuse one device identity. |
 | `VAULTS_DIR` | no | Where vaults are synced locally. Defaults to `~/vaults`. |
 | `PORT` | no | HTTP listen port, default `8080`. |
+| `MCP_READ_ONLY` | no | `true` leaves out every tool that changes a note, so clients can only read and search. Default `false`. |
+| `MCP_ALLOW_PERMANENT_DELETE` | no | `true` lets `delete_note` remove notes outright, including notes already in `.trash`. Default `false`: deletes only move notes to `.trash`. |
 
 ## OAuth: delegate auth to your identity provider
 
@@ -397,7 +399,7 @@ The table describes the tools provided to agents through the MCP to give it mean
 | `append_note` | Append to a note, creating it if needed. |
 | `edit_note` | Exact find/replace; the snippet must be unique unless `replace_all` is set. |
 | `move_note` | Move or rename a note. |
-| `delete_note` | Move a note to the vault's `.trash` (Obsidian's own convention, recoverable everywhere); `permanent: true` removes it outright. |
+| `delete_note` | Move a note to the vault's `.trash` (Obsidian's own convention, recoverable everywhere). With `MCP_ALLOW_PERMANENT_DELETE=true`, `permanent: true` removes it outright. |
 | `restore_note` | Undelete: move a note out of `.trash`, back to its original name or an explicit destination. |
 
 All paths are vault-relative and sandboxed: absolute paths and `..` escapes are rejected for security purposes.

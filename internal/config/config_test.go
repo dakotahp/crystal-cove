@@ -113,6 +113,35 @@ func TestLoadMissingRequired(t *testing.T) {
 	}
 }
 
+func TestLoadToolPolicy(t *testing.T) {
+	cfg, err := Load(env(validEnv()), rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.ReadOnly || cfg.AllowPermanentDelete {
+		t.Errorf("defaults: ReadOnly=%v AllowPermanentDelete=%v, want both false", cfg.ReadOnly, cfg.AllowPermanentDelete)
+	}
+
+	m := validEnv()
+	m["MCP_READ_ONLY"] = "true"
+	m["MCP_ALLOW_PERMANENT_DELETE"] = "1"
+	cfg, err = Load(env(m), rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !cfg.ReadOnly || !cfg.AllowPermanentDelete {
+		t.Errorf("set: ReadOnly=%v AllowPermanentDelete=%v, want both true", cfg.ReadOnly, cfg.AllowPermanentDelete)
+	}
+
+	for _, key := range []string{"MCP_READ_ONLY", "MCP_ALLOW_PERMANENT_DELETE"} {
+		m := validEnv()
+		m[key] = "yes please"
+		if _, err := Load(env(m), rand.Reader); err == nil || !strings.Contains(err.Error(), key) {
+			t.Errorf("%s=%q: err = %v, want an error naming it", key, m[key], err)
+		}
+	}
+}
+
 func TestLoadRejectsShortAuthToken(t *testing.T) {
 	m := validEnv()
 	m["MCP_AUTH_TOKEN"] = "change-me"

@@ -34,7 +34,10 @@ Deliberate MVP boundaries (do not "fix" these without being asked):
   contributing vaults are labelled `## Vault: <name>`. Missing or unreadable
   files are not an error: guidance never blocks serving.
 - Deletes are soft by default: notes move to the vault's `.trash`
-  (Obsidian's own convention) so they sync and stay recoverable.
+  (Obsidian's own convention) so they sync and stay recoverable. Permanent
+  deletion, which includes deleting inside `.trash`, needs
+  `MCP_ALLOW_PERMANENT_DELETE=true`. `MCP_READ_ONLY=true` registers no write
+  tools at all (`Server.addWriteTools`); a new write tool belongs there.
 - `read_note` returns at most 10,240 characters per call
   (`vault.ReadPageSize`) with `offset`/`next_offset` paging — chosen
   deliberately for LLM context-window hygiene.

@@ -70,7 +70,11 @@ Two layers, because one is not enough:
   sees either the old note or the new one, and an interrupted write leaves
   the original intact.
 - Deletes move a note to the vault's `.trash` by default, where it stays
-  recoverable from any device; permanent deletion is explicit.
+  recoverable from any device. Permanent deletion is off unless the
+  operator sets `MCP_ALLOW_PERMANENT_DELETE=true`, so a steered assistant
+  cannot destroy a note outright.
+- `MCP_READ_ONLY=true` removes every tool that changes a note, for clients
+  that only need to read and search.
 - Creating a note fails if it already exists, and an edit must match
   exactly once unless the caller asks for every occurrence.
 
@@ -145,7 +149,7 @@ Stated plainly, because a security document that claims everything is
 covered is not useful.
 
 - **A static token is a shared secret.** Anyone holding it has the vault's
-  full tool set. Use OpenID Connect where individual identity matters, and
+  full tool set, or only the read tools with `MCP_READ_ONLY=true`. Use OpenID Connect where individual identity matters, and
   rotate the token by restarting with a new one.
 - **Notes are untrusted input to a language model.** A note can contain
   text that tries to steer an assistant into doing something you did not
