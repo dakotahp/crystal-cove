@@ -57,6 +57,9 @@ Two layers, because one is not enough:
 - Credentials arrive only through environment variables.
 - The sync token passes to the sync client through the environment, not on a command line, so it never appears in the process table.
 - Command logging masks password arguments before writing them.
+- Child processes get only what they need. ripgrep sees `PATH` alone, and
+  the sync client does not see the MCP token or the passwords it receives
+  as arguments.
 - `.env` is ignored by git, and the repository carries only placeholders.
 
 ### Writes cannot corrupt a note
