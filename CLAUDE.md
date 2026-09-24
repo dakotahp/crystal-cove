@@ -112,11 +112,13 @@ Key invariants:
   `OBSIDIAN_VAULTS` (`Name` or `Name:e2e-password`, comma-separated) with
   `OBSIDIAN_VAULT_PASSWORD` as the shared fallback.
 
-The Docker image is three stages: Go builder → `node:22-alpine` stage that
-npm-installs `obsidian-headless` (better-sqlite3 has no musl prebuilds, so
-a node-gyp toolchain is installed there and build intermediates stripped) →
-bare `alpine` runtime with apk `nodejs` (same Node 22 ABI), `ripgrep`,
-`tini`, running as a non-root user. Keep the runtime stage minimal; the
+The Docker image is three stages: Go builder → `alpine` stage with apk
+`nodejs` and `npm` that npm-installs `obsidian-headless` (better-sqlite3 has
+no musl prebuilds, so a node-gyp toolchain is installed there and build
+intermediates stripped) → bare `alpine` runtime with apk `nodejs`, `ripgrep`,
+`tini`, running as a non-root user. The build and runtime stages must share
+one Alpine release: the sqlite addon only loads under the Node it was
+compiled for, which `scripts/smoke-test.sh` checks by opening a database. Keep the runtime stage minimal; the
 image-size target is "as small as possible" (~142MB today).
 
 ## Methodology

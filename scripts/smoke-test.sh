@@ -10,7 +10,13 @@ run() { docker run --rm --entrypoint sh "$image" -c "$1"; }
 
 echo "==> node and the sqlite module the sync client needs"
 run 'node -v'
-run 'node -e "require(\"/usr/local/lib/node_modules/obsidian-headless/node_modules/better-sqlite3\")"'
+# Requiring better-sqlite3 does not load its native addon; opening a
+# database does, and that is where a Node ABI mismatch shows up.
+run 'node -e "
+  const dir = require(\"path\").dirname(require(\"fs\").realpathSync(\"/usr/local/bin/ob\"));
+  const Database = require(require.resolve(\"better-sqlite3\", { paths: [dir] }));
+  new Database(\":memory:\").prepare(\"select 1\").get();
+"'
 
 echo "==> the sync client runs"
 run 'ob --help >/dev/null'
