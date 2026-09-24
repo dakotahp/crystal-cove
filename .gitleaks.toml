@@ -1,0 +1,6 @@
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Dummy bearer token the tests use to satisfy the 32-character minimum"
+regexes = ['''0123456789abcdef0123456789abcdef''']

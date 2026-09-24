@@ -148,6 +148,11 @@ CI also rebuilds and republishes `:latest` every week without the layer
 cache, so Alpine, Node and Go security patches reach the image even when
 nothing in this repository changes. Versioned tags are not rebuilt.
 
+CI scans every commit for committed secrets with gitleaks
+(`scripts/secret-scan.sh`). A finding turns CI red; the fix is to rotate
+the secret, since it is exposed once pushed. `.gitleaks.toml` allowlists
+only the tests' dummy token.
+
 CI audits its own workflows with zizmor, which catches injectable
 expressions, over-broad tokens, unpinned actions and cache poisoning.
 
