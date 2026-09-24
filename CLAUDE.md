@@ -147,15 +147,24 @@ CI (`.github/workflows/ci.yml`) enforces, in order:
    `node scripts/generate-toc.js` and commit the result.
 2. `go vet ./...` must pass.
 3. `go test ./... -coverprofile=coverage.out -covermode=atomic` must pass.
-4. **Total coverage must be ≥ 95%** (currently ~96.7%). If you add code,
+4. **Total coverage must be ≥ 95%** (currently ~96%). If you add code,
    add tests in the same change; prefer refactoring untestable error
    branches away (injection, restructuring) over excluding them.
 4b. `scripts/smoke-test.sh` runs against a freshly built image: building it
-   proves nothing about whether it runs, so this loads the native sqlite
-   module under the runtime's Node, runs `ob` and `rg`, and checks the
-   server binary refuses an empty configuration. No credentials needed.
-5. On push to `master`: multi-arch (amd64/arm64) image publish of `:latest`
-   to `ghcr.io/dakotahp/vault-bridge`. Versioned images come from
+   proves nothing about whether it runs, so this opens a database with the
+   native sqlite module under the runtime's Node, runs `ob` and `rg`, and
+   checks the server binary refuses an empty configuration. No credentials
+   needed. Grype then scans the image and fails on a fixable high or
+   critical vulnerability.
+4c. Security jobs: a 20-second fuzz run per `Fuzz*` target, gosec
+   (silence a false positive on its own line with `#nosec <rule> --
+   reason`, never project-wide), `scripts/vulncheck.sh` (govulncheck under
+   the Dockerfile's Go builder image), and zizmor on the workflows. Fuzz and
+   gosec gate publishing; govulncheck and zizmor only turn CI red.
+   Workflow actions are pinned to commit SHAs; keep new ones pinned.
+5. On push to `master`, and weekly on a schedule without the layer cache:
+   multi-arch (amd64/arm64) image publish of `:latest` to
+   `ghcr.io/dakotahp/vault-bridge`, with an SBOM and provenance attached. Versioned images come from
    `.github/workflows/release-please.yml`, not from a tag push: a tag made
    with the default token starts no other workflow, so that workflow builds
    and pushes `:X.Y.Z` and `:X.Y` itself once a release is created.
