@@ -15,6 +15,26 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="MIT license"></a>
 </p>
 
+<!-- toc -->
+
+- [Why this exists](#why-this-exists)
+  - [It is also the better local option](#it-is-also-the-better-local-option)
+- [Which setup do you need?](#which-setup-do-you-need)
+- [Run it on one machine](#run-it-on-one-machine)
+- [Starting it without compose](#starting-it-without-compose)
+- [Connect your AI assistant](#connect-your-ai-assistant)
+- [Run it on a server](#run-it-on-a-server)
+  - [What claude.ai needs](#what-claudeai-needs)
+- [Configuration](#configuration)
+- [OAuth: delegate auth to your identity provider](#oauth-delegate-auth-to-your-identity-provider)
+- [Vault instructions](#vault-instructions)
+- [MCP tools](#mcp-tools)
+  - [Working with heading sections](#working-with-heading-sections)
+- [Development](#development)
+- [Security](#security)
+
+<!-- /toc -->
+
 ## Why this exists
 
 Giving an AI assistant real access to an Obsidian vault needs three things
@@ -465,9 +485,13 @@ go test ./... -coverprofile=coverage.out && go tool cover -func=coverage.out
 docker build -t obsidian-hosted-mcp .
 ```
 
-CI enforces `gofmt`, `go vet`, and a 95% total coverage gate, then publishes
-a multi-arch (amd64/arm64) image to GHCR: `:latest` from `main` and semver
-tags from `v*` releases.
+The table of contents at the top of this README is generated. After you add
+or rename a heading, run `node scripts/generate-toc.js` (Node 18 or newer)
+and commit the result.
+
+CI enforces `gofmt`, `go vet`, a 95% total coverage gate, and an up-to-date
+table of contents, then publishes a multi-arch (amd64/arm64) image to GHCR:
+`:latest` from `main` and semver tags from `v*` releases.
 
 ## Security
 
