@@ -63,6 +63,11 @@ func run(ctx context.Context, getenv config.Getenv, logOut io.Writer, onReady fu
 	authCfg := server.AuthConfig{StaticToken: cfg.AuthToken}
 	if cfg.OAuth != nil {
 		logger.Info("delegating auth to OIDC provider", "issuer", cfg.OAuth.Issuer, "audience", cfg.OAuth.Audience)
+		if len(cfg.OAuth.RequiredRoles) == 0 {
+			logger.Warn("OAUTH_REQUIRED_ROLES is not set: any account that can get a token for this audience from the " +
+				"identity provider can use every tool, which on a provider with open sign-up means anyone. " +
+				"Set OAUTH_REQUIRED_ROLES to a role only you hold.")
+		}
 		verifier, err := oidcauth.New(ctx, cfg.OAuth, nil)
 		if err != nil {
 			return fmt.Errorf("configuring OIDC auth: %w", err)

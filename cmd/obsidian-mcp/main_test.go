@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -11,6 +12,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -155,33 +157,70 @@ func TestRunFailsWhenPortUnavailable(t *testing.T) {
 	}
 }
 
-func TestRunWithOIDC(t *testing.T) {
+// lockedBuffer collects log output written from several goroutines.
+type lockedBuffer struct {
+	mu  sync.Mutex
+	buf bytes.Buffer
+}
+
+func (b *lockedBuffer) Write(p []byte) (int, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.Write(p)
+}
+
+func (b *lockedBuffer) String() string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.String()
+}
+
+// runWithOIDC starts the server against a fake identity provider, with env
+// edited by mutate, and returns its address and log output. The server is
+// stopped when the test ends.
+func runWithOIDC(t *testing.T, mutate func(map[string]string)) (string, *lockedBuffer) {
+	t.Helper()
 	installFakeOb(t, `case "$1" in sync) exec sleep 60;; *) exit 0;; esac`)
 	idp := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, `{"issuer":%q,"jwks_uri":%q}`, "http://"+r.Host, "http://"+r.Host+"/jwks")
 	}))
-	defer idp.Close()
+	t.Cleanup(idp.Close)
 
 	env := testEnv(t)
 	env["OAUTH_ISSUER"] = idp.URL
 	env["OAUTH_AUDIENCE"] = "obsidian-mcp"
 	env["MCP_PUBLIC_URL"] = "https://obsidian.example.com"
+	if mutate != nil {
+		mutate(env)
+	}
 
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	logs := &lockedBuffer{}
 	addrCh := make(chan string, 1)
 	errCh := make(chan error, 1)
 	go func() {
-		errCh <- run(ctx, getenv(env), io.Discard, func(addr string) { addrCh <- addr })
+		errCh <- run(ctx, getenv(env), logs, func(addr string) { addrCh <- addr })
 	}()
-	var addr string
+	t.Cleanup(func() {
+		cancel()
+		if err := <-errCh; err != nil {
+			t.Errorf("run returned %v after shutdown", err)
+		}
+	})
 	select {
-	case addr = <-addrCh:
+	case addr := <-addrCh:
+		return addr, logs
 	case err := <-errCh:
+		errCh <- err
 		t.Fatalf("run exited early: %v", err)
 	case <-time.After(10 * time.Second):
 		t.Fatal("server did not become ready")
 	}
+	return "", nil
+}
+
+func TestRunWithOIDC(t *testing.T) {
+	addr, _ := runWithOIDC(t, nil)
 
 	res, err := http.Get(fmt.Sprintf("http://%s/.well-known/oauth-protected-resource", addr))
 	if err != nil {
@@ -192,9 +231,19 @@ func TestRunWithOIDC(t *testing.T) {
 	if res.StatusCode != http.StatusOK || !strings.Contains(string(body), "https://obsidian.example.com") {
 		t.Errorf("metadata = %d %s", res.StatusCode, body)
 	}
-	cancel()
-	if err := <-errCh; err != nil {
-		t.Errorf("run returned %v after shutdown", err)
+}
+
+func TestRunWarnsWhenOIDCHasNoRequiredRoles(t *testing.T) {
+	_, logs := runWithOIDC(t, nil)
+	if !strings.Contains(logs.String(), "OAUTH_REQUIRED_ROLES") {
+		t.Errorf("logs = %q, want a warning naming OAUTH_REQUIRED_ROLES", logs)
+	}
+}
+
+func TestRunDoesNotWarnWhenOIDCRequiresRoles(t *testing.T) {
+	_, logs := runWithOIDC(t, func(env map[string]string) { env["OAUTH_REQUIRED_ROLES"] = "vault-owner" })
+	if strings.Contains(logs.String(), "level=WARN") {
+		t.Errorf("logs = %q, want no warning", logs)
 	}
 }
 
