@@ -6,7 +6,10 @@
 set -eu
 
 image="${1:?usage: smoke-test.sh <image>}"
-run() { docker run --rm --entrypoint sh "$image" -c "$1"; }
+# The same restrictions docker-compose.yml applies, so a change that needs a
+# writable root filesystem or a capability fails here first.
+hardened="--read-only --tmpfs /tmp --tmpfs /home/obsidian:uid=1000,gid=1000 --cap-drop ALL --security-opt no-new-privileges:true"
+run() { docker run --rm $hardened --entrypoint sh "$image" -c "$1"; }
 
 echo "==> node and the sqlite module the sync client needs"
 run 'node -v'
@@ -15,7 +18,7 @@ run 'node -v'
 run 'node -e "
   const dir = require(\"path\").dirname(require(\"fs\").realpathSync(\"/usr/local/bin/ob\"));
   const Database = require(require.resolve(\"better-sqlite3\", { paths: [dir] }));
-  new Database(\":memory:\").prepare(\"select 1\").get();
+  new Database(process.env.HOME + \"/probe.db\").prepare(\"select 1\").get();
 "'
 
 echo "==> the sync client runs"
@@ -25,7 +28,7 @@ echo "==> ripgrep, which search_notes shells out to"
 run 'rg --version | head -1'
 
 echo "==> the server binary runs and refuses an empty configuration"
-output=$(docker run --rm --entrypoint obsidian-mcp "$image" 2>&1 || true)
+output=$(docker run --rm $hardened --entrypoint obsidian-mcp "$image" 2>&1 || true)
 echo "$output" | head -1
 case "$output" in
   *OBSIDIAN_EMAIL*) ;;

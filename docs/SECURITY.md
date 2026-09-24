@@ -95,7 +95,9 @@ A multi-stage build produces a small Alpine runtime holding only Node, the
 sync client, ripgrep and an init process. It runs as an unprivileged user,
 with `tini` as PID 1 to reap the sync children. The compose file drops
 every Linux capability and blocks privilege escalation, since nothing in
-the container needs either. The image is built and
+the container needs either. Its root filesystem is read-only: only the
+vaults volume and a small in-memory `/tmp` can be written, and the smoke
+test runs the image under the same restrictions. The image is built and
 published by CI rather than by hand.
 
 ## Keeping dependencies current
