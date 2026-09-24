@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -163,6 +164,7 @@ func (b *Bootstrapper) runContinuousSync(ctx context.Context, v config.Vault) er
 	defer cancel()
 
 	cmd := exec.CommandContext(childCtx, b.binary, "sync", "--continuous", "--path", b.VaultPath(v))
+	cmd.Env = obEnv()
 	output := b.observedSyncOutput(v.Name)
 	cmd.Stdout = output
 	cmd.Stderr = output
@@ -203,11 +205,25 @@ func (b *Bootstrapper) runContinuousSync(ctx context.Context, v config.Vault) er
 func (b *Bootstrapper) runOb(ctx context.Context, args, secretFlags []string) error {
 	b.log.Debug("running", "command", b.binary, "args", redact(args, secretFlags))
 	cmd := exec.CommandContext(ctx, b.binary, args...)
+	cmd.Env = obEnv()
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("%w: %s", err, string(out))
 	}
 	return nil
+}
+
+// serverOnlyEnv names the variables holding secrets that ob never reads
+// from the environment. It takes OBSIDIAN_AUTH_TOKEN from there, but
+// passwords arrive as arguments, and the MCP token is none of its business.
+var serverOnlyEnv = []string{"MCP_AUTH_TOKEN", "OBSIDIAN_PASSWORD", "OBSIDIAN_VAULT_PASSWORD", "OBSIDIAN_VAULTS"}
+
+// obEnv returns this process's environment without serverOnlyEnv.
+func obEnv() []string {
+	return slices.DeleteFunc(os.Environ(), func(kv string) bool {
+		name, _, _ := strings.Cut(kv, "=")
+		return slices.Contains(serverOnlyEnv, name)
+	})
 }
 
 // redact returns a copy of args with the value following each flag in

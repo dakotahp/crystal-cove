@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"os/exec"
 	"regexp"
 	"strings"
@@ -125,6 +126,9 @@ func New(binary string, run RunFunc) *Searcher {
 func execRun(ctx context.Context, dir, name string, args ...string) ([]byte, []byte, int, error) {
 	cmd := exec.CommandContext(ctx, name, args...)
 	cmd.Dir = dir
+	// ripgrep needs nothing from the environment, which holds this server's
+	// secrets, and RIPGREP_CONFIG_PATH there would change how it searches.
+	cmd.Env = []string{"PATH=" + os.Getenv("PATH")}
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
