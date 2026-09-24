@@ -32,6 +32,10 @@ at once. Every other approach I tried has two of them.
    search that ranks a note named after your query above a passing mention
    of it. Not `read_file` and `list_directory` over a folder.
 
+<p align="center">
+  <img src="docs/images/trifecta.png" alt="Three overlapping circles: native sync, reach from anywhere, and tools that understand notes. Only the center, where all three meet, is the full setup. Native sync plus reach alone means primitive searching. Native sync plus note tools alone means laptop only, no mobile. Reach plus note tools alone means reinventing the wheel." width="100%">
+</p>
+
 Drop any one and the result fails in a specific way. Reimplement sync and
 you are trusting a guess about someone else's protocol with your notes.
 Skip the remote part and it only works on one machine, so no phone and no
