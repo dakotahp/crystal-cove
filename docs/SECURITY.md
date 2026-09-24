@@ -116,6 +116,9 @@ deliberate rather than occasional.
    ripgrep, and checks the server refuses to start with an empty
    configuration. Building an image does not prove it runs, so this gate
    exists.
+5. A Grype scan of the built image, covering Alpine packages, the sync
+   client's npm tree and the Go binary. A high or critical vulnerability
+   that has a fix stops the image, since updating is then all it takes.
 
 Publishing waits on all of it.
 
