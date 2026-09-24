@@ -381,7 +381,7 @@ The table describes the tools provided to agents through the MCP to give it mean
 | Tool | Description |
 | --- | --- |
 | `list_vaults` | Names of the vaults served. |
-| `list_notes` | List files and folders in a vault, optionally recursive. Hidden folders (`.obsidian`, `.trash`) are excluded; pass `dir: ".trash"` to browse deleted notes. |
+| `list_notes` | List files and folders in a vault, optionally recursive. Hidden folders (`.obsidian`, `.trash`) are excluded; pass `dir: ".trash"` to browse deleted notes. Other hidden folders cannot be listed. |
 | `read_note` | Read a note, paged at 10,240 characters per call with `offset`/`next_offset` for longer notes. |
 | `get_section` | Read a heading section’s body (including subsections), with character paging. |
 | `replace_section` | Replace a heading section’s body and subsections while preserving its heading. |

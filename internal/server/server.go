@@ -67,7 +67,7 @@ func (s *Server) MCPServer() *mcp.Server {
 	mcp.AddTool(srv, &mcp.Tool{
 		Name: "list_notes",
 		Description: "List notes and directories in a vault. Hidden folders such as .obsidian and .trash are excluded, " +
-			"but passing dir \".trash\" lists deleted notes explicitly.",
+			"but passing dir \".trash\" lists deleted notes explicitly. Other hidden folders cannot be listed.",
 	}, s.listNotes)
 
 	mcp.AddTool(srv, &mcp.Tool{
@@ -307,6 +307,9 @@ type listNotesOutput struct {
 func (s *Server) listNotes(_ context.Context, _ *mcp.CallToolRequest, in listNotesInput) (*mcp.CallToolResult, listNotesOutput, error) {
 	v, err := s.vault(in.Vault)
 	if err != nil {
+		return nil, listNotesOutput{}, err
+	}
+	if err := requireVisibleDir(in.Dir); err != nil {
 		return nil, listNotesOutput{}, err
 	}
 	entries, err := v.List(in.Dir, in.Recursive)
