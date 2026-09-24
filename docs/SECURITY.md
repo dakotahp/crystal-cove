@@ -30,8 +30,9 @@ every vault has a recent sync heartbeat.
 
 The container speaks plain HTTP on port 8080. Credentials travel in a
 header, so a public deployment must terminate TLS in front of it with a
-reverse proxy, an ingress or a tunnel. Publish the container's port to
-loopback (`127.0.0.1:8787:8080`) so the proxy is the only way in. Tokens
+reverse proxy, an ingress or a tunnel. The compose file publishes the
+container's port to loopback only, so the proxy is the only way in; Docker's
+published ports bypass host firewalls such as ufw, so this default matters. Tokens
 belong in headers, never in a URL, where they would land in proxy logs and
 browser history.
 
@@ -70,7 +71,9 @@ Two layers, because one is not enough:
 
 A multi-stage build produces a small Alpine runtime holding only Node, the
 sync client, ripgrep and an init process. It runs as an unprivileged user,
-with `tini` as PID 1 to reap the sync children. The image is built and
+with `tini` as PID 1 to reap the sync children. The compose file drops
+every Linux capability and blocks privilege escalation, since nothing in
+the container needs either. The image is built and
 published by CI rather than by hand.
 
 ## Keeping dependencies current
