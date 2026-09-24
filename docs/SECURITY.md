@@ -109,12 +109,18 @@ deliberate rather than occasional.
 
 1. Formatting and `go vet`.
 2. The full test suite, with total coverage held at 95% or above.
-3. A smoke test that runs the built image: it loads the native database
-   module under the runtime's Node, runs the sync client and ripgrep, and
-   checks the server refuses to start with an empty configuration. Building
-   an image does not prove it runs, so this gate exists.
+3. A smoke test that runs the built image: it opens a database with the
+   native sqlite module under the runtime's Node, runs the sync client and
+   ripgrep, and checks the server refuses to start with an empty
+   configuration. Building an image does not prove it runs, so this gate
+   exists.
 
 Publishing waits on all of it.
+
+CI also runs `govulncheck` with the Go builder image the Dockerfile names,
+so it checks the standard library that ships. A finding turns CI red but
+does not hold back publishing: the fix for a Go vulnerability arrives by
+rebuilding, so blocking the rebuild would block the fix.
 
 ## Known limits
 
