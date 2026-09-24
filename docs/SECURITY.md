@@ -49,8 +49,9 @@ Two layers, because one is not enough:
 2. **Notes only.** Tools additionally require a `.md` path outside hidden
    folders, so a client cannot read or rewrite Obsidian's own
    configuration, a stylesheet, or a dotfile that happens to sit in the
-   vault. The vault's `.trash` stays reachable, because delete and restore
-   work through it.
+   vault. `list_notes` refuses hidden folders the same way, so it cannot
+   enumerate `.obsidian` either. The vault's `.trash` stays reachable,
+   because delete and restore work through it.
 
 ### Secrets stay out of logs, arguments and the repository
 

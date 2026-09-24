@@ -77,6 +77,20 @@ func TestNonNoteFilesSurviveRejectedWrites(t *testing.T) {
 	}
 }
 
+func TestListNotesRejectsHiddenFolders(t *testing.T) {
+	s, _ := metaServer(t, map[string]string{
+		".obsidian/workspace.json": "{}",
+		"Inbox/.drafts/a.md":       "draft\n",
+	})
+	ctx := context.Background()
+
+	for _, dir := range []string{".obsidian", "Inbox/.drafts", "./.obsidian"} {
+		if _, out, err := s.listNotes(ctx, &mcp.CallToolRequest{}, listNotesInput{Dir: dir}); err == nil {
+			t.Errorf("list_notes listed %s: %+v", dir, out.Entries)
+		}
+	}
+}
+
 func TestTrashToolsStillWork(t *testing.T) {
 	s, v := metaServer(t, map[string]string{"Inbox/a.md": "## One\n\nbody\n"})
 	ctx := context.Background()
