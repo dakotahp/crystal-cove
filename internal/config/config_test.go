@@ -8,6 +8,8 @@ import (
 	"testing"
 )
 
+const testToken = "0123456789abcdef0123456789abcdef"
+
 func env(m map[string]string) Getenv {
 	return func(key string) string { return m[key] }
 }
@@ -17,7 +19,7 @@ func validEnv() map[string]string {
 		"OBSIDIAN_EMAIL":    "user@example.com",
 		"OBSIDIAN_PASSWORD": "secret",
 		"OBSIDIAN_VAULTS":   "Notes",
-		"MCP_AUTH_TOKEN":    "token",
+		"MCP_AUTH_TOKEN":    testToken,
 		"HOME":              "/home/test",
 	}
 }
@@ -27,7 +29,7 @@ func TestLoadDefaults(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Load: %v", err)
 	}
-	if cfg.Email != "user@example.com" || cfg.Password != "secret" || cfg.AuthToken != "token" {
+	if cfg.Email != "user@example.com" || cfg.Password != "secret" || cfg.AuthToken != testToken {
 		t.Errorf("credentials not loaded: %+v", cfg)
 	}
 	if cfg.Port != DefaultPort {
@@ -108,6 +110,18 @@ func TestLoadMissingRequired(t *testing.T) {
 				t.Errorf("Load succeeded without %s", key)
 			}
 		})
+	}
+}
+
+func TestLoadRejectsShortAuthToken(t *testing.T) {
+	m := validEnv()
+	m["MCP_AUTH_TOKEN"] = "change-me"
+	_, err := Load(env(m), rand.Reader)
+	if err == nil || !strings.Contains(err.Error(), "at least 32 characters") {
+		t.Fatalf("err = %v, want a minimum-length error", err)
+	}
+	if strings.Contains(err.Error(), "change-me") {
+		t.Errorf("error %q echoes the token", err)
 	}
 }
 

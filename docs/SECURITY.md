@@ -17,7 +17,7 @@ This server holds a complete copy of a personal knowledge base and exposes it to
 Every MCP request carries a bearer token. There is no unauthenticated mode and no way to disable the check.
 
 - **Static token** (`MCP_AUTH_TOKEN`): compared in constant time, so a
-  wrong token takes the same time to reject as a right one and cannot be guessed byte by byte.
+  wrong token takes the same time to reject as a right one and cannot be guessed byte by byte. The server refuses to start with a token shorter than 32 characters, so a placeholder or a short word never guards a live vault.
 - **OpenID Connect** (`OAUTH_ISSUER`): tokens are validated against the
   provider's published keys, with issuer, audience and expiry checked, and optional required roles (`OAUTH_REQUIRED_ROLES`) to bind the endpoint to specific principals. The server advertises RFC 9728 protected-resource metadata so clients can find the authorization server themselves.
 - Both can run side by side.

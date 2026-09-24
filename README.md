@@ -143,7 +143,8 @@ cat ~/.config/obsidian-headless/auth_token   # Linux
 OBSIDIAN_AUTH_TOKEN=the-token-from-step-1
 OBSIDIAN_VAULTS=YourVaultName
 #OBSIDIAN_VAULT_PASSWORD=only-if-the-vault-is-encrypted
-MCP_AUTH_TOKEN=generate-one-with-openssl-rand-hex-32
+# Paste the output of: openssl rand -hex 32
+MCP_AUTH_TOKEN=
 PORT=8787
 ```
 
@@ -309,7 +310,7 @@ exponential backoff; the MCP process and other vault syncs remain running.
 | `OBSIDIAN_AUTH_TOKEN` | no | An existing `obsidian-headless` session token, used instead of email and password. Required for accounts with MFA enabled. |
 | `OBSIDIAN_VAULTS` | yes | Comma-separated remote vault names, each optionally `Name:encryption-password`. |
 | `OBSIDIAN_VAULT_PASSWORD` | no | End-to-end encryption password applied to vaults that don't carry their own. |
-| `MCP_AUTH_TOKEN` | yes* | Static bearer token (API key) clients may present. Optional when `OAUTH_ISSUER` is set; at least one of the two is required. |
+| `MCP_AUTH_TOKEN` | yes* | Static bearer token (API key) clients may present. At least 32 characters (`openssl rand -hex 32`); the server refuses to start with a shorter one. Optional when `OAUTH_ISSUER` is set; at least one of the two is required. |
 | `OAUTH_ISSUER` | no | OpenID Connect issuer URL. Setting it delegates auth to that provider — see below. |
 | `OAUTH_AUDIENCE` | with `OAUTH_ISSUER` | Audience tokens must carry in `aud` (or `azp`, the authorized-party fallback used by e.g. Keycloak client tokens). |
 | `MCP_PUBLIC_URL` | with `OAUTH_ISSUER` | This server's canonical public URL, used as the protected-resource identifier. |
