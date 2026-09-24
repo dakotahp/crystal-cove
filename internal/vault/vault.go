@@ -296,15 +296,25 @@ func (v *Vault) Move(from, to string) error {
 // original directory is not recorded by the trash convention). It fails if
 // the destination already exists.
 func (v *Vault) Restore(rel, to string) (string, error) {
+	to, err := RestoreDestination(rel, to)
+	if err != nil {
+		return "", err
+	}
+	if err := v.Move(rel, to); err != nil {
+		return "", err
+	}
+	return to, nil
+}
+
+// RestoreDestination returns where Restore puts the trashed note rel: to,
+// or the note's path inside .trash when to is empty.
+func RestoreDestination(rel, to string) (string, error) {
 	slashRel := filepath.ToSlash(rel)
 	if !strings.HasPrefix(slashRel, TrashDir+"/") {
 		return "", fmt.Errorf("restoring %q: only notes inside %s/ can be restored", rel, TrashDir)
 	}
 	if to == "" {
 		to = strings.TrimPrefix(slashRel, TrashDir+"/")
-	}
-	if err := v.Move(rel, to); err != nil {
-		return "", err
 	}
 	return to, nil
 }

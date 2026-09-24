@@ -121,7 +121,9 @@ covered is not useful.
   text that tries to steer an assistant into doing something you did not
   ask for. No server-side check can fully prevent that. Keep write tools
   behind your client's approval settings when that risk matters, and
-  consider a dedicated vault.
+  consider a dedicated vault. One door is closed on the server: tools
+  cannot change `mcp-instructions.md`, so a steered assistant cannot plant
+  instructions that every later session would receive.
 - **Single tenant.** One credential set, one account. This is not a
   multi-user service, and it does not try to be.
 - **No rate limiting and no audit log.** A reverse proxy can add the first.
