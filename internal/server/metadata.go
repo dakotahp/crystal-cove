@@ -202,7 +202,7 @@ func (s *Server) updateFrontmatter(_ context.Context, _ *mcp.CallToolRequest, in
 	if err != nil {
 		return nil, nil, err
 	}
-	if err := requireNote(in.Path); err != nil {
+	if err := requireWritableNote(in.Path); err != nil {
 		return nil, nil, err
 	}
 	if len(in.Set) == 0 && len(in.Remove) == 0 {
@@ -252,6 +252,21 @@ func requireNote(path string) error {
 		if strings.HasPrefix(part, ".") && part != vault.TrashDir {
 			return fmt.Errorf("path %q is inside a hidden folder: these tools work on notes only", path)
 		}
+	}
+	return nil
+}
+
+// requireWritableNote applies requireNote and also refuses the synced
+// instructions note. Its text reaches every later session as server
+// instructions, so a note that talks an assistant into rewriting it would
+// steer every client from then on. It stays editable from Obsidian.
+func requireWritableNote(path string) error {
+	if err := requireNote(path); err != nil {
+		return err
+	}
+	if strings.EqualFold(filepath.ToSlash(filepath.Clean(path)), SyncedInstructionsFile) {
+		return fmt.Errorf("%s holds this server's instructions to every assistant, so tools cannot change it: edit it in Obsidian instead",
+			SyncedInstructionsFile)
 	}
 	return nil
 }

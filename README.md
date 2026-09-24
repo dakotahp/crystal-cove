@@ -372,6 +372,8 @@ The first one found per vault wins. Vaults without either file add nothing. If s
 
 The file is re-read for each new session, so an edit made on another device reaches the next conversation once it syncs. The boot log reports how many characters were loaded at startup.
 
+The MCP tools can read `mcp-instructions.md` but cannot create, edit, move, delete or restore it. Its text steers every later session, so a note that talks an assistant into rewriting it would steer every client from then on. Edit it in Obsidian instead.
+
 ## MCP tools
 
 The table describes the tools provided to agents through the MCP to give it means to operate your vault. The tools are custom to the service to operate like an Obsidian vault should, unlike a generic filesystem MCP that would require listing directories and crudely reading raw files.

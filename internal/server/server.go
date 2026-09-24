@@ -450,7 +450,7 @@ func (s *Server) createNote(_ context.Context, _ *mcp.CallToolRequest, in writeN
 	if err != nil {
 		return nil, okOutput{}, err
 	}
-	if err := requireNote(in.Path); err != nil {
+	if err := requireWritableNote(in.Path); err != nil {
 		return nil, okOutput{}, err
 	}
 	if err := v.Create(in.Path, in.Content); err != nil {
@@ -464,7 +464,7 @@ func (s *Server) appendNote(_ context.Context, _ *mcp.CallToolRequest, in writeN
 	if err != nil {
 		return nil, okOutput{}, err
 	}
-	if err := requireNote(in.Path); err != nil {
+	if err := requireWritableNote(in.Path); err != nil {
 		return nil, okOutput{}, err
 	}
 	if err := v.Append(in.Path, in.Content); err != nil {
@@ -490,7 +490,7 @@ func (s *Server) editNote(_ context.Context, _ *mcp.CallToolRequest, in editNote
 	if err != nil {
 		return nil, editNoteOutput{}, err
 	}
-	if err := requireNote(in.Path); err != nil {
+	if err := requireWritableNote(in.Path); err != nil {
 		return nil, editNoteOutput{}, err
 	}
 	n, err := v.Edit(in.Path, in.Find, in.Replace, in.ReplaceAll)
@@ -511,10 +511,10 @@ func (s *Server) moveNote(_ context.Context, _ *mcp.CallToolRequest, in moveNote
 	if err != nil {
 		return nil, okOutput{}, err
 	}
-	if err := requireNote(in.Path); err != nil {
+	if err := requireWritableNote(in.Path); err != nil {
 		return nil, okOutput{}, err
 	}
-	if err := requireNote(in.NewPath); err != nil {
+	if err := requireWritableNote(in.NewPath); err != nil {
 		return nil, okOutput{}, err
 	}
 	if err := v.Move(in.Path, in.NewPath); err != nil {
@@ -556,6 +556,13 @@ func (s *Server) restoreNote(_ context.Context, _ *mcp.CallToolRequest, in resto
 	if err := requireNote(in.Path); err != nil {
 		return nil, restoreNoteOutput{}, err
 	}
+	to, err := vault.RestoreDestination(in.Path, in.To)
+	if err != nil {
+		return nil, restoreNoteOutput{}, err
+	}
+	if err := requireWritableNote(to); err != nil {
+		return nil, restoreNoteOutput{}, err
+	}
 	restoredTo, err := v.Restore(in.Path, in.To)
 	if err != nil {
 		return nil, restoreNoteOutput{}, err
@@ -568,7 +575,7 @@ func (s *Server) deleteNote(_ context.Context, _ *mcp.CallToolRequest, in delete
 	if err != nil {
 		return nil, deleteNoteOutput{}, err
 	}
-	if err := requireNote(in.Path); err != nil {
+	if err := requireWritableNote(in.Path); err != nil {
 		return nil, deleteNoteOutput{}, err
 	}
 	trashedTo, err := v.Delete(in.Path, in.Permanent)
@@ -609,7 +616,7 @@ func (s *Server) replaceSection(_ context.Context, _ *mcp.CallToolRequest, in re
 	if err != nil {
 		return nil, okOutput{}, err
 	}
-	if err := requireNote(in.Path); err != nil {
+	if err := requireWritableNote(in.Path); err != nil {
 		return nil, okOutput{}, err
 	}
 	if err := v.ReplaceSection(in.Path, in.HeadingPath, in.Content); err != nil {
