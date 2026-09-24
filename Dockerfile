@@ -10,7 +10,7 @@ RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/obsidian-mcp ./cmd
 # Build obsidian-headless separately: better-sqlite3 has no musl prebuilds
 # and needs a node-gyp toolchain; build intermediates are stripped before
 # the copy into the runtime stage.
-FROM node:22-alpine AS headless
+FROM node:25-alpine AS headless
 RUN apk add --no-cache python3 make g++ \
     && npm install -g obsidian-headless \
     && cd /usr/local/lib/node_modules/obsidian-headless/node_modules/better-sqlite3 \
