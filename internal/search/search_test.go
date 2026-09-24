@@ -227,6 +227,26 @@ func TestSearchIntegration(t *testing.T) {
 	}
 }
 
+func TestRipgrepSeesOnlyPath(t *testing.T) {
+	t.Setenv("MCP_AUTH_TOKEN", "bearer-secret")
+	t.Setenv("OBSIDIAN_AUTH_TOKEN", "sync-token")
+
+	stdout, _, code, err := execRun(context.Background(), t.TempDir(), "env")
+	if err != nil || code != 0 {
+		t.Fatalf("env: code %d, err %v", code, err)
+	}
+	var names []string
+	for _, line := range strings.Split(strings.TrimSpace(string(stdout)), "\n") {
+		name, _, _ := strings.Cut(line, "=")
+		names = append(names, name)
+	}
+	slices.Sort(names)
+	// os/exec adds PWD itself whenever a working directory is set.
+	if !slices.Equal(names, []string{"PATH", "PWD"}) && !slices.Equal(names, []string{"PATH"}) {
+		t.Errorf("ripgrep environment holds %q, want PATH alone", names)
+	}
+}
+
 func TestSearchBinaryMissing(t *testing.T) {
 	s := New("this-binary-does-not-exist-2a15", nil)
 	if _, err := s.Search(context.Background(), t.TempDir(), Options{Query: "x"}); err == nil {
