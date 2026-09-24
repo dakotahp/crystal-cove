@@ -113,7 +113,8 @@ Key invariants:
   `OBSIDIAN_VAULT_PASSWORD` as the shared fallback.
 
 The Docker image is three stages: Go builder → `alpine` stage with apk
-`nodejs` and `npm` that npm-installs `obsidian-headless` (better-sqlite3 has
+`nodejs` and `npm` that installs `obsidian-headless` from the lockfile in
+`headless/` (better-sqlite3 has
 no musl prebuilds, so a node-gyp toolchain is installed there and build
 intermediates stripped) → bare `alpine` runtime with apk `nodejs`, `ripgrep`,
 `tini`, running as a non-root user. The build and runtime stages must share

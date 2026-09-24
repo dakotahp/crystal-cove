@@ -85,8 +85,12 @@ deliberate rather than occasional.
   Markdown parser and a YAML parser. Fewer dependencies, less to audit.
 - `go.mod` and `go.sum` pin every version, direct and indirect, and Go
   verifies checksums on every build.
-- Dependabot watches Go modules, the Dockerfile's base images and the CI
-  actions every week. Routine patch updates arrive grouped; a major version
+- The sync client, which holds the account token and vault passwords, is
+  installed from `headless/package-lock.json`, so a build never picks up a
+  release nobody reviewed. Only its sqlite module, which must compile, runs
+  an install script.
+- Dependabot watches Go modules, the sync client, the Dockerfile's base
+  images and the CI actions every week. Routine patch updates arrive grouped; a major version
   arrives on its own, where it gets read.
 - Dependabot security alerts and automated security fixes are enabled, so a
   known vulnerability opens a pull request without waiting for the weekly
