@@ -12,10 +12,15 @@ RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/obsidian-mcp ./cmd
 # the copy into the runtime stage. Its native addon is tied to the Node
 # release it was compiled against, so this stage uses the runtime's own
 # Alpine and apk nodejs rather than a node image.
+# headless/package-lock.json pins the whole dependency tree, and only
+# better-sqlite3, which must compile, runs an install script.
 FROM alpine:3.24 AS headless
-RUN apk add --no-cache nodejs npm python3 make g++ \
-    && npm install -g obsidian-headless \
-    && cd /usr/local/lib/node_modules/obsidian-headless/node_modules/better-sqlite3 \
+RUN apk add --no-cache nodejs npm python3 make g++
+WORKDIR /opt/headless
+COPY headless/package.json headless/package-lock.json ./
+RUN npm ci --omit=dev --ignore-scripts \
+    && npm rebuild better-sqlite3 \
+    && cd node_modules/better-sqlite3 \
     && rm -rf deps src build/deps build/Release/obj build/Release/obj.target
 
 # Bare Alpine runtime: apk nodejs runs the sync client, ripgrep backs
@@ -24,8 +29,8 @@ RUN apk add --no-cache nodejs npm python3 make g++ \
 FROM alpine:3.24
 RUN apk add --no-cache nodejs ripgrep tini libstdc++ \
     && adduser -D -h /home/obsidian obsidian
-COPY --from=headless /usr/local/lib/node_modules/obsidian-headless /usr/local/lib/node_modules/obsidian-headless
-RUN ln -s ../lib/node_modules/obsidian-headless/cli.js /usr/local/bin/ob
+COPY --from=headless /opt/headless/node_modules /opt/headless/node_modules
+RUN ln -s /opt/headless/node_modules/obsidian-headless/cli.js /usr/local/bin/ob
 COPY --from=build /out/obsidian-mcp /usr/local/bin/obsidian-mcp
 USER obsidian
 ENV HOME=/home/obsidian
