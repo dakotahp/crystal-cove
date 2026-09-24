@@ -148,8 +148,15 @@ CI (`.github/workflows/ci.yml`) enforces, in order:
    proves nothing about whether it runs, so this loads the native sqlite
    module under the runtime's Node, runs `ob` and `rg`, and checks the
    server binary refuses an empty configuration. No credentials needed.
-5. On push to `main` or `v*` tags: multi-arch (amd64/arm64) image publish
-   to `ghcr.io/andyjmorgan/obsidian-hosted-mcp`.
+5. On push to `master`: multi-arch (amd64/arm64) image publish of `:latest`
+   to `ghcr.io/dakotahp/vault-bridge`. Versioned images come from
+   `.github/workflows/release-please.yml`, not from a tag push: a tag made
+   with the default token starts no other workflow, so that workflow builds
+   and pushes `:X.Y.Z` and `:X.Y` itself once a release is created.
+
+Releases use Conventional Commits (`feat:`, `fix:`, `feat!:`). Never edit
+`CHANGELOG.md`, `.release-please-manifest.json`, or the `Version` constant in
+`internal/server/server.go` by hand; release-please owns them.
 
 Conventions:
 
