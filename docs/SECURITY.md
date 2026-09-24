@@ -131,6 +131,9 @@ CI also rebuilds and republishes `:latest` every week without the layer
 cache, so Alpine, Node and Go security patches reach the image even when
 nothing in this repository changes. Versioned tags are not rebuilt.
 
+CI audits its own workflows with zizmor, which catches injectable
+expressions, over-broad tokens, unpinned actions and cache poisoning.
+
 CI also runs `govulncheck` with the Go builder image the Dockerfile names,
 so it checks the standard library that ships. A finding turns CI red but
 does not hold back publishing: the fix for a Go vulnerability arrives by
