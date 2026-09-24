@@ -20,7 +20,7 @@ RUN apk add --no-cache python3 make g++ \
 # search_notes, and tini reaps the ob sync children. The runtime's Node
 # major need not match the build stage's, because better-sqlite3 is built
 # against Node's stable ABI; scripts/smoke-test.sh loads it to confirm.
-FROM alpine:3.22
+FROM alpine:3.24
 RUN apk add --no-cache nodejs ripgrep tini libstdc++ \
     && adduser -D -h /home/obsidian obsidian
 COPY --from=headless /usr/local/lib/node_modules/obsidian-headless /usr/local/lib/node_modules/obsidian-headless
