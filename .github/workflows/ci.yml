@@ -41,6 +41,15 @@ jobs:
           echo "total coverage: ${total}%"
           awk -v t="$total" 'BEGIN { exit !(t >= 95.0) }' || { echo "coverage ${total}% is below the 95% gate"; exit 1; }
 
+  vulncheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - name: Check for reachable known vulnerabilities
+        run: ./scripts/vulncheck.sh
+
   image:
     needs: test
     runs-on: ubuntu-latest
