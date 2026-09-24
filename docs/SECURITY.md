@@ -1,8 +1,6 @@
 # Security
 
-This server holds a complete copy of a personal knowledge base and exposes
-it to AI assistants, on a machine that may face the internet. That shapes
-every design decision below.
+This server holds a complete copy of a personal knowledge base and exposes it to AI assistants, on a machine that may face the internet. That shapes every design decision below.
 
 ## What it protects
 
@@ -10,24 +8,18 @@ every design decision below.
   reach them.
 - **The host.** A connected assistant must not be able to read or write
   anything outside the vault.
-- **The account.** A leaked credential must be revocable without losing the
-  vault.
+- **The account.** A leaked credential must be revocable without losing the vault.
 
 ## Boundaries
 
 ### The MCP endpoint is authenticated, always
 
-Every MCP request carries a bearer token. There is no unauthenticated mode
-and no way to disable the check.
+Every MCP request carries a bearer token. There is no unauthenticated mode and no way to disable the check.
 
 - **Static token** (`MCP_AUTH_TOKEN`): compared in constant time, so a
-  wrong token takes the same time to reject as a right one and cannot be
-  guessed byte by byte.
+  wrong token takes the same time to reject as a right one and cannot be guessed byte by byte.
 - **OpenID Connect** (`OAUTH_ISSUER`): tokens are validated against the
-  provider's published keys, with issuer, audience and expiry checked, and
-  optional required roles (`OAUTH_REQUIRED_ROLES`) to bind the endpoint to
-  specific principals. The server advertises RFC 9728 protected-resource
-  metadata so clients can find the authorization server themselves.
+  provider's published keys, with issuer, audience and expiry checked, and optional required roles (`OAUTH_REQUIRED_ROLES`) to bind the endpoint to specific principals. The server advertises RFC 9728 protected-resource metadata so clients can find the authorization server themselves.
 - Both can run side by side.
 
 Only two endpoints are unauthenticated, and neither reads the vault:
@@ -59,8 +51,7 @@ Two layers, because one is not enough:
 ### Secrets stay out of logs, arguments and the repository
 
 - Credentials arrive only through environment variables.
-- The sync token passes to the sync client through the environment, not on
-  a command line, so it never appears in the process table.
+- The sync token passes to the sync client through the environment, not on a command line, so it never appears in the process table.
 - Command logging masks password arguments before writing them.
 - `.env` is ignored by git, and the repository carries only placeholders.
 
@@ -137,16 +128,11 @@ covered is not useful.
   machine holding it is lost.
 - **Account password mode puts the password in the container's process
   table.** Logging in with `OBSIDIAN_EMAIL` and `OBSIDIAN_PASSWORD` passes
-  the password to the sync client as a command-line argument, so anything
-  able to list processes inside that container could read it. Supplying
-  `OBSIDIAN_AUTH_TOKEN` instead avoids this, and is also what an account
-  with MFA needs.
+  the password to the sync client as a command-line argument, so anything able to list processes inside that container could read it. Supplying `OBSIDIAN_AUTH_TOKEN` instead avoids this, and is also what an account with MFA needs.
 
 ## Reporting a problem
 
-Open an issue describing what you found, how to reproduce it, and what it
-lets an attacker do. If you have a fix, a pull request is welcome; link it
-to the issue.
+Open an issue describing what you found, how to reproduce it, and what it lets an attacker do. If you have a fix, a pull request is welcome; link it to the issue.
 
 If the problem is serious enough that a public description would put
 existing deployments at risk, open an issue asking for a private channel

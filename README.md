@@ -5,9 +5,9 @@
 <h1 align="center">Obsidian Hosted MCP</h1>
 
 <p align="center">
-  Give Claude, ChatGPT, and any other MCP client full access to your
-  <a href="https://obsidian.md">Obsidian</a> vaults — from anywhere.
+  Obsidian MCP with native sync and note-aware tools. Turn-key to run in a Docker container to work easily locally on your laptop or as a remote cloud connector like on claude.ai.
 </p>
+
 
 <p align="center">
   <a href="https://github.com/andyjmorgan/Obsidian-Hosted-Mcp/actions/workflows/ci.yml"><img src="https://github.com/andyjmorgan/Obsidian-Hosted-Mcp/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
@@ -35,55 +35,79 @@
 
 <!-- /toc -->
 
-## Why this exists
-
-Giving an AI assistant real access to an Obsidian vault needs three things
-at once. Every other approach I tried has two of them.
-
-1. **The official sync engine.** The vault copy is kept by Obsidian's own
-   [headless client](https://help.obsidian.md/install/headless), so nothing
-   here reimplements Obsidian Sync, and nothing depends on the desktop app
-   being awake or on a socket into it.
-2. **Reach from anywhere.** It speaks the
-   [Model Context Protocol](https://modelcontextprotocol.io) over HTTP with
-   authentication, so a browser, a phone, or a cloud agent can use it while
-   your computer is off.
-3. **Tools that understand notes.** Tags, frontmatter, wikilinks, and a
-   search that ranks a note named after your query above a passing mention
-   of it. Not `read_file` and `list_directory` over a folder.
+## The Why
 
 <p align="center">
   <img src="docs/images/trifecta.png" alt="Three overlapping circles: native sync, reach from anywhere, and tools that understand notes. Only the center, where all three meet, is the full setup. Native sync plus reach alone means primitive searching. Native sync plus note tools alone means laptop only, no mobile. Reach plus note tools alone means reinventing the wheel." width="100%">
 </p>
 
-Drop any one and the result fails in a specific way. Reimplement sync and
-you are trusting a guess about someone else's protocol with your notes.
-Skip the remote part and it only works on one machine, so no phone and no
-cloud. Ship generic file tools and the assistant cannot find anything,
-because a note's name and its frontmatter are where the meaning lives.
+Obsidian offers a CLI that requires the desktop app, or a headless sync service. But there is no first-party solution to give an agent access to your vault on a cloud server.
+
+Giving an AI assistant real access to an Obsidian vault needs three things at once, and most others provide only two of them.
+
+1. **Uses official sync engine.** Obsidian's own [headless client](https://help.obsidian.md/install/headless) is tried and true, so nothing here reimplements Obsidian Sync, and nothing depends on the desktop app being awake or on a socket into it.
+2. **Reach from anywhere.** It speaks the [Model Context Protocol](https://modelcontextprotocol.io) over HTTP with secure authentication, so a browser, a phone, or a cloud agent can use it securely.
+3. **Tools that understand notes.** An Obsidian vault is not simply a directory of markdown files, so a proper MCP layer provides tools that work with how Obsidian works. Not `read_file` and `list_directory` over a folder that waste tokens and make it difficult for agents to operate.
+
+Each component involves very different things so this project is a Docker container that runs them cohesively for stability and security.
 
 That means:
 
 - **Claude** (claude.ai, Claude Code, Claude Desktop) and **ChatGPT**
-  (connectors / deep research) can read, search, create, edit, and organize
-  your notes.
-- Every write syncs back to your phone, tablet, and desktop within seconds —
-  and every note you jot down on your phone becomes visible to your
-  assistant.
-- It runs 24/7 wherever you host containers: a NAS, a VPS, Kubernetes, or a
-  Raspberry Pi (images are amd64 + arm64).
+  (connectors / deep research) can read, search, create, edit, and organize your notes quickly and efficiently.
+- Every write syncs back to your Obsidian apps within seconds, and every note you jot down on your phone becomes visible to your assistant.
+- It runs 24/7 wherever you host containers: a NAS, a VPS, Kubernetes, or a Raspberry Pi (images are amd64 + arm64).
+
+## Use Cases
+
+The project serves two use cases effectively:
+
+1. Run locally on your laptop in lieu of using the Obsidian CLI with it's idiosyncrasies.
+2. Run on as a cloud connector on your own server to give Claude or ChatGPT access to your notes from anywhere on any device, including your phone on-the-go. No native apps required.
+
+### Which setup do you need?
+
+The same container covers two distinct uses, and the tools are the same to an agent either way. The only difference is that running this locally on a laptop or desktop does not involve more complex OAuth authentication or a domain name.
+
+|                  | **Locally**                                                  | **On a server**                                              |
+| ---------------- | ------------------------------------------------------------ | ------------------------------------------------------------ |
+| Example usage    | Agents on that machine: Claude Code, Cursor, and other local MCP clients | claude.ai in a browser, the Claude mobile app, and coding agents like Claude Code and Codex. |
+| Example endpoint | `http://127.0.0.1:8787/`                                     | `https://obsidian.example.com/`                              |
+| Authorization    | A static bearer token you generate                           | OAuth is required because claude.ai cannot send a fixed token (see below) |
+| What you need    | Docker                                                       | A domain name, TLS, and a reverse proxy                      |
+| Good for         | Daily agent work on a laptop or work computer, in place of a plugin or the Obsidian CLI, with no desktop app running | Reaching your vault from a phone, and agents that run while your computer is off |
+
+Both keep the vault in sync through native Obsidian Sync, so a note written by an agent on one machine appears on your phone and your desktop like any other edit. Even if you also have the desktop app on the same computer running this service. Notes will sync up to Obsidian and then back down to your native apps.
+
+## Installation
+
+Any usage of this project requires an Obsidian Sync subscription. Multi-factor authentication and an end-to-end encryption password for your vault are supported.
+
+Regardless of where you run the service (locally or remotely), the first step is configuring authentication. Create a `.env` file with the following values or copy the [example file](https://github.com/dakotahp/vault-bridge/blob/master/.env.example):
+
+```
+# You ONLY need option A OR B, not both. Comment out one or the other with # in front to disable the respective one.
+
+## Option A: when your Obsidian Sync account does NOT have MFA
+OBSIDIAN_EMAIL=you@example.com
+OBSIDIAN_PASSWORD=your-account-password
+
+## Option B: when your Obsidian Sync account DOES have MFA
+OBSIDIAN_AUTH_TOKEN=
+
+# Set to the name of your vault that Obsidian Sync knows
+OBSIDIAN_VAULTS=Default
+```
+
+Option A with email and password is self-explainatory to fill in those values. If your account has MFA (multi-factor authentication) enabled, set the configuration value `OBSIDIAN_AUTH_TOKEN` rather than the email and password. Run `ob login` once on *any* machine, answer the MFA prompt, then copy the token from `~/.config/obsidian-headless/auth_token` (Linux) or `~/.obsidian-headless/auth_token` (macOS). The container then skips `ob login` and uses that session. Repeat the step if the token ever stops working.
+
+### Local
+
+### Remote
+
+
 
 ### It is also the better local option
-
-The remote half is optional. Because the tools understand notes and nothing
-depends on the desktop app, the same server is the most capable way to give
-a **local** agent your vault: point Claude Code at `127.0.0.1` and you get
-tag queries, frontmatter edits, backlinks and ranked search, with no
-Obsidian window open and no socket to race against. One interface on your
-laptop, your work machine and your phone, instead of one tool for local
-work and a different one for everything else.
-
-Requirements: an Obsidian account with a **Sync subscription**.
 
 If the account has MFA enabled, no one can type the code inside a container,
 so set `OBSIDIAN_AUTH_TOKEN` instead of the email and password. Run `ob login`
@@ -92,29 +116,9 @@ once on any machine, answer the MFA prompt, then copy the token from
 `~/.obsidian-headless/auth_token` (macOS). The server then skips `ob login`
 and uses that session. Repeat the step if the token ever stops working.
 
-## Which setup do you need?
 
-The same container covers two quite different jobs, and the tools are the
-same either way. Start with the first one: it is simpler, it needs no
-domain name and no OAuth, and it is a complete setup on its own rather than
-a trial run.
-
-| | **On one machine** | **On a server** |
-| --- | --- | --- |
-| Who connects | Agents on that machine: Claude Code, Cursor, and other local MCP clients | claude.ai in a browser, the Claude mobile app, and anything else on the internet |
-| Reached at | `http://127.0.0.1:8787/` | `https://notes.example.com/` |
-| Auth | A static bearer token you generate | OAuth, because claude.ai cannot send a fixed token (see below) |
-| You also need | Docker | A domain name, TLS, and a reverse proxy |
-| Good for | Daily agent work on a laptop or work computer, in place of a plugin or the Obsidian CLI, with no desktop app running | Reaching your vault from a phone, and agents that run while your computer is off |
-
-Both keep the vault in sync through Obsidian Sync, so a note written by an
-agent on one machine appears on your phone and your desktop like any other
-edit.
 
 ## Run it on one machine
-
-This is the quickest way to try the server, and it is enough for daily work
-with a local agent.
 
 **You need:** Docker, an Obsidian account with a
 [Sync](https://obsidian.md/sync) subscription, and the vault's end-to-end
@@ -181,8 +185,7 @@ processes from using it.
 ## Starting it without compose
 
 One container, credentials on the command line. Use `OBSIDIAN_AUTH_TOKEN`
-instead of the email and password if the account has MFA enabled, and note
-that nothing is persisted here, so every restart re-syncs the vault:
+instead of the email and password if the account has MFA enabled, and note that nothing is persisted here, so every restart re-syncs the vault:
 
 ```sh
 docker run -d \
@@ -235,10 +238,7 @@ authorization flow itself.
 
 ## Run it on a server
 
-Do this when you want your vault from a phone, from claude.ai in a browser,
-or from agents that run while your computer is off. Everything in the
-single-machine setup still applies; the rest of this section is what the
-internet adds.
+Do this when you want your vault from a phone, from claude.ai in a browser, or from agents that run while your computer is off. Everything in the single-machine setup still applies; the rest of this section is what the internet adds.
 
 1. **Pick a host** that can run a container and be reached over HTTPS. TLS
    is non-negotiable — tokens travel in a header. A reverse proxy
@@ -268,8 +268,7 @@ internet adds.
 
 ### What claude.ai needs
 
-A bearer token is enough for Claude Code and for most local MCP clients. It
-is **not** enough for claude.ai in a browser or the Claude mobile app: on a
+A bearer token is enough for Claude Code and for most local MCP clients. It is **not** enough for claude.ai in a browser or the Claude mobile app: on a
 personal plan, a custom connector has no field for a fixed token. Sending
 one as a request header is a beta limited to some organizations, so a
 personal account needs OAuth. See Anthropic's
@@ -287,9 +286,7 @@ That leaves two ways to reach this server from a phone:
   needs no changes: it just sees a bearer token. Your reverse proxy routes
   the OAuth paths to the shim and everything else to the container.
 
-Once the connector is added, set the write tools to "Always allow" if you
-plan to use it hands-free, for example in a car. A tool approval prompt may
-not be answerable there.
+Once the connector is added, set the write tools to "Always allow" if you plan to use it hands-free, for example in a car. A tool approval prompt may not be answerable there.
 
 Startup is fail-fast: if login, any vault's `sync-setup`, or OAuth
 discovery fails, the container exits non-zero so your orchestrator surfaces
@@ -355,11 +352,9 @@ vault, which is the usual case, and required otherwise.
 
 ## Vault instructions
 
-A vault can tell the model how it is organised. At startup the server reads
-one file from each vault root and sends it to MCP clients as the server's
-`instructions`, the same field other connectors use for usage guidance. Use it
-for folder conventions, note naming, and anything you would otherwise repeat
-in every conversation.
+It is possible to inform your agents with any special instructions for your vault, such as how it is organized, what concepts it contains, or anything you want an agent to know at the start of a session. Think AGENTS.md, although an AGENTS.md file in your vault will not be automatically read over an MCP unlike in coding tool usage of a filesystem. The idea is for an agent to start with context that MCPs usually don't allow.
+
+At startup the server reads one file from each vault root and sends it to MCP clients as the server's `instructions`, the same field other connectors use for usage guidance.
 
 Two file names are accepted, in this order:
 
@@ -368,14 +363,13 @@ Two file names are accepted, in this order:
 | `.mcp-instructions.md` | No | You keep the guidance on the server only. Obsidian Sync does not carry arbitrary dotfiles, so you place this one by hand. |
 | `mcp-instructions.md` | Yes | You want to edit the guidance in Obsidian from any device. It is an ordinary note. |
 
-The first one found per vault wins. Vaults without either file add nothing. If
-several vaults supply guidance, each section is labelled `## Vault: <name>`.
+The first one found per vault wins. Vaults without either file add nothing. If several vaults supply guidance, each section is labelled `## Vault: <name>`.
 
-The file is re-read for each new session, so an edit made on another device
-reaches the next conversation once it syncs. The boot log reports how many
-characters were loaded at startup.
+The file is re-read for each new session, so an edit made on another device reaches the next conversation once it syncs. The boot log reports how many characters were loaded at startup.
 
 ## MCP tools
+
+The table describes the tools provided to agents through the MCP to give it means to operate your vault. The tools are custom to the service to operate like an Obsidian vault should, unlike a generic filesystem MCP that would require listing directories and crudely reading raw files.
 
 | Tool | Description |
 | --- | --- |
@@ -399,8 +393,7 @@ characters were loaded at startup.
 | `delete_note` | Move a note to the vault's `.trash` (Obsidian's own convention, recoverable everywhere); `permanent: true` removes it outright. |
 | `restore_note` | Undelete: move a note out of `.trash`, back to its original name or an explicit destination. |
 
-All paths are vault-relative and sandboxed: absolute paths and `..` escapes
-are rejected.
+All paths are vault-relative and sandboxed: absolute paths and `..` escapes are rejected for security purposes.
 
 ### Working with heading sections
 
@@ -479,49 +472,13 @@ local write, not completion of Obsidian Sync.
 
 ## Development
 
-```sh
-go test ./...                       # requires ripgrep on PATH for integration tests
-go test ./... -coverprofile=coverage.out && go tool cover -func=coverage.out
-docker build -t obsidian-hosted-mcp .
-```
-
-The table of contents at the top of this README is generated. After you add
-or rename a heading, run `node scripts/generate-toc.js` (Node 18 or newer)
-and commit the result.
-
-CI enforces `gofmt`, `go vet`, a 95% total coverage gate, and an up-to-date
-table of contents, then publishes a multi-arch (amd64/arm64) image to GHCR.
-Every push to `master` updates `:latest`.
-
-Releases are automatic. Write commit messages, or squash-merge PR titles, as
-[Conventional Commits](https://www.conventionalcommits.org): `fix:` makes a
-patch release, `feat:` makes a minor release, and `feat!:` makes a breaking
-one. [release-please](https://github.com/googleapis/release-please) collects
-them into a release PR that updates `CHANGELOG.md` and the version in
-`internal/server/server.go`. Merging that PR tags `vX.Y.Z`, creates a GitHub
-release, and publishes the image as `:X.Y.Z` and `:X.Y`.
+See [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) for how to develop in this project and contribution instructions.
 
 ## Security
 
-[docs/SECURITY.md](docs/SECURITY.md) describes the whole picture: what is
-protected, where the boundaries are, how dependencies are kept current,
-what CI proves before an image ships, the known limits, and how to report a
-problem. The short version:
-
-- Every MCP request is authenticated, by a constant-time token check or by
-  an OpenID Connect provider. Only the two health endpoints are open, and
-  neither reads the vault.
-- Run behind TLS and publish the container's port to loopback; the token
-  travels in a header.
-- Tools reach notes and nothing else: paths are sandboxed to the vault, and
-  restricted to `.md` files outside hidden folders.
-- Secrets arrive by environment variable, stay out of logs and the process
-  table, and `.env` is never committed.
-- Dependabot watches Go modules, base images and CI actions weekly, with
-  security alerts and automated fixes on.
+See [docs/SECURITY.md](docs/SECURITY.md) for the focus on security.
 
 ---
 
 *Obsidian is a trademark of Dynalist Inc. This project is not affiliated
-with or endorsed by Obsidian; it simply drives the official headless sync
-client.*
+with or endorsed by Obsidian; it simply drives the official headless sync client.*
