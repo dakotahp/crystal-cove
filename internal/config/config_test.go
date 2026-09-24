@@ -252,6 +252,18 @@ func TestLoadOAuth(t *testing.T) {
 	}
 }
 
+func TestLoadOAuthAllowsPlainHTTPOnLoopback(t *testing.T) {
+	for _, issuer := range []string{"http://127.0.0.1:8080/realms/lab", "http://localhost:8080", "http://[::1]:9000"} {
+		m := validEnv()
+		m["OAUTH_ISSUER"] = issuer
+		m["OAUTH_AUDIENCE"] = "obsidian-mcp"
+		m["MCP_PUBLIC_URL"] = "http://127.0.0.1:8787"
+		if _, err := Load(env(m), rand.Reader); err != nil {
+			t.Errorf("Load with issuer %s: %v", issuer, err)
+		}
+	}
+}
+
 func TestLoadOAuthExplicit(t *testing.T) {
 	m := validEnv()
 	delete(m, "MCP_AUTH_TOKEN") // OAuth alone is a valid auth setup
@@ -300,6 +312,11 @@ func TestLoadOAuthValidation(t *testing.T) {
 			m["OAUTH_AUDIENCE"] = "obsidian-mcp"
 			m["MCP_PUBLIC_URL"] = "https://obsidian.example.com"
 		}, "OAUTH_ISSUER"},
+		{"plain-http issuer off loopback", func(m map[string]string) {
+			m["OAUTH_ISSUER"] = "http://idp.example.com"
+			m["OAUTH_AUDIENCE"] = "obsidian-mcp"
+			m["MCP_PUBLIC_URL"] = "https://obsidian.example.com"
+		}, "https"},
 		{"audience without issuer", func(m map[string]string) {
 			m["OAUTH_AUDIENCE"] = "obsidian-mcp"
 		}, "OAUTH_ISSUER"},
