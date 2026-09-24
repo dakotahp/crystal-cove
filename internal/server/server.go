@@ -6,6 +6,7 @@ import (
 	"context"
 	"crypto/subtle"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"path"
 	"path/filepath"
@@ -33,6 +34,7 @@ type Server struct {
 	// syncReady reports whether every vault has a fresh sync heartbeat.
 	syncReady func() bool
 	policy    Policy
+	audit     *slog.Logger
 }
 
 // Policy limits what the tools may do to a vault.
@@ -144,6 +146,9 @@ func (s *Server) MCPServer() *mcp.Server {
 
 	if !s.policy.ReadOnly {
 		s.addWriteTools(srv)
+	}
+	if s.audit != nil {
+		srv.AddReceivingMiddleware(auditMiddleware(s.audit))
 	}
 	return srv
 }

@@ -63,6 +63,15 @@ Two layers, because one is not enough:
   as arguments.
 - `.env` is ignored by git, and the repository carries only placeholders.
 
+### Every tool call is logged
+
+Each call writes one log line tagged `audit=true`: the tool, the caller
+(the OIDC subject, or `api-key` for the static token), the outcome, the
+time taken, and the vault and paths it named. Note text, search queries
+and edit text are never logged, and long arguments are cut short. A token
+used from somewhere unexpected shows up here, so review the log with
+`docker compose logs | grep audit=true`.
+
 ### Writes cannot corrupt a note
 
 - A note is replaced by writing a temporary file and renaming it over the
@@ -160,8 +169,7 @@ covered is not useful.
   instructions that every later session would receive.
 - **Single tenant.** One credential set, one account. This is not a
   multi-user service, and it does not try to be.
-- **No rate limiting and no audit log.** A reverse proxy can add the first.
-  The second is not implemented.
+- **No rate limiting.** A reverse proxy can add it.
 - **Vault data sits unencrypted on the host**, in the container's volume,
   protected by the host's own disk encryption and access control. An
   end-to-end encrypted vault is decrypted here, because the server has to

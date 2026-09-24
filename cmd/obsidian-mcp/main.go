@@ -60,6 +60,7 @@ func run(ctx context.Context, getenv config.Getenv, logOut io.Writer, onReady fu
 	srv := server.New(vaults, search.New("rg", nil), b.SyncReady)
 	srv.SetPolicy(server.Policy{ReadOnly: cfg.ReadOnly, AllowPermanentDelete: cfg.AllowPermanentDelete})
 	logger.Info("tool policy", "read_only", cfg.ReadOnly, "permanent_delete", cfg.AllowPermanentDelete)
+	srv.SetAuditLog(logger.With("audit", true))
 	logger.Info("vault instructions loaded", "characters", len(srv.Instructions()))
 
 	authCfg := server.AuthConfig{StaticToken: cfg.AuthToken}
