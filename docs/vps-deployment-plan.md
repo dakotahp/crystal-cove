@@ -51,9 +51,9 @@ for now. A small single-user OAuth mode built into this server would remove
    `MCP_AUTH_TOKEN` set to the token `auth.py` returns, and
    `OBSIDIAN_DEVICE_NAME=vps-mcp` so Sync version history names the device
    clearly.
-4. **Bind the port to loopback.** The compose file publishes `${PORT}:8080` on
-   every interface. On a public server that exposes the MCP endpoint directly,
-   with no TLS and no Caddy in front. It must be `127.0.0.1:8787:8080`.
+4. **Keep the port on loopback.** The compose file publishes to `127.0.0.1`
+   by default. Leave `BIND_ADDRESS` unset: `0.0.0.0` on a public server
+   exposes the MCP endpoint directly, with no TLS and no Caddy in front.
 5. **Point the copied Caddy block at that port** and reload Caddy.
 6. **Start it and watch the first sync.** Wait for `Fully synced` in the logs
    and a 200 from `/readyz` before connecting anything.
