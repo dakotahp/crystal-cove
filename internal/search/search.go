@@ -124,7 +124,7 @@ func New(binary string, run RunFunc) *Searcher {
 }
 
 func execRun(ctx context.Context, dir, name string, args ...string) ([]byte, []byte, int, error) {
-	cmd := exec.CommandContext(ctx, name, args...)
+	cmd := exec.CommandContext(ctx, name, args...) // #nosec G204 -- fixed binary, arguments passed without a shell
 	cmd.Dir = dir
 	// ripgrep needs nothing from the environment, which holds this server's
 	// secrets, and RIPGREP_CONFIG_PATH there would change how it searches.

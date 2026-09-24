@@ -106,7 +106,7 @@ func (b *Bootstrapper) Login(ctx context.Context) error {
 func (b *Bootstrapper) SetupVaults(ctx context.Context) error {
 	for _, v := range b.cfg.Vaults {
 		path := b.VaultPath(v)
-		if err := os.MkdirAll(path, 0o755); err != nil {
+		if err := os.MkdirAll(path, 0o750); err != nil {
 			return fmt.Errorf("creating vault directory %q: %w", path, err)
 		}
 		b.log.Info("connecting vault", "vault", v.Name, "path", path, "device", b.cfg.DeviceName)
@@ -163,7 +163,7 @@ func (b *Bootstrapper) runContinuousSync(ctx context.Context, v config.Vault) er
 	childCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	cmd := exec.CommandContext(childCtx, b.binary, "sync", "--continuous", "--path", b.VaultPath(v))
+	cmd := exec.CommandContext(childCtx, b.binary, "sync", "--continuous", "--path", b.VaultPath(v)) // #nosec G204 -- fixed binary, arguments passed without a shell
 	cmd.Env = obEnv()
 	output := b.observedSyncOutput(v.Name)
 	cmd.Stdout = output
@@ -204,7 +204,7 @@ func (b *Bootstrapper) runContinuousSync(ctx context.Context, v config.Vault) er
 // flags named in secretFlags redacted.
 func (b *Bootstrapper) runOb(ctx context.Context, args, secretFlags []string) error {
 	b.log.Debug("running", "command", b.binary, "args", redact(args, secretFlags))
-	cmd := exec.CommandContext(ctx, b.binary, args...)
+	cmd := exec.CommandContext(ctx, b.binary, args...) // #nosec G204 -- fixed binary, arguments passed without a shell
 	cmd.Env = obEnv()
 	out, err := cmd.CombinedOutput()
 	if err != nil {

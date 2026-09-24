@@ -107,7 +107,9 @@ deliberate rather than occasional.
 
 ## What CI proves before an image ships
 
-1. Formatting and `go vet`.
+1. Formatting, `go vet`, and gosec static security analysis. A gosec
+   warning that is a false positive is silenced on its own line with the
+   reason, never for the whole project.
 2. The full test suite, with total coverage held at 95% or above.
 3. A short fuzz run against the path sandbox and the rule for which notes
    the write tools may change.

@@ -61,6 +61,18 @@ jobs:
           go test ./internal/vault/ -run '^$' -fuzz '^FuzzReadNeverLeavesTheVault$' -fuzztime 20s
           go test ./internal/server/ -run '^$' -fuzz '^FuzzWritableNotesAreVisibleNotes$' -fuzztime 20s
 
+  gosec:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      - name: Static security analysis
+        run: go run github.com/securego/gosec/v2/cmd/gosec@v2.29.0 -quiet ./...
+
   vulncheck:
     runs-on: ubuntu-latest
     steps:
@@ -92,7 +104,7 @@ jobs:
 
   publish:
     if: github.event_name == 'push' || (github.event_name != 'pull_request' && github.ref == 'refs/heads/master')
-    needs: [test, fuzz, image]
+    needs: [test, fuzz, gosec, image]
     runs-on: ubuntu-latest
     permissions:
       contents: read
