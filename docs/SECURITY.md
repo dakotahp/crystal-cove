@@ -144,6 +144,20 @@ full build provenance as registry attestations, so what it contains and
 which workflow built it can be checked with `docker buildx imagetools
 inspect`.
 
+Each published image is also signed with cosign keyless signing: the
+signature is tied to the workflow that built it, through GitHub's OIDC
+identity, and recorded in Sigstore's public transparency log. There is no
+signing key to leak. Check an image before running it:
+
+```sh
+cosign verify ghcr.io/dakotahp/vault-bridge:latest \
+  --certificate-identity-regexp '^https://github.com/dakotahp/vault-bridge/\.github/workflows/(ci|release-please)\.yml@' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com
+```
+
+A pass means the image came from this repository's CI, not from someone
+who only obtained write access to the registry.
+
 CI also rebuilds and republishes `:latest` every week without the layer
 cache, so Alpine, Node and Go security patches reach the image even when
 nothing in this repository changes. Versioned tags are not rebuilt.
