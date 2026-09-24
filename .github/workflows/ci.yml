@@ -41,6 +41,21 @@ jobs:
           echo "total coverage: ${total}%"
           awk -v t="$total" 'BEGIN { exit !(t >= 95.0) }' || { echo "coverage ${total}% is below the 95% gate"; exit 1; }
 
+  fuzz:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      - name: Fuzz the vault sandbox and the writable-note policy
+        run: |
+          go test ./internal/vault/ -run '^$' -fuzz '^FuzzResolveStaysInsideTheVault$' -fuzztime 20s
+          go test ./internal/vault/ -run '^$' -fuzz '^FuzzReadNeverLeavesTheVault$' -fuzztime 20s
+          go test ./internal/server/ -run '^$' -fuzz '^FuzzWritableNotesAreVisibleNotes$' -fuzztime 20s
+
   vulncheck:
     runs-on: ubuntu-latest
     steps:
@@ -64,7 +79,7 @@ jobs:
 
   publish:
     if: github.event_name == 'push'
-    needs: [test, image]
+    needs: [test, fuzz, image]
     runs-on: ubuntu-latest
     permissions:
       contents: read
