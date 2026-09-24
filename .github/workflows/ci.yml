@@ -23,6 +23,8 @@ jobs:
             echo "gofmt needed on:" "$unformatted"
             exit 1
           fi
+      - name: Check README table of contents
+        run: node --test scripts/generate-toc.test.js
       - name: Vet
         run: go vet ./...
       - name: Test with coverage

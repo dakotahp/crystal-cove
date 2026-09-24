@@ -136,6 +136,9 @@ feature by feature, not something to backfill at the end.
 CI (`.github/workflows/ci.yml`) enforces, in order:
 
 1. `gofmt -l .` must be empty.
+1b. `node --test scripts/generate-toc.test.js` must pass: the README table of
+   contents is generated, so after changing a heading run
+   `node scripts/generate-toc.js` and commit the result.
 2. `go vet ./...` must pass.
 3. `go test ./... -coverprofile=coverage.out -covermode=atomic` must pass.
 4. **Total coverage must be ≥ 95%** (currently ~96.7%). If you add code,
