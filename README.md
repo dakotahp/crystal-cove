@@ -1,11 +1,11 @@
 <p align="center">
-  <img src="docs/images/logo.svg" alt="Crystal Cove logo: a purple crystal rising from the sea between moonlit cliffs" width="160">
+  <img src="docs/images/banner.svg" alt="Crystal Cove: Obsidian MCP with native sync and note-aware tools. A purple crystal rises from a moonlit sea cove." width="100%">
 </p>
 
 <h1 align="center">Crystal Cove</h1>
 
 <p align="center">
-  Obsidian MCP with native sync and note-aware tools. Turn-key to run in a Docker container to work easily locally on your laptop or as a remote cloud connector like on claude.ai.
+  Turn-key to run in a Docker container to work easily locally on your laptop or as a remote cloud connector like on claude.ai.
 </p>
 
 
