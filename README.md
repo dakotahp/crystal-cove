@@ -2,18 +2,15 @@
   <img src="docs/images/banner.svg" alt="Crystal Cove: Obsidian MCP with native sync and note-aware tools. A purple crystal rises from a moonlit sea cove." width="100%">
 </p>
 
-<h1 align="center">Crystal Cove</h1>
+# Crystal Cove
 
-<p align="center">
-  Turn-key to run in a Docker container to work easily locally on your laptop or as a remote cloud connector like on claude.ai.
-</p>
+Turn-key to run in a Docker container to work easily locally on your laptop or as a remote cloud connector like on claude.ai.
 
-
-<p align="center">
-  <a href="https://github.com/dakotahp/crystal-cove/actions/workflows/ci.yml"><img src="https://github.com/dakotahp/crystal-cove/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <a href="https://github.com/dakotahp/crystal-cove/pkgs/container/crystal-cove"><img src="https://img.shields.io/badge/ghcr.io-crystal--cove-blue?logo=docker" alt="Container image"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="MIT license"></a>
-</p>
+<div>
+<a href="https://github.com/dakotahp/crystal-cove/actions/workflows/ci.yml"><img src="https://github.com/dakotahp/crystal-cove/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+<a href="https://github.com/dakotahp/crystal-cove/pkgs/container/crystal-cove"><img src="https://img.shields.io/badge/ghcr.io-crystal--cove-blue?logo=docker" alt="Container image"></a>
+<a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="MIT license"></a>
+</div>
 
 <!-- toc -->
 
