@@ -93,3 +93,22 @@ func TestMatchTitlesRejectsBadPattern(t *testing.T) {
 		t.Error("MatchTitles accepted an invalid pattern")
 	}
 }
+
+func TestMatchTitlesSkipsFilesThatAreNotNotes(t *testing.T) {
+	v := newTitleVault(t, "Bike.md", "Bike.png", "Bike.canvas")
+
+	got, _, err := v.MatchTitles("bike", false, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := []string{"Bike.md"}; !slices.Equal(got, want) {
+		t.Errorf("MatchTitles = %q, want %q", got, want)
+	}
+	got, _, err = v.MatchTitleWords([]string{"bike"}, false, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := []string{"Bike.md"}; !slices.Equal(got, want) {
+		t.Errorf("MatchTitleWords = %q, want %q", got, want)
+	}
+}

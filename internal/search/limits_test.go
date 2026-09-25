@@ -14,10 +14,11 @@ func TestMaxResultsCountsNotesNotLines(t *testing.T) {
 	}
 	root := wordsVault(t, notes)
 
-	res, err := s.Search(context.Background(), root, Options{Query: "bike", MaxResults: 2})
+	res, err := s.Search(context.Background(), root, Options{Query: "bike"})
 	if err != nil {
 		t.Fatal(err)
 	}
+	res.Limit(2)
 	if len(res.Files) != 2 {
 		t.Errorf("files = %d, want 2 notes", len(res.Files))
 	}
