@@ -21,10 +21,23 @@ type listNotesInput struct {
 	Vault     string `json:"vault,omitempty" jsonschema:"name of the vault to list; optional when the server holds one vault"`
 	Dir       string `json:"dir,omitempty" jsonschema:"vault-relative directory to list; defaults to the vault root"`
 	Recursive bool   `json:"recursive,omitempty" jsonschema:"list subdirectories recursively"`
+	Offset    int    `json:"offset,omitempty" jsonschema:"entry to start from; use next_offset from the previous page"`
+	Limit     int    `json:"limit,omitempty" jsonschema:"maximum entries to return (default 200, max 1000)"`
 }
 
+// DefaultListLimit and MaxListLimit bound one page of list_notes, so a
+// recursive listing of a large vault cannot fill a model's context.
+const (
+	DefaultListLimit = 200
+	MaxListLimit     = 1000
+)
+
 type listNotesOutput struct {
-	Entries []vault.Entry `json:"entries" jsonschema:"files and directories found"`
+	Entries []vault.Entry `json:"entries" jsonschema:"files and directories found, in path order"`
+	// Total counts every entry in the listing, not only this page.
+	Total int `json:"total" jsonschema:"entries in the whole listing"`
+	// NextOffset is -1 on the last page.
+	NextOffset int `json:"next_offset" jsonschema:"offset of the next page; -1 when this is the last page"`
 }
 
 func (s *Server) listNotes(_ context.Context, _ *mcp.CallToolRequest, in listNotesInput) (*mcp.CallToolResult, listNotesOutput, error) {
@@ -39,7 +52,20 @@ func (s *Server) listNotes(_ context.Context, _ *mcp.CallToolRequest, in listNot
 	if err != nil {
 		return nil, listNotesOutput{}, err
 	}
-	return nil, listNotesOutput{Entries: entries}, nil
+	total := len(entries)
+	if in.Offset < 0 || in.Offset > total {
+		return nil, listNotesOutput{}, fmt.Errorf("offset %d is out of range: the listing has %d entries", in.Offset, total)
+	}
+	limit := in.Limit
+	if limit <= 0 {
+		limit = DefaultListLimit
+	}
+	end := min(in.Offset+min(limit, MaxListLimit), total)
+	out := listNotesOutput{Entries: entries[in.Offset:end], Total: total, NextOffset: -1}
+	if end < total {
+		out.NextOffset = end
+	}
+	return nil, out, nil
 }
 
 type readNoteInput struct {

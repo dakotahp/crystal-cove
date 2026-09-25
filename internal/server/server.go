@@ -79,7 +79,9 @@ func (s *Server) MCPServer() *mcp.Server {
 	mcp.AddTool(srv, &mcp.Tool{
 		Name: "list_notes",
 		Description: "List notes and directories in a vault. Hidden folders such as .obsidian and .trash are excluded, " +
-			"but passing dir \".trash\" lists deleted notes explicitly. Other hidden folders cannot be listed.",
+			"but passing dir \".trash\" lists deleted notes explicitly. Other hidden folders cannot be listed. Returns at " +
+			"most 200 entries unless limit says otherwise (max 1000); when next_offset is not -1, call again with offset " +
+			"set to it, or narrow the listing with dir.",
 	}, s.listNotes)
 
 	mcp.AddTool(srv, &mcp.Tool{

@@ -9,7 +9,7 @@ All paths are vault-relative and sandboxed: absolute paths and `..` escapes are 
 | Tool | Description |
 | --- | --- |
 | `list_vaults` | Names of the vaults served. Offered only when the server holds more than one vault. |
-| `list_notes` | List files and folders in a vault, optionally recursive. Hidden folders (`.obsidian`, `.trash`) are excluded; pass `dir: ".trash"` to browse deleted notes. Other hidden folders cannot be listed. |
+| `list_notes` | List files and folders in a vault, optionally recursive. Hidden folders (`.obsidian`, `.trash`) are excluded; pass `dir: ".trash"` to browse deleted notes. Other hidden folders cannot be listed. Pages at 200 entries (`limit` up to 1,000) with `offset`/`next_offset`, and reports the listing's `total`. |
 | `read_note` | Read a note, paged at 10,240 characters per call with `offset`/`next_offset` for longer notes. |
 | `get_section` | Read a heading section's body (including subsections), with character paging. |
 | `replace_section` | Replace a heading section's body and subsections while preserving its heading. |
