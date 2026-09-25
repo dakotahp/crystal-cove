@@ -3,6 +3,7 @@
 package vault
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -208,7 +209,9 @@ func (v *Vault) Create(rel, content string) error {
 }
 
 // Append appends content to the note at path, creating it (and parent
-// directories) if it does not exist.
+// directories) if it does not exist. Content starts on a new line: when the
+// note does not end with a line break, one is added first, in the note's own
+// line-ending style.
 func (v *Vault) Append(rel, content string) error {
 	root, clean, err := v.open(rel)
 	if err != nil {
@@ -221,6 +224,13 @@ func (v *Vault) Append(rel, content string) error {
 	existing, err := root.ReadFile(clean)
 	if err != nil && !errors.Is(err, fs.ErrNotExist) {
 		return fmt.Errorf("reading %q to append to it: %w", rel, err)
+	}
+	if len(existing) > 0 && content != "" && existing[len(existing)-1] != '\n' {
+		newline := "\n"
+		if bytes.Contains(existing, []byte("\r\n")) {
+			newline = "\r\n"
+		}
+		existing = append(existing, newline...)
 	}
 	if err := writeAtomic(root, clean, append(existing, content...)); err != nil {
 		return fmt.Errorf("appending to %q: %w", rel, err)

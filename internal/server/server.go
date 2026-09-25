@@ -167,7 +167,7 @@ func (s *Server) addWriteTools(srv *mcp.Server) {
 
 	mcp.AddTool(srv, &mcp.Tool{
 		Name:        "append_note",
-		Description: "Append content to a note, creating it if it does not exist.",
+		Description: "Append content to the end of a note, creating it if it does not exist. The content starts on a new line.",
 	}, s.appendNote)
 
 	mcp.AddTool(srv, &mcp.Tool{

@@ -431,6 +431,26 @@ func TestCreateNameTooLong(t *testing.T) {
 	}
 }
 
+func TestAppendStartsOnANewLine(t *testing.T) {
+	cases := []struct{ existing, content, want string }{
+		{"one", "two\n", "one\ntwo\n"},
+		{"one\n", "two\n", "one\ntwo\n"},
+		{"one\r\ntwo", "three\r\n", "one\r\ntwo\r\nthree\r\n"},
+		{"", "two\n", "two\n"},
+		{"one", "", "one"},
+	}
+	for _, c := range cases {
+		v := newTestVault(t)
+		mustWrite(t, v, "log.md", c.existing)
+		if err := v.Append("log.md", c.content); err != nil {
+			t.Fatal(err)
+		}
+		if got := mustReadFile(t, v, "log.md"); got != c.want {
+			t.Errorf("Append(%q) to %q = %q, want %q", c.content, c.existing, got, c.want)
+		}
+	}
+}
+
 func TestAppendToDirectory(t *testing.T) {
 	v := newTestVault(t)
 	mustWrite(t, v, "dir/inner.md", "x")
