@@ -23,7 +23,7 @@ Every MCP request carries a bearer token. There is no unauthenticated mode and n
 - Both can run side by side.
 
 Only two endpoints are unauthenticated, and neither reads the vault:
-`/livez` reports that the process is alive, and `/readyz` reports whether
+`/health` reports that the process is alive, and `/ready` reports whether
 every vault has a recent sync heartbeat.
 
 ### TLS is the operator's job, and it is required

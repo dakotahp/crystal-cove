@@ -240,29 +240,26 @@ type AuthConfig struct {
 	OIDC        *OIDCAuth
 }
 
-// Handler returns the HTTP handler: process liveness at /livez, sync-aware
-// readiness at /readyz and its backwards-compatible /healthz alias, RFC 9728
-// protected-resource metadata when OIDC is enabled, and the bearer-protected
-// MCP endpoint everywhere else.
+// Handler returns the HTTP handler: process health at /health, sync-aware
+// readiness at /ready, RFC 9728 protected-resource metadata when OIDC is
+// enabled, and the bearer-protected MCP endpoint everywhere else.
 func (s *Server) Handler(authCfg AuthConfig) http.Handler {
 	mcpHandler := mcp.NewStreamableHTTPHandler(func(*http.Request) *mcp.Server {
 		return s.MCPServer()
 	}, nil)
 	mux := http.NewServeMux()
-	mux.HandleFunc("/livez", func(w http.ResponseWriter, _ *http.Request) {
+	mux.HandleFunc("/health", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		fmt.Fprintln(w, "ok")
 	})
-	ready := func(w http.ResponseWriter, _ *http.Request) {
+	mux.HandleFunc("/ready", func(w http.ResponseWriter, _ *http.Request) {
 		if s.syncReady == nil || !s.syncReady() {
 			http.Error(w, "sync not ready", http.StatusServiceUnavailable)
 			return
 		}
 		w.WriteHeader(http.StatusOK)
 		fmt.Fprintln(w, "ok")
-	}
-	mux.HandleFunc("/readyz", ready)
-	mux.HandleFunc("/healthz", ready)
+	})
 	opts := &auth.RequireBearerTokenOptions{}
 	if authCfg.OIDC != nil {
 		opts.ResourceMetadataURL = authCfg.OIDC.PublicURL + metadataPath
