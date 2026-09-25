@@ -1,7 +1,7 @@
 services:
-  obsidian-mcp:
+  crystal-cove:
     build: .
-    image: ghcr.io/dakotahp/vault-bridge:latest
+    image: ghcr.io/dakotahp/crystal-cove:latest
     restart: unless-stopped
     env_file:
       - path: .env

@@ -15,7 +15,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/andyjmorgan/obsidian-hosted-mcp/internal/config"
+	"github.com/dakotahp/crystal-cove/internal/config"
 )
 
 const (

@@ -2,7 +2,7 @@
   <img src="https://obsidian.md/images/obsidian-logo-gradient.svg" alt="Obsidian logo" width="120">
 </p>
 
-<h1 align="center">Obsidian Hosted MCP</h1>
+<h1 align="center">Crystal Cove</h1>
 
 <p align="center">
   Obsidian MCP with native sync and note-aware tools. Turn-key to run in a Docker container to work easily locally on your laptop or as a remote cloud connector like on claude.ai.
@@ -10,8 +10,8 @@
 
 
 <p align="center">
-  <a href="https://github.com/andyjmorgan/Obsidian-Hosted-Mcp/actions/workflows/ci.yml"><img src="https://github.com/andyjmorgan/Obsidian-Hosted-Mcp/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <a href="https://github.com/andyjmorgan/Obsidian-Hosted-Mcp/pkgs/container/obsidian-hosted-mcp"><img src="https://img.shields.io/badge/ghcr.io-obsidian--hosted--mcp-blue?logo=docker" alt="Container image"></a>
+  <a href="https://github.com/dakotahp/crystal-cove/actions/workflows/ci.yml"><img src="https://github.com/dakotahp/crystal-cove/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://github.com/dakotahp/crystal-cove/pkgs/container/crystal-cove"><img src="https://img.shields.io/badge/ghcr.io-crystal--cove-blue?logo=docker" alt="Container image"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="MIT license"></a>
 </p>
 
@@ -87,7 +87,7 @@ Both keep the vault in sync through native Obsidian Sync, so a note written by a
 
 Any usage of this project requires an Obsidian Sync subscription. Multi-factor authentication and an end-to-end encryption password for your vault are supported.
 
-Regardless of where you run the service (locally or remotely), the first step is configuring authentication. Create a `.env` file with the following values or copy the [example file](https://github.com/dakotahp/vault-bridge/blob/master/.env.example):
+Regardless of where you run the service (locally or remotely), the first step is configuring authentication. Create a `.env` file with the following values or copy the [example file](https://github.com/dakotahp/crystal-cove/blob/master/.env.example):
 
 ```
 # You ONLY need option A OR B, not both. Comment out one or the other with # in front to disable the respective one.
@@ -199,7 +199,7 @@ docker run -d \
   -e OBSIDIAN_VAULTS="Work:vault-password,Personal" \
   -e MCP_AUTH_TOKEN=$(openssl rand -hex 32) \
   -p 8080:8080 \
-  ghcr.io/andyjmorgan/obsidian-hosted-mcp:latest
+  ghcr.io/dakotahp/crystal-cove:latest
 ```
 
 Docker Compose is the better default, because it keeps the synced vaults
@@ -317,7 +317,7 @@ exponential backoff; the MCP process and other vault syncs remain running.
 | `OAUTH_INTERNAL_ISSUER` | no | Alternative base URL for fetching discovery/JWKS (e.g. cluster-internal). The discovery document must still report `OAUTH_ISSUER` as its issuer. |
 | `OAUTH_SCOPES` | no | Comma-separated scopes advertised as `scopes_supported`. Default `openid,profile,email`. |
 | `OAUTH_REQUIRED_ROLES` | no | Comma-separated roles the token must **all** carry (Keycloak `realm_access`/`resource_access`, or a flat `roles` claim), in addition to a valid audience. Empty (default) = audience-only, and the server logs a warning at startup. Recommended: without it, anyone who can get a token for the audience from your provider, which with open sign-up means anyone, can use every tool. |
-| `OBSIDIAN_DEVICE_NAME` | no | Device name shown in sync version history. Defaults to `ObsidianMCP-` plus 8 random hex characters; set it explicitly so restarts reuse one device identity. |
+| `OBSIDIAN_DEVICE_NAME` | no | Device name shown in sync version history. Defaults to `CrystalCove-` plus 8 random hex characters; set it explicitly so restarts reuse one device identity. |
 | `VAULTS_DIR` | no | Where vaults are synced locally. Defaults to `~/vaults`. |
 | `PORT` | no | HTTP listen port, default `8080`. |
 | `MCP_READ_ONLY` | no | `true` leaves out every tool that changes a note, so clients can only read and search. Default `false`. |
@@ -345,7 +345,7 @@ Minimal example:
 
 ```sh
 OAUTH_ISSUER=https://auth.example.com/realms/myrealm
-OAUTH_AUDIENCE=obsidian-mcp
+OAUTH_AUDIENCE=crystal-cove
 MCP_PUBLIC_URL=https://obsidian.example.com
 ```
 

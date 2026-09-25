@@ -188,7 +188,7 @@ func runWithOIDC(t *testing.T, mutate func(map[string]string)) (string, *lockedB
 
 	env := testEnv(t)
 	env["OAUTH_ISSUER"] = idp.URL
-	env["OAUTH_AUDIENCE"] = "obsidian-mcp"
+	env["OAUTH_AUDIENCE"] = "crystal-cove"
 	env["MCP_PUBLIC_URL"] = "https://obsidian.example.com"
 	if mutate != nil {
 		mutate(env)
@@ -261,7 +261,7 @@ func TestRunOIDCConfigFailure(t *testing.T) {
 	installFakeOb(t, `case "$1" in sync) exec sleep 60;; *) exit 0;; esac`)
 	env := testEnv(t)
 	env["OAUTH_ISSUER"] = "http://127.0.0.1:1"
-	env["OAUTH_AUDIENCE"] = "obsidian-mcp"
+	env["OAUTH_AUDIENCE"] = "crystal-cove"
 	env["MCP_PUBLIC_URL"] = "https://obsidian.example.com"
 	err := run(context.Background(), getenv(env), io.Discard, nil)
 	if err == nil || !strings.Contains(err.Error(), "configuring OIDC auth") {

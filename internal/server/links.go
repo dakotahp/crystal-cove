@@ -5,7 +5,7 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"github.com/andyjmorgan/obsidian-hosted-mcp/internal/notes"
+	"github.com/dakotahp/crystal-cove/internal/notes"
 )
 
 // ResolvedLink is one wikilink and the note it points at.

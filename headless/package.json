@@ -1,5 +1,5 @@
 {
-  "name": "vault-bridge-headless",
+  "name": "crystal-cove-headless",
   "private": true,
   "description": "Pins the Obsidian headless sync client installed into the image.",
   "dependencies": {

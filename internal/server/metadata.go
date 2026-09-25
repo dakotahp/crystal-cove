@@ -12,8 +12,8 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"github.com/andyjmorgan/obsidian-hosted-mcp/internal/notes"
-	"github.com/andyjmorgan/obsidian-hosted-mcp/internal/vault"
+	"github.com/dakotahp/crystal-cove/internal/notes"
+	"github.com/dakotahp/crystal-cove/internal/vault"
 )
 
 // DefaultNoteResults caps find_notes when the caller gives no limit.

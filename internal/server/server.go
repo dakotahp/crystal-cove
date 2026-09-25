@@ -18,8 +18,8 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/modelcontextprotocol/go-sdk/oauthex"
 
-	"github.com/andyjmorgan/obsidian-hosted-mcp/internal/search"
-	"github.com/andyjmorgan/obsidian-hosted-mcp/internal/vault"
+	"github.com/dakotahp/crystal-cove/internal/search"
+	"github.com/dakotahp/crystal-cove/internal/vault"
 )
 
 // Version is the server version reported to MCP clients.
@@ -71,8 +71,8 @@ func (s *Server) Instructions() string { return loadInstructions(s.vaultList) }
 // MCPServer builds the MCP server with all tools registered.
 func (s *Server) MCPServer() *mcp.Server {
 	srv := mcp.NewServer(&mcp.Implementation{
-		Name:    "obsidian-hosted-mcp",
-		Title:   "Obsidian Hosted MCP",
+		Name:    "crystal-cove",
+		Title:   "Crystal Cove",
 		Version: Version,
 	}, &mcp.ServerOptions{Instructions: s.Instructions()})
 

@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/andyjmorgan/obsidian-hosted-mcp/internal/vault"
+	"github.com/dakotahp/crystal-cove/internal/vault"
 )
 
 func FuzzWritableNotesAreVisibleNotes(f *testing.F) {

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/andyjmorgan/obsidian-hosted-mcp/internal/vault"
+	"github.com/dakotahp/crystal-cove/internal/vault"
 )
 
 // InstructionsFile is the vault-root file whose contents are sent to MCP

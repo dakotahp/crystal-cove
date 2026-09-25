@@ -18,8 +18,8 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"github.com/andyjmorgan/obsidian-hosted-mcp/internal/search"
-	"github.com/andyjmorgan/obsidian-hosted-mcp/internal/vault"
+	"github.com/dakotahp/crystal-cove/internal/search"
+	"github.com/dakotahp/crystal-cove/internal/vault"
 )
 
 func newTestServer(t *testing.T) *Server {

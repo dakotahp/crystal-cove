@@ -45,7 +45,7 @@ Deliberate MVP boundaries (do not "fix" these without being asked):
 ## Architecture
 
 ```
-cmd/obsidian-mcp/      thin main: config -> bootstrap -> serve (testable run())
+cmd/crystal-cove/      thin main: config -> bootstrap -> serve (testable run())
 internal/config/       env parsing/validation (Getenv + rand injected for tests)
 internal/bootstrap/    drives the ob CLI: login, sync-setup per vault, and a
                        supervisor that restarts `ob sync --continuous` with
@@ -171,7 +171,7 @@ CI (`.github/workflows/ci.yml`) enforces, in order:
    Workflow actions are pinned to commit SHAs; keep new ones pinned.
 5. On push to `master`, and weekly on a schedule without the layer cache:
    multi-arch (amd64/arm64) image publish of `:latest` to
-   `ghcr.io/dakotahp/vault-bridge`, with an SBOM and provenance attached
+   `ghcr.io/dakotahp/crystal-cove`, with an SBOM and provenance attached
    and a cosign keyless signature. Versioned images come from
    `.github/workflows/release-please.yml`, not from a tag push: a tag made
    with the default token starts no other workflow, so that workflow builds

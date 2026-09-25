@@ -4,7 +4,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/andyjmorgan/obsidian-hosted-mcp/internal/search"
+	"github.com/dakotahp/crystal-cove/internal/search"
 )
 
 // Ranking weights. A note named after the query is what a person would have

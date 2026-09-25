@@ -9,8 +9,8 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"github.com/andyjmorgan/obsidian-hosted-mcp/internal/search"
-	"github.com/andyjmorgan/obsidian-hosted-mcp/internal/vault"
+	"github.com/dakotahp/crystal-cove/internal/search"
+	"github.com/dakotahp/crystal-cove/internal/vault"
 )
 
 func ageNote(t *testing.T, v *vault.Vault, rel string, age time.Duration) {

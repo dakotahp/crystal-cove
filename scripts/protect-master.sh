@@ -9,7 +9,7 @@
 # every merge. Needs a public repository or GitHub Pro.
 set -eu
 
-repo="${1:-dakotahp/vault-bridge}"
+repo="${1:-dakotahp/crystal-cove}"
 gh api --method PUT "repos/$repo/branches/master/protection" --input - <<'EOF'
 {
   "required_status_checks": {

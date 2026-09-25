@@ -5,8 +5,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/andyjmorgan/obsidian-hosted-mcp/internal/search"
-	"github.com/andyjmorgan/obsidian-hosted-mcp/internal/vault"
+	"github.com/dakotahp/crystal-cove/internal/search"
+	"github.com/dakotahp/crystal-cove/internal/vault"
 )
 
 func TestInstructionsAreReadPerSession(t *testing.T) {
