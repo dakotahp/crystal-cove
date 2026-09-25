@@ -74,6 +74,7 @@ func (s *Server) MCPServer() *mcp.Server {
 		Name:    "crystal-cove",
 		Title:   "Crystal Cove",
 		Version: Version,
+		Icons:   []mcp.Icon{serverIcon},
 	}, &mcp.ServerOptions{Instructions: s.Instructions()})
 
 	mcp.AddTool(srv, &mcp.Tool{
