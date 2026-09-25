@@ -3,9 +3,8 @@ package vault
 import (
 	"fmt"
 	"io/fs"
-	"path/filepath"
 	"sort"
-	"strings"
+	"time"
 )
 
 // NoteExtension is the file extension a vault's notes carry.
@@ -16,27 +15,8 @@ const NoteExtension = ".md"
 // listing and search.
 func (v *Vault) Notes() ([]string, error) {
 	var paths []string
-	err := filepath.WalkDir(v.root, func(p string, d fs.DirEntry, walkErr error) error {
-		if walkErr != nil {
-			return walkErr
-		}
-		if p == v.root {
-			return nil
-		}
-		if strings.HasPrefix(d.Name(), ".") {
-			if d.IsDir() {
-				return filepath.SkipDir
-			}
-			return nil
-		}
-		if d.IsDir() || !strings.EqualFold(filepath.Ext(d.Name()), NoteExtension) {
-			return nil
-		}
-		rel, err := filepath.Rel(v.root, p)
-		if err != nil {
-			return err
-		}
-		paths = append(paths, filepath.ToSlash(rel))
+	err := v.walkNotes(func(rel string, _ fs.DirEntry) error {
+		paths = append(paths, rel)
 		return nil
 	})
 	if err != nil {
@@ -44,6 +24,39 @@ func (v *Vault) Notes() ([]string, error) {
 	}
 	sort.Strings(paths)
 	return paths, nil
+}
+
+// RecentNotes returns notes ordered by modification time, newest first.
+// A limit of zero returns them all, and a zero since includes every note.
+// Agents use this to pick up where work left off, which a path-ordered
+// listing cannot answer.
+func (v *Vault) RecentNotes(limit int, since time.Time) ([]Entry, error) {
+	entries := []Entry{}
+	err := v.walkNotes(func(rel string, d fs.DirEntry) error {
+		e, err := entryAt(rel, d)
+		if err != nil {
+			return err
+		}
+		if !since.IsZero() && e.Modified.Before(since) {
+			return nil
+		}
+		entries = append(entries, e)
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("listing recent notes: %w", err)
+	}
+
+	sort.Slice(entries, func(i, j int) bool {
+		if entries[i].Modified.Equal(entries[j].Modified) {
+			return entries[i].Path < entries[j].Path
+		}
+		return entries[i].Modified.After(entries[j].Modified)
+	})
+	if limit > 0 && len(entries) > limit {
+		entries = entries[:limit]
+	}
+	return entries, nil
 }
 
 // ReadAll returns a note's full content. Read pages for MCP clients;

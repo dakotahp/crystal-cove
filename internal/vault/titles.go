@@ -3,7 +3,7 @@ package vault
 import (
 	"fmt"
 	"io/fs"
-	"path/filepath"
+	"path"
 	"regexp"
 	"sort"
 	"strings"
@@ -59,31 +59,10 @@ func (v *Vault) MatchTitleWords(words []string, caseSensitive bool, limit int) (
 
 func (v *Vault) matchNames(matches func(name string) bool, limit int) ([]string, bool, error) {
 	var paths []string
-	err := filepath.WalkDir(v.root, func(p string, d fs.DirEntry, walkErr error) error {
-		if walkErr != nil {
-			return walkErr
+	err := v.walkNotes(func(rel string, d fs.DirEntry) error {
+		if matches(strings.TrimSuffix(d.Name(), path.Ext(d.Name()))) {
+			paths = append(paths, rel)
 		}
-		if p == v.root {
-			return nil
-		}
-		if strings.HasPrefix(d.Name(), ".") {
-			if d.IsDir() {
-				return filepath.SkipDir
-			}
-			return nil
-		}
-		ext := filepath.Ext(d.Name())
-		if d.IsDir() || !strings.EqualFold(ext, NoteExtension) {
-			return nil
-		}
-		if !matches(strings.TrimSuffix(d.Name(), ext)) {
-			return nil
-		}
-		rel, err := filepath.Rel(v.root, p)
-		if err != nil {
-			return err
-		}
-		paths = append(paths, filepath.ToSlash(rel))
 		return nil
 	})
 	if err != nil {

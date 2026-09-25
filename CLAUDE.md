@@ -101,12 +101,16 @@ Key invariants:
 - **Writes replace a note atomically**: `vault.writeAtomic` writes a temporary
   file beside the target and renames it over, so the sync client watching the
   folder never reads a half-written note and an interrupted write leaves the
-  original intact. Keep new write paths on it. One consequence: a read-only
-  note can be replaced, because rename depends on the directory.
+  original intact. `vault.createAtomic` does the same for a new note, but
+  links the temporary file into place, so it can never replace a note that
+  already exists. Keep new write paths on one of them. One consequence: a
+  read-only note can be replaced, because rename depends on the directory.
 - **Note tools work on notes only.** `requireNote` rejects anything without a
   `.md` extension and any path inside a hidden folder except the trash, which
   delete and restore need. The vault sandbox stops escapes but allows every
-  file inside the vault, so this policy lives in the handlers.
+  file inside the vault, so this policy lives in the handlers, in
+  `server/policy.go`. A handler gets its vault through `s.note` or
+  `s.writableNote`, which apply it, rather than calling `s.vault` alone.
 - **A single-vault server takes no vault name.** `Server.vault("")` resolves to
   the only vault, and errors naming them all when there are several.
 - **Path sandboxing lives in `internal/vault`**, not in tool handlers.

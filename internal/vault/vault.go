@@ -121,64 +121,24 @@ func (v *Vault) List(dir string, recursive bool) ([]Entry, error) {
 		}
 		base = filepath.ToSlash(clean)
 	}
-	root, err := v.openRoot()
-	if err != nil {
-		return nil, err
-	}
-	defer root.Close()
-	fsys := root.FS()
 	// entries starts non-nil so an empty listing marshals as [], not null.
 	entries := []Entry{}
-	if recursive {
-		err := fs.WalkDir(fsys, base, func(p string, d fs.DirEntry, err error) error {
-			if err != nil {
-				return err
-			}
-			if p == base {
-				return nil
-			}
-			if strings.HasPrefix(d.Name(), ".") {
-				if d.IsDir() {
-					return filepath.SkipDir
-				}
-				return nil
-			}
-			e, err := entryAt(p, d)
-			if err != nil {
-				return err
-			}
-			entries = append(entries, e)
-			return nil
-		})
+	err := v.walk(base, func(rel string, d fs.DirEntry) error {
+		e, err := entryAt(rel, d)
 		if err != nil {
-			return nil, fmt.Errorf("listing %q: %w", dir, err)
+			return err
 		}
-	} else {
-		dirents, err := fs.ReadDir(fsys, base)
-		if err != nil {
-			return nil, fmt.Errorf("listing %q: %w", dir, err)
+		entries = append(entries, e)
+		if d.IsDir() && !recursive {
+			return fs.SkipDir
 		}
-		for _, d := range dirents {
-			if strings.HasPrefix(d.Name(), ".") {
-				continue
-			}
-			e, err := entryAt(path.Join(base, d.Name()), d)
-			if err != nil {
-				return nil, err
-			}
-			entries = append(entries, e)
-		}
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("listing %q: %w", dir, err)
 	}
 	sort.Slice(entries, func(i, j int) bool { return entries[i].Path < entries[j].Path })
 	return entries, nil
-}
-
-func newEntry(root, abs string, d fs.DirEntry) (Entry, error) {
-	rel, err := filepath.Rel(root, abs)
-	if err != nil {
-		return Entry{}, err
-	}
-	return entryAt(filepath.ToSlash(rel), d)
 }
 
 // entryAt describes d, found at the slash-separated vault-relative path rel.
@@ -202,10 +162,16 @@ func (v *Vault) Read(rel string, offset int) (*ReadResult, error) {
 	if err != nil {
 		return nil, err
 	}
-	runes := []rune(string(data))
+	return page(string(data), offset, "note")
+}
+
+// page returns up to ReadPageSize characters of text starting at the
+// character offset. what names the text in the out-of-range error.
+func page(text string, offset int, what string) (*ReadResult, error) {
+	runes := []rune(text)
 	total := len(runes)
 	if offset < 0 || offset > total {
-		return nil, fmt.Errorf("offset %d is out of range: note has %d characters", offset, total)
+		return nil, fmt.Errorf("offset %d is out of range: %s has %d characters", offset, what, total)
 	}
 	end := min(offset+ReadPageSize, total)
 	res := &ReadResult{
@@ -232,18 +198,13 @@ func (v *Vault) Create(rel, content string) error {
 	if err := root.MkdirAll(filepath.Dir(clean), 0o755); err != nil {
 		return fmt.Errorf("creating parent directories for %q: %w", rel, err)
 	}
-	f, err := root.OpenFile(clean, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
-	if err != nil {
+	if err := createAtomic(root, clean, []byte(content)); err != nil {
 		if errors.Is(err, fs.ErrExist) {
 			return fmt.Errorf("note %q already exists: use append_note or edit_note to modify it", rel)
 		}
 		return fmt.Errorf("creating %q: %w", rel, err)
 	}
-	defer f.Close()
-	if _, err := f.WriteString(content); err != nil {
-		return fmt.Errorf("writing %q: %w", rel, err)
-	}
-	return f.Close()
+	return nil
 }
 
 // Append appends content to the note at path, creating it (and parent
@@ -257,15 +218,14 @@ func (v *Vault) Append(rel, content string) error {
 	if err := root.MkdirAll(filepath.Dir(clean), 0o755); err != nil {
 		return fmt.Errorf("creating parent directories for %q: %w", rel, err)
 	}
-	f, err := root.OpenFile(clean, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0o644)
-	if err != nil {
-		return fmt.Errorf("opening %q for append: %w", rel, err)
+	existing, err := root.ReadFile(clean)
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return fmt.Errorf("reading %q to append to it: %w", rel, err)
 	}
-	defer f.Close()
-	if _, err := f.WriteString(content); err != nil {
+	if err := writeAtomic(root, clean, append(existing, content...)); err != nil {
 		return fmt.Errorf("appending to %q: %w", rel, err)
 	}
-	return f.Close()
+	return nil
 }
 
 // Edit replaces find with replace in the note at path and returns the number

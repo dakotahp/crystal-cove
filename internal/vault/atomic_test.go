@@ -76,6 +76,81 @@ func TestEditAndReplaceSectionKeepNoTemporaryFiles(t *testing.T) {
 	}
 }
 
+func TestAppendReplacesTheNoteRatherThanWritingIntoIt(t *testing.T) {
+	v := newNotesVault(t, "Inbox/today.md")
+	target := filepath.Join(v.Root(), "Inbox", "today.md")
+	if err := os.WriteFile(target, []byte("one\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(target, 0o640); err != nil {
+		t.Fatal(err)
+	}
+	before, err := os.Stat(target)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := v.Append("Inbox/today.md", "two\n"); err != nil {
+		t.Fatal(err)
+	}
+	after, err := os.Stat(target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if os.SameFile(before, after) {
+		t.Error("Append wrote into the existing file, so a reader could see it half-written")
+	}
+	if after.Mode().Perm() != 0o640 {
+		t.Errorf("mode = %v, want 0640 kept", after.Mode().Perm())
+	}
+	if data, _ := os.ReadFile(target); string(data) != "one\ntwo\n" {
+		t.Errorf("content = %q", data)
+	}
+}
+
+func TestCreateAndAppendLeaveNoTemporaryFiles(t *testing.T) {
+	v := New("Personal", t.TempDir())
+	if err := v.Create("Inbox/new.md", "alpha\n"); err != nil {
+		t.Fatal(err)
+	}
+	if err := v.Append("Inbox/new.md", "beta\n"); err != nil {
+		t.Fatal(err)
+	}
+	if err := v.Append("Inbox/log.md", "gamma\n"); err != nil {
+		t.Fatal(err)
+	}
+	entries, err := os.ReadDir(filepath.Join(v.Root(), "Inbox"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var names []string
+	for _, e := range entries {
+		names = append(names, e.Name())
+	}
+	if strings.Join(names, ",") != "log.md,new.md" {
+		t.Errorf("directory holds %v, want only the two notes", names)
+	}
+	if data, _ := os.ReadFile(filepath.Join(v.Root(), "Inbox", "new.md")); string(data) != "alpha\nbeta\n" {
+		t.Errorf("new.md = %q", data)
+	}
+}
+
+func TestCreateRefusesAnExistingNoteAndKeepsIt(t *testing.T) {
+	v := newNotesVault(t, "Inbox/today.md")
+	target := filepath.Join(v.Root(), "Inbox", "today.md")
+	if err := os.WriteFile(target, []byte("keep me\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	err := v.Create("Inbox/today.md", "replacement\n")
+	if err == nil || !strings.Contains(err.Error(), "already exists") {
+		t.Fatalf("Create = %v, want an already-exists error", err)
+	}
+	if data, _ := os.ReadFile(target); string(data) != "keep me\n" {
+		t.Errorf("content = %q, want the original kept", data)
+	}
+}
+
 func TestRecentNotesOrdersByModifiedTime(t *testing.T) {
 	v := newNotesVault(t, "Inbox/old.md", "Inbox/middle.md", "Inbox/new.md")
 	base := time.Now().Add(-72 * time.Hour)
