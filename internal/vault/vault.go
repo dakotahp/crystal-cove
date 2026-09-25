@@ -221,9 +221,8 @@ func (v *Vault) Append(rel, content string) error {
 	if err != nil {
 		return err
 	}
-	err = root.MkdirAll(filepath.Dir(clean), 0o755)
-	root.Close()
-	if err != nil {
+	defer root.Close()
+	if err := root.MkdirAll(filepath.Dir(clean), 0o755); err != nil {
 		return fmt.Errorf("creating parent directories for %q: %w", rel, err)
 	}
 	_, err = v.update(rel, true, func(existing []byte) ([]byte, error) {
