@@ -1,4 +1,4 @@
-module github.com/andyjmorgan/obsidian-hosted-mcp
+module github.com/dakotahp/crystal-cove
 
 go 1.25.0
 

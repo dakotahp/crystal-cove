@@ -1,4 +1,4 @@
-// Command obsidian-mcp bootstraps Obsidian Sync vaults via the official
+// Command crystal-cove bootstraps Obsidian Sync vaults via the official
 // headless client and serves them over a bearer-token-protected MCP HTTP
 // endpoint.
 package main
@@ -17,12 +17,12 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/andyjmorgan/obsidian-hosted-mcp/internal/bootstrap"
-	"github.com/andyjmorgan/obsidian-hosted-mcp/internal/config"
-	"github.com/andyjmorgan/obsidian-hosted-mcp/internal/oidcauth"
-	"github.com/andyjmorgan/obsidian-hosted-mcp/internal/search"
-	"github.com/andyjmorgan/obsidian-hosted-mcp/internal/server"
-	"github.com/andyjmorgan/obsidian-hosted-mcp/internal/vault"
+	"github.com/dakotahp/crystal-cove/internal/bootstrap"
+	"github.com/dakotahp/crystal-cove/internal/config"
+	"github.com/dakotahp/crystal-cove/internal/oidcauth"
+	"github.com/dakotahp/crystal-cove/internal/search"
+	"github.com/dakotahp/crystal-cove/internal/server"
+	"github.com/dakotahp/crystal-cove/internal/vault"
 )
 
 func main() {

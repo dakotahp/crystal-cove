@@ -24,7 +24,7 @@ const MinAuthTokenLength = 32
 
 // deviceNamePrefix prefixes the generated device name when
 // OBSIDIAN_DEVICE_NAME is not set.
-const deviceNamePrefix = "ObsidianMCP-"
+const deviceNamePrefix = "CrystalCove-"
 
 // Vault describes a single remote vault to sync and serve.
 type Vault struct {

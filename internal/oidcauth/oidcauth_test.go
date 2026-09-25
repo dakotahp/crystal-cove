@@ -16,7 +16,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/andyjmorgan/obsidian-hosted-mcp/internal/config"
+	"github.com/dakotahp/crystal-cove/internal/config"
 )
 
 // fakeIdP is a minimal OpenID Connect provider: discovery + JWKS + RS256
@@ -81,7 +81,7 @@ func (f *fakeIdP) mint(claims map[string]any) string {
 func (f *fakeIdP) claims(mutate func(map[string]any)) map[string]any {
 	c := map[string]any{
 		"iss":   f.issuer,
-		"aud":   "obsidian-mcp",
+		"aud":   "crystal-cove",
 		"sub":   "user-1",
 		"exp":   time.Now().Add(time.Hour).Unix(),
 		"iat":   time.Now().Add(-time.Minute).Unix(),
@@ -97,7 +97,7 @@ func (f *fakeIdP) verifier(t *testing.T) *Verifier {
 	t.Helper()
 	v, err := New(context.Background(), &config.OAuth{
 		Issuer:   f.issuer,
-		Audience: "obsidian-mcp",
+		Audience: "crystal-cove",
 	}, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -128,7 +128,7 @@ func TestVerifyAzpFallback(t *testing.T) {
 	v := idp.verifier(t)
 	tok := idp.mint(idp.claims(func(c map[string]any) {
 		c["aud"] = "account"
-		c["azp"] = "obsidian-mcp"
+		c["azp"] = "crystal-cove"
 	}))
 	if _, err := v.Verify(context.Background(), tok); err != nil {
 		t.Fatalf("Verify with azp fallback: %v", err)
@@ -196,7 +196,7 @@ func TestInternalIssuerFetch(t *testing.T) {
 	v, err := New(context.Background(), &config.OAuth{
 		Issuer:         "https://public.example.com/realms/lab",
 		InternalIssuer: idp.server.URL,
-		Audience:       "obsidian-mcp",
+		Audience:       "crystal-cove",
 	}, nil)
 	if err != nil {
 		t.Fatalf("New: %v", err)
@@ -262,7 +262,7 @@ func (f *fakeIdP) verifierRoles(t *testing.T, roles ...string) *Verifier {
 	t.Helper()
 	v, err := New(context.Background(), &config.OAuth{
 		Issuer:        f.issuer,
-		Audience:      "obsidian-mcp",
+		Audience:      "crystal-cove",
 		RequiredRoles: roles,
 	}, nil)
 	if err != nil {
@@ -297,7 +297,7 @@ func TestVerifyRequiredRoleViaResourceAccess(t *testing.T) {
 	idp := newFakeIdP(t)
 	v := idp.verifierRoles(t, "obsidian-operator")
 	tok := idp.mint(idp.claims(func(c map[string]any) {
-		c["resource_access"] = map[string]any{"obsidian-mcp": map[string]any{"roles": []string{"obsidian-operator"}}}
+		c["resource_access"] = map[string]any{"crystal-cove": map[string]any{"roles": []string{"obsidian-operator"}}}
 	}))
 	if _, err := v.Verify(context.Background(), tok); err != nil {
 		t.Fatalf("expected accept with required client role, got %v", err)

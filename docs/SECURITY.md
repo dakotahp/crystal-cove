@@ -150,8 +150,8 @@ identity, and recorded in Sigstore's public transparency log. There is no
 signing key to leak. Check an image before running it:
 
 ```sh
-cosign verify ghcr.io/dakotahp/vault-bridge:latest \
-  --certificate-identity-regexp '^https://github.com/dakotahp/vault-bridge/\.github/workflows/(ci|release-please)\.yml@' \
+cosign verify ghcr.io/dakotahp/crystal-cove:latest \
+  --certificate-identity-regexp '^https://github.com/dakotahp/crystal-cove/\.github/workflows/(ci|release-please)\.yml@' \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
 ```
 

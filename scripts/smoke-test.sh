@@ -28,7 +28,7 @@ echo "==> ripgrep, which search_notes shells out to"
 run 'rg --version | head -1'
 
 echo "==> the server binary runs and refuses an empty configuration"
-output=$(docker run --rm $hardened --entrypoint obsidian-mcp "$image" 2>&1 || true)
+output=$(docker run --rm $hardened --entrypoint crystal-cove "$image" 2>&1 || true)
 echo "$output" | head -1
 case "$output" in
   *OBSIDIAN_EMAIL*) ;;

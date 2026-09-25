@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/andyjmorgan/obsidian-hosted-mcp/internal/config"
+	"github.com/dakotahp/crystal-cove/internal/config"
 )
 
 func TestSyncReadyRequiresFreshHeartbeatFromEveryVault(t *testing.T) {

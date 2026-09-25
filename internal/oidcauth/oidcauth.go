@@ -15,7 +15,7 @@ import (
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/modelcontextprotocol/go-sdk/auth"
 
-	"github.com/andyjmorgan/obsidian-hosted-mcp/internal/config"
+	"github.com/dakotahp/crystal-cove/internal/config"
 )
 
 // Verifier validates OIDC bearer tokens for one issuer/audience pair.

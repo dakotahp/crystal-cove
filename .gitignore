@@ -5,7 +5,7 @@
 .env
 
 coverage.out
-/obsidian-mcp
+/crystal-cove
 bin/
 .local-ca.crt
 

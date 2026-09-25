@@ -5,7 +5,7 @@ COPY go.mod go.sum ./
 RUN go mod download
 COPY cmd ./cmd
 COPY internal ./internal
-RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/obsidian-mcp ./cmd/obsidian-mcp
+RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/crystal-cove ./cmd/crystal-cove
 
 # Build obsidian-headless separately: better-sqlite3 has no musl prebuilds
 # and needs a node-gyp toolchain; build intermediates are stripped before
@@ -31,9 +31,9 @@ RUN apk add --no-cache nodejs ripgrep tini libstdc++ \
     && adduser -D -h /home/obsidian obsidian
 COPY --from=headless /opt/headless/node_modules /opt/headless/node_modules
 RUN ln -s /opt/headless/node_modules/obsidian-headless/cli.js /usr/local/bin/ob
-COPY --from=build /out/obsidian-mcp /usr/local/bin/obsidian-mcp
+COPY --from=build /out/crystal-cove /usr/local/bin/crystal-cove
 USER obsidian
 ENV HOME=/home/obsidian
 EXPOSE 8080
 ENTRYPOINT ["/sbin/tini", "--"]
-CMD ["obsidian-mcp"]
+CMD ["crystal-cove"]

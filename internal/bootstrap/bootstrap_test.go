@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/andyjmorgan/obsidian-hosted-mcp/internal/config"
+	"github.com/dakotahp/crystal-cove/internal/config"
 )
 
 // fakeOb writes an executable shell script standing in for the ob binary

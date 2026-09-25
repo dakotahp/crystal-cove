@@ -257,7 +257,7 @@ func TestLoadDeviceNameEntropyFailure(t *testing.T) {
 func TestLoadOAuth(t *testing.T) {
 	m := validEnv()
 	m["OAUTH_ISSUER"] = "https://idp.example.com/realms/lab"
-	m["OAUTH_AUDIENCE"] = "obsidian-mcp"
+	m["OAUTH_AUDIENCE"] = "crystal-cove"
 	m["MCP_PUBLIC_URL"] = "https://obsidian.example.com"
 	cfg, err := Load(env(m), rand.Reader)
 	if err != nil {
@@ -267,7 +267,7 @@ func TestLoadOAuth(t *testing.T) {
 	if o == nil {
 		t.Fatal("OAuth = nil, want configured")
 	}
-	if o.Issuer != "https://idp.example.com/realms/lab" || o.Audience != "obsidian-mcp" {
+	if o.Issuer != "https://idp.example.com/realms/lab" || o.Audience != "crystal-cove" {
 		t.Errorf("OAuth = %+v", o)
 	}
 	if o.InternalIssuer != o.Issuer {
@@ -285,7 +285,7 @@ func TestLoadOAuthAllowsPlainHTTPOnLoopback(t *testing.T) {
 	for _, issuer := range []string{"http://127.0.0.1:8080/realms/lab", "http://localhost:8080", "http://[::1]:9000"} {
 		m := validEnv()
 		m["OAUTH_ISSUER"] = issuer
-		m["OAUTH_AUDIENCE"] = "obsidian-mcp"
+		m["OAUTH_AUDIENCE"] = "crystal-cove"
 		m["MCP_PUBLIC_URL"] = "http://127.0.0.1:8787"
 		if _, err := Load(env(m), rand.Reader); err != nil {
 			t.Errorf("Load with issuer %s: %v", issuer, err)
@@ -297,7 +297,7 @@ func TestLoadOAuthExplicit(t *testing.T) {
 	m := validEnv()
 	delete(m, "MCP_AUTH_TOKEN") // OAuth alone is a valid auth setup
 	m["OAUTH_ISSUER"] = "https://idp.example.com/realms/lab"
-	m["OAUTH_AUDIENCE"] = "obsidian-mcp"
+	m["OAUTH_AUDIENCE"] = "crystal-cove"
 	m["OAUTH_INTERNAL_ISSUER"] = "http://idp.cluster.local/realms/lab"
 	m["OAUTH_SCOPES"] = "openid, obsidian-audience"
 	m["MCP_PUBLIC_URL"] = "https://obsidian.example.com/"
@@ -334,20 +334,20 @@ func TestLoadOAuthValidation(t *testing.T) {
 		}, "OAUTH_AUDIENCE"},
 		{"issuer without public url", func(m map[string]string) {
 			m["OAUTH_ISSUER"] = "https://idp.example.com"
-			m["OAUTH_AUDIENCE"] = "obsidian-mcp"
+			m["OAUTH_AUDIENCE"] = "crystal-cove"
 		}, "MCP_PUBLIC_URL"},
 		{"non-http issuer", func(m map[string]string) {
 			m["OAUTH_ISSUER"] = "idp.example.com"
-			m["OAUTH_AUDIENCE"] = "obsidian-mcp"
+			m["OAUTH_AUDIENCE"] = "crystal-cove"
 			m["MCP_PUBLIC_URL"] = "https://obsidian.example.com"
 		}, "OAUTH_ISSUER"},
 		{"plain-http issuer off loopback", func(m map[string]string) {
 			m["OAUTH_ISSUER"] = "http://idp.example.com"
-			m["OAUTH_AUDIENCE"] = "obsidian-mcp"
+			m["OAUTH_AUDIENCE"] = "crystal-cove"
 			m["MCP_PUBLIC_URL"] = "https://obsidian.example.com"
 		}, "https"},
 		{"audience without issuer", func(m map[string]string) {
-			m["OAUTH_AUDIENCE"] = "obsidian-mcp"
+			m["OAUTH_AUDIENCE"] = "crystal-cove"
 		}, "OAUTH_ISSUER"},
 	}
 	for _, c := range cases {

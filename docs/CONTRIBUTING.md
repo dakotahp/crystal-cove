@@ -7,7 +7,7 @@ Suggestions and proposals are welcome. Create an issue and @ mention me to notif
 ```sh
 go test ./...                       # requires ripgrep on PATH for integration tests
 go test ./... -coverprofile=coverage.out && go tool cover -func=coverage.out
-docker build -t obsidian-hosted-mcp .
+docker build -t crystal-cove .
 ```
 
 The table of contents at the top of this README is generated. After you add or rename a heading, run `node scripts/generate-toc.js` (Node 18 or newer) and commit the result.

@@ -7,7 +7,7 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"github.com/andyjmorgan/obsidian-hosted-mcp/internal/vault"
+	"github.com/dakotahp/crystal-cove/internal/vault"
 )
 
 // DefaultRecentNotes caps recent_notes when the caller gives no limit.
