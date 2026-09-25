@@ -87,7 +87,9 @@ func (s *Server) MCPServer() *mcp.Server {
 	mcp.AddTool(srv, &mcp.Tool{
 		Name: "read_note",
 		Description: fmt.Sprintf("Read a note from a vault. Returns at most %d characters per call; "+
-			"when the response is truncated, call again with offset set to next_offset to continue reading.", vault.ReadPageSize),
+			"when the response is truncated, call again with offset set to next_offset to continue reading. version "+
+			"identifies the note's text; pass it to edit_note so the edit is refused if the note changed since, "+
+			"for example through sync from another device.", vault.ReadPageSize),
 	}, s.readNote)
 
 	mcp.AddTool(srv, &mcp.Tool{
@@ -177,7 +179,8 @@ func (s *Server) addWriteTools(srv *mcp.Server) {
 	mcp.AddTool(srv, &mcp.Tool{
 		Name: "edit_note",
 		Description: "Edit a note by replacing an exact text snippet. The snippet must occur exactly once " +
-			"unless replace_all is set; include surrounding lines to make it unique.",
+			"unless replace_all is set; include surrounding lines to make it unique. Pass the version read_note returned " +
+			"to refuse the edit if the note changed since; the result carries the new version for a following edit.",
 	}, s.editNote)
 
 	mcp.AddTool(srv, &mcp.Tool{

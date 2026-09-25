@@ -57,7 +57,7 @@ func TestEditAndReplaceSectionKeepNoTemporaryFiles(t *testing.T) {
 	if _, err := v.Update("Inbox/today.md", setTo("## One\n\nalpha\n")); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := v.Edit("Inbox/today.md", "alpha", "beta", false); err != nil {
+	if _, _, err := v.Edit("Inbox/today.md", "alpha", "beta", false, ""); err != nil {
 		t.Fatal(err)
 	}
 	if err := v.ReplaceSection("Inbox/today.md", []string{"One"}, "gamma\n"); err != nil {

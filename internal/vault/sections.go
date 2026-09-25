@@ -137,7 +137,7 @@ func (v *Vault) GetSection(rel string, headingPath []string, offset int) (*Secti
 	if err != nil {
 		return nil, err
 	}
-	body, err := page(string(data[s.body:s.end]), offset, "section")
+	body, err := page(data[s.body:s.end], offset, "section")
 	if err != nil {
 		return nil, err
 	}

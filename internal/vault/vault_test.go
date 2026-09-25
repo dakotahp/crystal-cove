@@ -252,30 +252,30 @@ func TestEdit(t *testing.T) {
 	v := newTestVault(t)
 	mustWrite(t, v, "note.md", "alpha beta alpha")
 
-	if _, err := v.Edit("note.md", "", "x", false); err == nil {
+	if _, _, err := v.Edit("note.md", "", "x", false, ""); err == nil {
 		t.Error("Edit accepted empty find")
 	}
-	if _, err := v.Edit("note.md", "gamma", "x", false); err == nil {
+	if _, _, err := v.Edit("note.md", "gamma", "x", false, ""); err == nil {
 		t.Error("Edit succeeded on missing text")
 	}
-	if _, err := v.Edit("note.md", "alpha", "x", false); err == nil {
+	if _, _, err := v.Edit("note.md", "alpha", "x", false, ""); err == nil {
 		t.Error("Edit replaced ambiguous text without replace_all")
 	}
-	n, err := v.Edit("note.md", "beta", "B", false)
+	n, _, err := v.Edit("note.md", "beta", "B", false, "")
 	if err != nil || n != 1 {
 		t.Fatalf("Edit unique: n=%d err=%v", n, err)
 	}
-	n, err = v.Edit("note.md", "alpha", "A", true)
+	n, _, err = v.Edit("note.md", "alpha", "A", true, "")
 	if err != nil || n != 2 {
 		t.Fatalf("Edit replace_all: n=%d err=%v", n, err)
 	}
 	if got := mustReadFile(t, v, "note.md"); got != "A B A" {
 		t.Errorf("content = %q", got)
 	}
-	if _, err := v.Edit("missing.md", "a", "b", false); err == nil {
+	if _, _, err := v.Edit("missing.md", "a", "b", false, ""); err == nil {
 		t.Error("Edit succeeded on missing note")
 	}
-	if _, err := v.Edit("../x.md", "a", "b", false); err == nil {
+	if _, _, err := v.Edit("../x.md", "a", "b", false, ""); err == nil {
 		t.Error("Edit escaped the root")
 	}
 }
