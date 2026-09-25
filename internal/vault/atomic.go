@@ -6,9 +6,6 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"sort"
-	"strings"
-	"time"
 )
 
 // writeAtomic replaces the file at rel inside root with data in one step:
@@ -61,52 +58,4 @@ func writeThroughTemp(root *os.Root, rel string, data []byte, perm fs.FileMode, 
 		return fmt.Errorf("writing %q: %w", rel, err)
 	}
 	return place(tmpName)
-}
-
-// RecentNotes returns notes ordered by modification time, newest first.
-// A limit of zero returns them all, and a zero since includes every note.
-// Agents use this to pick up where work left off, which a path-ordered
-// listing cannot answer.
-func (v *Vault) RecentNotes(limit int, since time.Time) ([]Entry, error) {
-	entries := []Entry{}
-	err := filepath.WalkDir(v.root, func(p string, d fs.DirEntry, walkErr error) error {
-		if walkErr != nil {
-			return walkErr
-		}
-		if p == v.root {
-			return nil
-		}
-		if strings.HasPrefix(d.Name(), ".") {
-			if d.IsDir() {
-				return filepath.SkipDir
-			}
-			return nil
-		}
-		if d.IsDir() || !strings.EqualFold(filepath.Ext(d.Name()), NoteExtension) {
-			return nil
-		}
-		e, err := newEntry(v.root, p, d)
-		if err != nil {
-			return err
-		}
-		if !since.IsZero() && e.Modified.Before(since) {
-			return nil
-		}
-		entries = append(entries, e)
-		return nil
-	})
-	if err != nil {
-		return nil, fmt.Errorf("listing recent notes: %w", err)
-	}
-
-	sort.Slice(entries, func(i, j int) bool {
-		if entries[i].Modified.Equal(entries[j].Modified) {
-			return entries[i].Path < entries[j].Path
-		}
-		return entries[i].Modified.After(entries[j].Modified)
-	})
-	if limit > 0 && len(entries) > limit {
-		entries = entries[:limit]
-	}
-	return entries, nil
 }

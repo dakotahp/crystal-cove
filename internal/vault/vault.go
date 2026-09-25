@@ -121,64 +121,24 @@ func (v *Vault) List(dir string, recursive bool) ([]Entry, error) {
 		}
 		base = filepath.ToSlash(clean)
 	}
-	root, err := v.openRoot()
-	if err != nil {
-		return nil, err
-	}
-	defer root.Close()
-	fsys := root.FS()
 	// entries starts non-nil so an empty listing marshals as [], not null.
 	entries := []Entry{}
-	if recursive {
-		err := fs.WalkDir(fsys, base, func(p string, d fs.DirEntry, err error) error {
-			if err != nil {
-				return err
-			}
-			if p == base {
-				return nil
-			}
-			if strings.HasPrefix(d.Name(), ".") {
-				if d.IsDir() {
-					return filepath.SkipDir
-				}
-				return nil
-			}
-			e, err := entryAt(p, d)
-			if err != nil {
-				return err
-			}
-			entries = append(entries, e)
-			return nil
-		})
+	err := v.walk(base, func(rel string, d fs.DirEntry) error {
+		e, err := entryAt(rel, d)
 		if err != nil {
-			return nil, fmt.Errorf("listing %q: %w", dir, err)
+			return err
 		}
-	} else {
-		dirents, err := fs.ReadDir(fsys, base)
-		if err != nil {
-			return nil, fmt.Errorf("listing %q: %w", dir, err)
+		entries = append(entries, e)
+		if d.IsDir() && !recursive {
+			return fs.SkipDir
 		}
-		for _, d := range dirents {
-			if strings.HasPrefix(d.Name(), ".") {
-				continue
-			}
-			e, err := entryAt(path.Join(base, d.Name()), d)
-			if err != nil {
-				return nil, err
-			}
-			entries = append(entries, e)
-		}
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("listing %q: %w", dir, err)
 	}
 	sort.Slice(entries, func(i, j int) bool { return entries[i].Path < entries[j].Path })
 	return entries, nil
-}
-
-func newEntry(root, abs string, d fs.DirEntry) (Entry, error) {
-	rel, err := filepath.Rel(root, abs)
-	if err != nil {
-		return Entry{}, err
-	}
-	return entryAt(filepath.ToSlash(rel), d)
 }
 
 // entryAt describes d, found at the slash-separated vault-relative path rel.

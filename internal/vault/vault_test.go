@@ -408,12 +408,19 @@ func (f fakeDirEntry) IsDir() bool                { return f.dir }
 func (f fakeDirEntry) Type() fs.FileMode          { return 0 }
 func (f fakeDirEntry) Info() (fs.FileInfo, error) { return nil, f.infoErr }
 
-func TestNewEntryErrors(t *testing.T) {
-	if _, err := newEntry("relative-root", "/abs/file.md", fakeDirEntry{name: "file.md", dir: true}); err == nil {
-		t.Error("newEntry succeeded with unrelatable paths")
+func TestListRefusesAFile(t *testing.T) {
+	v := newTestVault(t)
+	mustWrite(t, v, "note.md", "x")
+	for _, recursive := range []bool{false, true} {
+		if _, err := v.List("note.md", recursive); err == nil || !strings.Contains(err.Error(), "not a directory") {
+			t.Errorf("List(note.md, recursive=%v) err = %v, want a not-a-directory error", recursive, err)
+		}
 	}
-	if _, err := newEntry("/root", "/root/file.md", fakeDirEntry{name: "file.md", infoErr: errors.New("stat failed")}); err == nil {
-		t.Error("newEntry succeeded despite Info failure")
+}
+
+func TestEntryAtReportsAnInfoFailure(t *testing.T) {
+	if _, err := entryAt("file.md", fakeDirEntry{name: "file.md", infoErr: errors.New("stat failed")}); err == nil {
+		t.Error("entryAt succeeded despite Info failure")
 	}
 }
 

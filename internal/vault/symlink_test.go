@@ -3,7 +3,10 @@ package vault
 import (
 	"os"
 	"path/filepath"
+	"slices"
+	"strings"
 	"testing"
+	"time"
 )
 
 // symlinkedVault returns a vault holding Inbox/a.md, a note symlinked to a
@@ -88,6 +91,51 @@ func TestSymlinksCannotWriteOutsideTheVault(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(outside, "new.md")); !os.IsNotExist(err) {
 		t.Errorf("a note was created outside the vault: %v", err)
+	}
+}
+
+func TestWalksSkipSymlinksLeadingOutOfTheVault(t *testing.T) {
+	v, _ := symlinkedVault(t)
+
+	notes, err := v.Notes()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := []string{"Inbox/a.md", "alias.md"}; !slices.Equal(notes, want) {
+		t.Errorf("Notes = %q, want %q", notes, want)
+	}
+
+	recent, err := v.RecentNotes(0, time.Time{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var recentPaths []string
+	for _, e := range recent {
+		recentPaths = append(recentPaths, e.Path)
+	}
+	slices.Sort(recentPaths)
+	if want := []string{"Inbox/a.md", "alias.md"}; !slices.Equal(recentPaths, want) {
+		t.Errorf("RecentNotes = %q, want %q", recentPaths, want)
+	}
+
+	for _, recursive := range []bool{false, true} {
+		entries, err := v.List("", recursive)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, e := range entries {
+			if e.Path == "leak.md" || strings.HasPrefix(e.Path, "Out") {
+				t.Errorf("List(recursive=%v) showed %q, which leads outside the vault", recursive, e.Path)
+			}
+		}
+	}
+
+	titles, _, err := v.MatchTitles("leak|secret", false, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(titles) != 0 {
+		t.Errorf("MatchTitles = %q, want no note outside the vault", titles)
 	}
 }
 
