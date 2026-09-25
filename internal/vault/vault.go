@@ -232,18 +232,13 @@ func (v *Vault) Create(rel, content string) error {
 	if err := root.MkdirAll(filepath.Dir(clean), 0o755); err != nil {
 		return fmt.Errorf("creating parent directories for %q: %w", rel, err)
 	}
-	f, err := root.OpenFile(clean, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
-	if err != nil {
+	if err := createAtomic(root, clean, []byte(content)); err != nil {
 		if errors.Is(err, fs.ErrExist) {
 			return fmt.Errorf("note %q already exists: use append_note or edit_note to modify it", rel)
 		}
 		return fmt.Errorf("creating %q: %w", rel, err)
 	}
-	defer f.Close()
-	if _, err := f.WriteString(content); err != nil {
-		return fmt.Errorf("writing %q: %w", rel, err)
-	}
-	return f.Close()
+	return nil
 }
 
 // Append appends content to the note at path, creating it (and parent
@@ -257,15 +252,14 @@ func (v *Vault) Append(rel, content string) error {
 	if err := root.MkdirAll(filepath.Dir(clean), 0o755); err != nil {
 		return fmt.Errorf("creating parent directories for %q: %w", rel, err)
 	}
-	f, err := root.OpenFile(clean, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0o644)
-	if err != nil {
-		return fmt.Errorf("opening %q for append: %w", rel, err)
+	existing, err := root.ReadFile(clean)
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return fmt.Errorf("reading %q to append to it: %w", rel, err)
 	}
-	defer f.Close()
-	if _, err := f.WriteString(content); err != nil {
+	if err := writeAtomic(root, clean, append(existing, content...)); err != nil {
 		return fmt.Errorf("appending to %q: %w", rel, err)
 	}
-	return f.Close()
+	return nil
 }
 
 // Edit replaces find with replace in the note at path and returns the number
