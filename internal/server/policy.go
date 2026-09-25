@@ -12,7 +12,16 @@ import (
 // inTrash reports whether a vault-relative path lies inside the trash, where
 // Vault.Delete always deletes outright.
 func inTrash(p string) bool {
-	return strings.HasPrefix(path.Clean(filepath.ToSlash(p)), vault.TrashDir+"/")
+	_, ok := outOfTrash(p)
+	return ok
+}
+
+// outOfTrash returns where a note inside the trash goes back to when no
+// destination is given: its path inside the trash, taken from the vault
+// root. Obsidian's trash keeps no record of the original folder. The second
+// value is false when p is not inside the trash.
+func outOfTrash(p string) (string, bool) {
+	return strings.CutPrefix(path.Clean(filepath.ToSlash(p)), vault.TrashDir+"/")
 }
 
 // requireNote rejects a path that is not a Markdown note, and any path

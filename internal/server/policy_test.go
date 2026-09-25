@@ -56,6 +56,18 @@ func TestReadOnlyServerOffersNoWriteTools(t *testing.T) {
 	}
 }
 
+func TestSingleVaultServerOffersNoListVaults(t *testing.T) {
+	s := rankServer(t, map[string]string{"Inbox/a.md": "body\n"})
+
+	if got := toolNames(listedTools(t, s)); slices.Contains(got, "list_vaults") {
+		t.Errorf("tools = %v, want no list_vaults when there is one vault", got)
+	}
+	_, err := s.vault("Nope")
+	if err == nil || !strings.Contains(err.Error(), "holds Personal") || strings.Contains(err.Error(), "list_vaults") {
+		t.Errorf("err = %v, want it to name the vault rather than point at list_vaults", err)
+	}
+}
+
 func TestPermanentDeleteIsOffByDefault(t *testing.T) {
 	s, v := metaServer(t, map[string]string{
 		"Inbox/a.md":  "body\n",

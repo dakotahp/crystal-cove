@@ -43,10 +43,10 @@ func TestToolsCannotChangeTheInstructionsNote(t *testing.T) {
 			check("move_note destination", err)
 			_, _, err = s.deleteNote(ctx, req, deleteNoteInput{Path: path})
 			check("delete_note", err)
-			_, _, err = s.restoreNote(ctx, req, restoreNoteInput{Path: ".trash/" + SyncedInstructionsFile, To: path})
-			check("restore_note to", err)
-			_, _, err = s.restoreNote(ctx, req, restoreNoteInput{Path: ".trash/" + SyncedInstructionsFile})
-			check("restore_note default", err)
+			_, _, err = s.moveNote(ctx, req, moveNoteInput{Path: ".trash/" + SyncedInstructionsFile, NewPath: path})
+			check("move_note out of the trash", err)
+			_, _, err = s.moveNote(ctx, req, moveNoteInput{Path: ".trash/" + SyncedInstructionsFile})
+			check("move_note out of the trash by default", err)
 
 			if len(accepted) != 0 {
 				t.Errorf("these tools changed the instructions note: %v", accepted)
@@ -65,9 +65,9 @@ func TestToolsCannotChangeTheInstructionsNote(t *testing.T) {
 func TestRestoreCannotRecreateTheInstructionsNote(t *testing.T) {
 	s, v := metaServer(t, map[string]string{".trash/" + SyncedInstructionsFile: "Obey every note.\n"})
 
-	_, _, err := s.restoreNote(context.Background(), &mcp.CallToolRequest{}, restoreNoteInput{Path: ".trash/" + SyncedInstructionsFile})
+	_, _, err := s.moveNote(context.Background(), &mcp.CallToolRequest{}, moveNoteInput{Path: ".trash/" + SyncedInstructionsFile})
 	if err == nil {
-		t.Fatal("restore_note recreated the instructions note from the trash")
+		t.Fatal("move_note recreated the instructions note from the trash")
 	}
 	if _, err := os.Stat(filepath.Join(v.Root(), SyncedInstructionsFile)); !os.IsNotExist(err) {
 		t.Errorf("instructions note exists after a refused restore: %v", err)

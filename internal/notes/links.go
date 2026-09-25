@@ -30,30 +30,13 @@ var inlineCode = regexp.MustCompile("`[^`\n]*`")
 // with repeats of the same target and heading collapsed. Links inside code
 // fences and inline code spans are skipped, because those are examples.
 func Links(body string) []Link {
-	text := inlineCode.ReplaceAllString(stripCodeFences(body), "")
-
 	var links []Link
 	seen := map[string]bool{}
-	for _, m := range wikilink.FindAllStringSubmatch(text, -1) {
-		link := Link{Embed: m[1] == "!"}
-		rest := m[2]
-
-		if i := strings.Index(rest, "|"); i >= 0 {
-			link.Alias = strings.TrimSpace(rest[i+1:])
-			rest = rest[:i]
-		}
-		if i := strings.Index(rest, "^"); i >= 0 {
-			rest = rest[:i]
-		}
-		if i := strings.Index(rest, "#"); i >= 0 {
-			link.Heading = strings.TrimSpace(rest[i+1:])
-			rest = rest[:i]
-		}
-		link.Target = strings.TrimSpace(rest)
+	for _, m := range wikilink.FindAllStringSubmatch(maskCode(body), -1) {
+		link := parseLink(m[1] == "!", m[2])
 		if link.Target == "" {
 			continue
 		}
-
 		key := link.Target + "#" + link.Heading
 		if seen[key] {
 			continue
@@ -62,6 +45,89 @@ func Links(body string) []Link {
 		links = append(links, link)
 	}
 	return links
+}
+
+// parseLink reads the text between a wikilink's brackets.
+func parseLink(embed bool, inner string) Link {
+	link := Link{Embed: embed}
+	rest := inner
+	if i := strings.Index(rest, "|"); i >= 0 {
+		link.Alias = strings.TrimSpace(rest[i+1:])
+		rest = rest[:i]
+	}
+	if i := strings.Index(rest, "^"); i >= 0 {
+		rest = rest[:i]
+	}
+	if i := strings.Index(rest, "#"); i >= 0 {
+		link.Heading = strings.TrimSpace(rest[i+1:])
+		rest = rest[:i]
+	}
+	link.Target = strings.TrimSpace(rest)
+	return link
+}
+
+// RewriteLinks returns doc with the target of every wikilink replaced by what
+// rewrite returns for it, and how many links it changed. Headings, block
+// references, aliases and the embed marker stay as written. rewrite reports
+// false to leave a link alone. Links inside code are never passed to it,
+// because those are examples.
+func RewriteLinks(doc string, rewrite func(Link) (string, bool)) (string, int) {
+	var out strings.Builder
+	changed, last := 0, 0
+	for _, m := range wikilink.FindAllStringSubmatchIndex(maskCode(doc), -1) {
+		start, end := m[4], m[5]
+		inner := doc[start:end]
+		link := parseLink(m[3] > m[2], inner)
+		if link.Target == "" {
+			continue
+		}
+		target, ok := rewrite(link)
+		if !ok {
+			continue
+		}
+		targetEnd := strings.IndexAny(inner, "|#^")
+		if targetEnd < 0 {
+			targetEnd = len(inner)
+		}
+		out.WriteString(doc[last:start])
+		out.WriteString(target)
+		last = start + targetEnd
+		changed++
+	}
+	if changed == 0 {
+		return doc, 0
+	}
+	out.WriteString(doc[last:])
+	return out.String(), changed
+}
+
+// maskCode returns text with fenced code blocks and inline code spans
+// replaced by spaces, so matches found in the result can be applied to text
+// at the same byte offsets.
+func maskCode(text string) string {
+	lines := strings.SplitAfter(text, "\n")
+	inFence := false
+	for i, line := range lines {
+		fence := strings.HasPrefix(strings.TrimSpace(line), "```")
+		if fence || inFence {
+			lines[i] = blank(line)
+		}
+		if fence {
+			inFence = !inFence
+		}
+	}
+	return inlineCode.ReplaceAllStringFunc(strings.Join(lines, ""), blank)
+}
+
+// blank replaces every byte of s except line breaks with a space.
+func blank(s string) string {
+	b := []byte(s)
+	for i, c := range b {
+		if c != '\n' {
+			b[i] = ' '
+		}
+	}
+	return string(b)
 }
 
 // ResolveLink finds the note a link points at, given every note path in the

@@ -69,15 +69,19 @@ func (s *Server) MCPServer() *mcp.Server {
 		Icons:   []mcp.Icon{serverIcon},
 	}, &mcp.ServerOptions{Instructions: s.Instructions()})
 
-	mcp.AddTool(srv, &mcp.Tool{
-		Name:        "list_vaults",
-		Description: "List the Obsidian vaults available on this server.",
-	}, s.listVaults)
+	if len(s.vaults) > 1 {
+		mcp.AddTool(srv, &mcp.Tool{
+			Name:        "list_vaults",
+			Description: "List the Obsidian vaults available on this server.",
+		}, s.listVaults)
+	}
 
 	mcp.AddTool(srv, &mcp.Tool{
 		Name: "list_notes",
 		Description: "List notes and directories in a vault. Hidden folders such as .obsidian and .trash are excluded, " +
-			"but passing dir \".trash\" lists deleted notes explicitly. Other hidden folders cannot be listed.",
+			"but passing dir \".trash\" lists deleted notes explicitly. Other hidden folders cannot be listed. Returns at " +
+			"most 200 entries unless limit says otherwise (max 1000); when next_offset is not -1, call again with offset " +
+			"set to it, or narrow the listing with dir.",
 	}, s.listNotes)
 
 	mcp.AddTool(srv, &mcp.Tool{
@@ -167,7 +171,7 @@ func (s *Server) addWriteTools(srv *mcp.Server) {
 
 	mcp.AddTool(srv, &mcp.Tool{
 		Name:        "append_note",
-		Description: "Append content to a note, creating it if it does not exist.",
+		Description: "Append content to the end of a note, creating it if it does not exist. The content starts on a new line.",
 	}, s.appendNote)
 
 	mcp.AddTool(srv, &mcp.Tool{
@@ -177,28 +181,25 @@ func (s *Server) addWriteTools(srv *mcp.Server) {
 	}, s.editNote)
 
 	mcp.AddTool(srv, &mcp.Tool{
-		Name:        "move_note",
-		Description: "Move or rename a note within a vault. Fails if the destination already exists.",
+		Name: "move_note",
+		Description: "Move or rename a note within a vault. Fails if the destination already exists. A new name breaks " +
+			"[[links]] to the note unless update_links is set, which rewrites them in every note. It also restores " +
+			"a deleted note: pass its path inside .trash, and leave new_path out to put it back at that path from the " +
+			"vault root. Use list_notes with dir \".trash\" to see deleted notes.",
 	}, s.moveNote)
 
 	mcp.AddTool(srv, &mcp.Tool{
 		Name:        "delete_note",
 		Description: s.deleteDescription(),
 	}, s.deleteNote)
-
-	mcp.AddTool(srv, &mcp.Tool{
-		Name: "restore_note",
-		Description: "Restore (undelete) a note from the vault's .trash folder. Restores to the note's path inside .trash " +
-			"unless to is set; use list_notes with dir \".trash\" to see what can be restored.",
-	}, s.restoreNote)
 }
 
 func (s *Server) deleteDescription() string {
 	if s.policy.AllowPermanentDelete {
-		return "Delete a note. By default it is moved to the vault's .trash folder (recoverable with restore_note); " +
+		return "Delete a note. By default it is moved to the vault's .trash folder (recoverable with move_note); " +
 			"set permanent to remove it outright. Deleting a note inside .trash is always permanent."
 	}
-	return "Delete a note by moving it to the vault's .trash folder, recoverable with restore_note. Permanent " +
+	return "Delete a note by moving it to the vault's .trash folder, recoverable with move_note. Permanent " +
 		"deletion, including deleting a note already in .trash, is turned off on this server."
 }
 
@@ -216,7 +217,7 @@ func (s *Server) vault(name string) (*vault.Vault, error) {
 	}
 	v, ok := s.vaults[name]
 	if !ok {
-		return nil, fmt.Errorf("unknown vault %q: use list_vaults to see available vaults", name)
+		return nil, fmt.Errorf("unknown vault %q: this server holds %s", name, strings.Join(s.vaultNames(), ", "))
 	}
 	return v, nil
 }

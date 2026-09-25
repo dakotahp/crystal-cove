@@ -3,6 +3,7 @@
 package vault
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -208,7 +209,9 @@ func (v *Vault) Create(rel, content string) error {
 }
 
 // Append appends content to the note at path, creating it (and parent
-// directories) if it does not exist.
+// directories) if it does not exist. Content starts on a new line: when the
+// note does not end with a line break, one is added first, in the note's own
+// line-ending style.
 func (v *Vault) Append(rel, content string) error {
 	root, clean, err := v.open(rel)
 	if err != nil {
@@ -221,6 +224,13 @@ func (v *Vault) Append(rel, content string) error {
 	existing, err := root.ReadFile(clean)
 	if err != nil && !errors.Is(err, fs.ErrNotExist) {
 		return fmt.Errorf("reading %q to append to it: %w", rel, err)
+	}
+	if len(existing) > 0 && content != "" && existing[len(existing)-1] != '\n' {
+		newline := "\n"
+		if bytes.Contains(existing, []byte("\r\n")) {
+			newline = "\r\n"
+		}
+		existing = append(existing, newline...)
 	}
 	if err := writeAtomic(root, clean, append(existing, content...)); err != nil {
 		return fmt.Errorf("appending to %q: %w", rel, err)
@@ -279,34 +289,6 @@ func (v *Vault) Move(from, to string) error {
 		return fmt.Errorf("moving %q to %q: %w", from, to, err)
 	}
 	return nil
-}
-
-// Restore moves a note out of the vault's .trash back into the vault. When
-// to is empty the note is restored to the path it had inside .trash (its
-// original directory is not recorded by the trash convention). It fails if
-// the destination already exists.
-func (v *Vault) Restore(rel, to string) (string, error) {
-	to, err := RestoreDestination(rel, to)
-	if err != nil {
-		return "", err
-	}
-	if err := v.Move(rel, to); err != nil {
-		return "", err
-	}
-	return to, nil
-}
-
-// RestoreDestination returns where Restore puts the trashed note rel: to,
-// or the note's path inside .trash when to is empty.
-func RestoreDestination(rel, to string) (string, error) {
-	slashRel := filepath.ToSlash(rel)
-	if !strings.HasPrefix(slashRel, TrashDir+"/") {
-		return "", fmt.Errorf("restoring %q: only notes inside %s/ can be restored", rel, TrashDir)
-	}
-	if to == "" {
-		to = strings.TrimPrefix(slashRel, TrashDir+"/")
-	}
-	return to, nil
 }
 
 // Delete removes the note at path. By default it is moved into the vault's
