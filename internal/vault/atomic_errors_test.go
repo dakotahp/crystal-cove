@@ -8,14 +8,14 @@ import (
 	"time"
 )
 
-func TestWriteAllKeepsAnUnusualFileMode(t *testing.T) {
+func TestUpdateKeepsAnUnusualFileMode(t *testing.T) {
 	v := newNotesVault(t, "Inbox/today.md")
 	target := filepath.Join(v.Root(), "Inbox", "today.md")
 	if err := os.Chmod(target, 0o600); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := v.WriteAll("Inbox/today.md", []byte("changed\n")); err != nil {
+	if _, err := v.Update("Inbox/today.md", setTo("changed\n")); err != nil {
 		t.Fatal(err)
 	}
 	info, err := os.Stat(target)
@@ -27,7 +27,7 @@ func TestWriteAllKeepsAnUnusualFileMode(t *testing.T) {
 	}
 }
 
-func TestWriteAllReportsAnUnwritableDirectory(t *testing.T) {
+func TestUpdateReportsAnUnwritableDirectory(t *testing.T) {
 	if os.Geteuid() == 0 {
 		t.Skip("permissions do not restrict root")
 	}
@@ -38,7 +38,7 @@ func TestWriteAllReportsAnUnwritableDirectory(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = os.Chmod(dir, 0o755) })
 
-	err := v.WriteAll("Inbox/today.md", []byte("changed\n"))
+	_, err := v.Update("Inbox/today.md", setTo("changed\n"))
 	if err == nil || !strings.Contains(err.Error(), "temporary file") {
 		t.Fatalf("err = %v, want it to name the temporary file", err)
 	}
@@ -51,10 +51,10 @@ func TestWriteAllReportsAnUnwritableDirectory(t *testing.T) {
 	}
 }
 
-func TestWriteAllCreatesAMissingNote(t *testing.T) {
+func TestUpdateCreatesAMissingNoteWhenAllowed(t *testing.T) {
 	v := newNotesVault(t, "Inbox/today.md")
 
-	if err := v.WriteAll("Inbox/fresh.md", []byte("new\n")); err != nil {
+	if _, err := v.update("Inbox/fresh.md", true, setTo("new\n")); err != nil {
 		t.Fatal(err)
 	}
 	data, err := v.ReadAll("Inbox/fresh.md")
@@ -95,12 +95,12 @@ func TestNotesAndRecentNotesReportAMissingRoot(t *testing.T) {
 	}
 }
 
-func TestWriteAllReportsATargetItCannotReplace(t *testing.T) {
+func TestUpdateReportsATargetThatIsAFolder(t *testing.T) {
 	v := newNotesVault(t, "Inbox/today.md/inside.md")
 
-	err := v.WriteAll("Inbox/today.md", []byte("changed\n"))
-	if err == nil || !strings.Contains(err.Error(), "replacing") {
-		t.Fatalf("err = %v, want a failed replace", err)
+	_, err := v.Update("Inbox/today.md", setTo("changed\n"))
+	if err == nil || !strings.Contains(err.Error(), "reading") {
+		t.Fatalf("err = %v, want a failed read", err)
 	}
 	entries, err := os.ReadDir(filepath.Join(v.Root(), "Inbox"))
 	if err != nil {

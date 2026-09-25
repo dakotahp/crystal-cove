@@ -73,13 +73,3 @@ func (v *Vault) ReadAll(rel string) ([]byte, error) {
 	}
 	return data, nil
 }
-
-// WriteAll replaces a note's content.
-func (v *Vault) WriteAll(rel string, data []byte) error {
-	root, clean, err := v.open(rel)
-	if err != nil {
-		return err
-	}
-	defer root.Close()
-	return writeAtomic(root, clean, data)
-}

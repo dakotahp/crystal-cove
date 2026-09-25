@@ -35,10 +35,10 @@ func TestNotesListsMarkdownOnlyAndSkipsHidden(t *testing.T) {
 	}
 }
 
-func TestReadAllAndWriteAllRoundTrip(t *testing.T) {
+func TestReadAllAndUpdateRoundTrip(t *testing.T) {
 	v := newNotesVault(t, "Inbox/today.md")
 
-	if err := v.WriteAll("Inbox/today.md", []byte("changed\n")); err != nil {
+	if _, err := v.Update("Inbox/today.md", setTo("changed\n")); err != nil {
 		t.Fatal(err)
 	}
 	got, err := v.ReadAll("Inbox/today.md")
@@ -50,13 +50,13 @@ func TestReadAllAndWriteAllRoundTrip(t *testing.T) {
 	}
 }
 
-func TestReadAllAndWriteAllRejectEscapes(t *testing.T) {
+func TestReadAllAndUpdateRejectEscapes(t *testing.T) {
 	v := newNotesVault(t, "Inbox/today.md")
 
 	if _, err := v.ReadAll("../outside.md"); err == nil {
 		t.Error("ReadAll accepted a path outside the vault")
 	}
-	if err := v.WriteAll("/etc/passwd", []byte("nope")); err == nil {
-		t.Error("WriteAll accepted an absolute path")
+	if _, err := v.Update("/etc/passwd", setTo("nope")); err == nil {
+		t.Error("Update accepted an absolute path")
 	}
 }

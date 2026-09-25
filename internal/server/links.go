@@ -45,18 +45,18 @@ func updateLinks(v *vault.Vault, from, to string, before []string) ([]string, er
 
 	changed := []string{}
 	for _, p := range after {
-		data, err := v.ReadAll(p)
+		var n int
+		_, err := v.Update(p, func(old []byte) ([]byte, error) {
+			updated, count := notes.RewriteLinks(string(old), target)
+			n = count
+			return []byte(updated), nil
+		})
 		if err != nil {
 			return changed, err
 		}
-		updated, n := notes.RewriteLinks(string(data), target)
-		if n == 0 {
-			continue
+		if n > 0 {
+			changed = append(changed, p)
 		}
-		if err := v.WriteAll(p, []byte(updated)); err != nil {
-			return changed, err
-		}
-		changed = append(changed, p)
 	}
 	return changed, nil
 }

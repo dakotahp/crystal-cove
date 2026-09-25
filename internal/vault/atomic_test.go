@@ -8,10 +8,10 @@ import (
 	"time"
 )
 
-func TestWriteAllLeavesNoTemporaryFiles(t *testing.T) {
+func TestUpdateLeavesNoTemporaryFiles(t *testing.T) {
 	v := newNotesVault(t, "Inbox/today.md")
 
-	if err := v.WriteAll("Inbox/today.md", []byte("changed\n")); err != nil {
+	if _, err := v.Update("Inbox/today.md", setTo("changed\n")); err != nil {
 		t.Fatal(err)
 	}
 	entries, err := os.ReadDir(filepath.Join(v.Root(), "Inbox"))
@@ -25,7 +25,7 @@ func TestWriteAllLeavesNoTemporaryFiles(t *testing.T) {
 	}
 }
 
-func TestWriteAllReplacesInPlaceForReaders(t *testing.T) {
+func TestUpdateReplacesInPlaceForReaders(t *testing.T) {
 	v := newNotesVault(t, "Inbox/today.md")
 	target := filepath.Join(v.Root(), "Inbox", "today.md")
 
@@ -33,7 +33,7 @@ func TestWriteAllReplacesInPlaceForReaders(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := v.WriteAll("Inbox/today.md", []byte("replaced\n")); err != nil {
+	if _, err := v.Update("Inbox/today.md", setTo("replaced\n")); err != nil {
 		t.Fatal(err)
 	}
 	after, err := os.Stat(target)
@@ -52,15 +52,15 @@ func TestWriteAllReplacesInPlaceForReaders(t *testing.T) {
 	}
 }
 
-func TestEditAndReplaceSectionKeepNoTemporaryFiles(t *testing.T) {
+func TestEditAndEditSectionKeepNoTemporaryFiles(t *testing.T) {
 	v := newNotesVault(t, "Inbox/today.md")
-	if err := v.WriteAll("Inbox/today.md", []byte("## One\n\nalpha\n")); err != nil {
+	if _, err := v.Update("Inbox/today.md", setTo("## One\n\nalpha\n")); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := v.Edit("Inbox/today.md", "alpha", "beta", false); err != nil {
+	if _, _, err := v.Edit("Inbox/today.md", "alpha", "beta", false, ""); err != nil {
 		t.Fatal(err)
 	}
-	if err := v.ReplaceSection("Inbox/today.md", []string{"One"}, "gamma\n"); err != nil {
+	if err := replaceSection(t, v, "Inbox/today.md", []string{"One"}, "gamma\n"); err != nil {
 		t.Fatal(err)
 	}
 	entries, err := os.ReadDir(filepath.Join(v.Root(), "Inbox"))

@@ -87,12 +87,14 @@ func (s *Server) MCPServer() *mcp.Server {
 	mcp.AddTool(srv, &mcp.Tool{
 		Name: "read_note",
 		Description: fmt.Sprintf("Read a note from a vault. Returns at most %d characters per call; "+
-			"when the response is truncated, call again with offset set to next_offset to continue reading.", vault.ReadPageSize),
+			"when the response is truncated, call again with offset set to next_offset to continue reading. version "+
+			"identifies the note's text; pass it to edit_note so the edit is refused if the note changed since, "+
+			"for example through sync from another device.", vault.ReadPageSize),
 	}, s.readNote)
 
 	mcp.AddTool(srv, &mcp.Tool{
 		Name:        "get_section",
-		Description: "Read a Markdown heading section's body, including nested subsections but excluding its heading. heading_path is an exact case-sensitive suffix of the heading hierarchy (Markdown title text without heading markers); ambiguous matches fail. Only document-level headings count, not headings in code, quotes, lists, or YAML frontmatter. Returns at most 10240 characters; continue with next_offset.",
+		Description: "Read a Markdown heading section's body, including nested subsections but excluding its heading. heading_path is an exact case-sensitive suffix of the heading hierarchy (Markdown title text without heading markers); ambiguous matches fail. Only document-level headings count, not headings in code, quotes, lists, or YAML frontmatter. Returns at most 10240 characters; continue with next_offset. version identifies this section's text, for edit_section.",
 	}, s.getSection)
 
 	mcp.AddTool(srv, &mcp.Tool{
@@ -154,9 +156,15 @@ func (s *Server) MCPServer() *mcp.Server {
 // server leaves them out, so clients never see them.
 func (s *Server) addWriteTools(srv *mcp.Server) {
 	mcp.AddTool(srv, &mcp.Tool{
-		Name:        "replace_section",
-		Description: "Replace a Markdown heading section's entire body, including nested subsections, while preserving its heading. content excludes the selected heading. heading_path is an exact case-sensitive suffix of the heading hierarchy; missing or ambiguous matches fail. The section ends at the next heading of equal or higher rank. Adds newline separation when needed before a following heading.",
-	}, s.replaceSection)
+		Name: "edit_section",
+		Description: "Change one Markdown heading section without quoting its text or rewriting the whole note; the " +
+			"heading and the rest of the note are kept. mode append adds lines after the section's own text, before " +
+			"its first subheading, which is how to add an entry under a heading such as ## Log. mode prepend adds " +
+			"lines right below the heading. mode replace replaces the whole body, subsections included, and needs " +
+			"the version get_section returned, so it cannot remove text it has not seen. Any mode refuses the edit " +
+			"when a given version no longer matches; changes elsewhere in the note do not count. heading_path is an " +
+			"exact case-sensitive suffix of the heading hierarchy; missing or ambiguous matches fail.",
+	}, s.editSection)
 
 	mcp.AddTool(srv, &mcp.Tool{
 		Name: "update_frontmatter",
@@ -177,7 +185,8 @@ func (s *Server) addWriteTools(srv *mcp.Server) {
 	mcp.AddTool(srv, &mcp.Tool{
 		Name: "edit_note",
 		Description: "Edit a note by replacing an exact text snippet. The snippet must occur exactly once " +
-			"unless replace_all is set; include surrounding lines to make it unique.",
+			"unless replace_all is set; include surrounding lines to make it unique. Pass the version read_note returned " +
+			"to refuse the edit if the note changed since; the result carries the new version for a following edit.",
 	}, s.editNote)
 
 	mcp.AddTool(srv, &mcp.Tool{

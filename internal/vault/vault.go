@@ -10,6 +10,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -67,6 +68,8 @@ type ReadResult struct {
 	// NextOffset is the offset to pass to read the next page; -1 when the
 	// note has been read to the end.
 	NextOffset int `json:"next_offset"`
+	// Version identifies the whole text read, not only this page.
+	Version string `json:"version" jsonschema:"identifies the text read; pass it to an edit to refuse the edit if this text changed since"`
 }
 
 // resolve cleans a vault-relative path, rejecting empty, absolute, and
@@ -163,13 +166,13 @@ func (v *Vault) Read(rel string, offset int) (*ReadResult, error) {
 	if err != nil {
 		return nil, err
 	}
-	return page(string(data), offset, "note")
+	return page(data, offset, "note")
 }
 
 // page returns up to ReadPageSize characters of text starting at the
 // character offset. what names the text in the out-of-range error.
-func page(text string, offset int, what string) (*ReadResult, error) {
-	runes := []rune(text)
+func page(text []byte, offset int, what string) (*ReadResult, error) {
+	runes := []rune(string(text))
 	total := len(runes)
 	if offset < 0 || offset > total {
 		return nil, fmt.Errorf("offset %d is out of range: %s has %d characters", offset, what, total)
@@ -181,6 +184,7 @@ func page(text string, offset int, what string) (*ReadResult, error) {
 		TotalCharacters: total,
 		Truncated:       end < total,
 		NextOffset:      -1,
+		Version:         Version(text),
 	}
 	if res.Truncated {
 		res.NextOffset = end
@@ -221,46 +225,49 @@ func (v *Vault) Append(rel, content string) error {
 	if err := root.MkdirAll(filepath.Dir(clean), 0o755); err != nil {
 		return fmt.Errorf("creating parent directories for %q: %w", rel, err)
 	}
-	existing, err := root.ReadFile(clean)
-	if err != nil && !errors.Is(err, fs.ErrNotExist) {
-		return fmt.Errorf("reading %q to append to it: %w", rel, err)
-	}
-	if len(existing) > 0 && content != "" && existing[len(existing)-1] != '\n' {
-		newline := "\n"
-		if bytes.Contains(existing, []byte("\r\n")) {
-			newline = "\r\n"
+	_, err = v.update(rel, true, func(existing []byte) ([]byte, error) {
+		sep := ""
+		if len(existing) > 0 && content != "" && existing[len(existing)-1] != '\n' {
+			sep = "\n"
+			if bytes.Contains(existing, []byte("\r\n")) {
+				sep = "\r\n"
+			}
 		}
-		existing = append(existing, newline...)
-	}
-	if err := writeAtomic(root, clean, append(existing, content...)); err != nil {
+		return slices.Concat(existing, []byte(sep), []byte(content)), nil
+	})
+	if err != nil {
 		return fmt.Errorf("appending to %q: %w", rel, err)
 	}
 	return nil
 }
 
 // Edit replaces find with replace in the note at path and returns the number
-// of replacements made. Unless replaceAll is true, find must occur exactly
-// once.
-func (v *Vault) Edit(rel, find, replace string, replaceAll bool) (int, error) {
+// of replacements made and the note's new version. Unless replaceAll is true,
+// find must occur exactly once. When version is set, the edit is refused if
+// the note is no longer at that version.
+func (v *Vault) Edit(rel, find, replace string, replaceAll bool, version string) (int, string, error) {
 	if find == "" {
-		return 0, errors.New("find must not be empty")
+		return 0, "", errors.New("find must not be empty")
 	}
-	data, err := v.ReadAll(rel)
+	var count int
+	updated, err := v.Update(rel, func(old []byte) ([]byte, error) {
+		if err := checkVersion(fmt.Sprintf("note %q", rel), old, version); err != nil {
+			return nil, err
+		}
+		content := string(old)
+		count = strings.Count(content, find)
+		if count == 0 {
+			return nil, fmt.Errorf("text not found in %q", rel)
+		}
+		if count > 1 && !replaceAll {
+			return nil, fmt.Errorf("text occurs %d times in %q: provide more surrounding context to make it unique, or set replace_all", count, rel)
+		}
+		return []byte(strings.ReplaceAll(content, find, replace)), nil
+	})
 	if err != nil {
-		return 0, err
+		return 0, "", err
 	}
-	content := string(data)
-	count := strings.Count(content, find)
-	if count == 0 {
-		return 0, fmt.Errorf("text not found in %q", rel)
-	}
-	if count > 1 && !replaceAll {
-		return 0, fmt.Errorf("text occurs %d times in %q: provide more surrounding context to make it unique, or set replace_all", count, rel)
-	}
-	if err := v.WriteAll(rel, []byte(strings.ReplaceAll(content, find, replace))); err != nil {
-		return 0, err
-	}
-	return count, nil
+	return count, Version(updated), nil
 }
 
 // Move renames a note from one vault-relative path to another, creating

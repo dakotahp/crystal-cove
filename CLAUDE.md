@@ -98,12 +98,15 @@ Key invariants:
   on demand: a vault of a few thousand notes is fast enough, so there is no
   index yet. A note whose frontmatter does not parse is skipped during a scan
   rather than failing it, but the single-note tools report the error.
-- **Writes replace a note atomically**: `vault.writeAtomic` writes a temporary
-  file beside the target and renames it over, so the sync client watching the
-  folder never reads a half-written note and an interrupted write leaves the
-  original intact. `vault.createAtomic` does the same for a new note, but
-  links the temporary file into place, so it can never replace a note that
-  already exists. Keep new write paths on one of them. One consequence: a
+- **Writes never overwrite a sync change**: every change to an existing note
+  goes through `Vault.Update`, which reads the note, applies the change, and
+  writes a temporary file beside it that it renames over the note, so the
+  sync client never reads a half-written note. Just before the rename it
+  checks that the note still holds what it read; when sync wrote meanwhile it
+  reads again and reapplies the change, up to three times. There is no plain
+  overwrite on purpose: keep new write paths on `Update`, or on
+  `createAtomic` for a new note, which links the temporary file into place
+  and so can never replace a note that already exists. One consequence: a
   read-only note can be replaced, because rename depends on the directory.
 - **Note tools work on notes only.** `requireNote` rejects anything without a
   `.md` extension and any path inside a hidden folder except the trash, which
