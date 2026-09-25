@@ -1,5 +1,37 @@
 # Changelog
 
+## [0.9.0](https://github.com/dakotahp/crystal-cove/compare/v0.8.0...v0.9.0) (2026-09-25)
+
+
+### ⚠ BREAKING CHANGES
+
+* **server:** the replace_section tool is removed. Call edit_section with mode replace and the version from get_section instead.
+* **server:** the restore_note tool is removed. Call move_note with the note's path inside .trash instead; new_path replaces restore_note's to.
+* probes on /livez, /readyz, or /healthz now get a 401 and mark the container unhealthy. Point liveness probes at /health and readiness probes at /ready. /healthz used to mean ready, so a probe that only drops the "z" now checks the process instead of sync.
+
+### Features
+
+* advertise the Crystal Cove emblem as the MCP server icon ([f753542](https://github.com/dakotahp/crystal-cove/commit/f753542814c2ad660dfadbc0d8f12ead4c67e703))
+* advertise the Crystal Cove emblem as the MCP server icon ([#21](https://github.com/dakotahp/crystal-cove/issues/21)) ([1b5afcf](https://github.com/dakotahp/crystal-cove/commit/1b5afcfd71c75c9e5dd3ff3ec9ea8911380e4140))
+* refuse an edit built on an outdated read of the note ([5d41501](https://github.com/dakotahp/crystal-cove/commit/5d41501000b36d7fa7ce8a552e8c3be33dfc4b80))
+* rename the health endpoints to /health and /ready ([7757a45](https://github.com/dakotahp/crystal-cove/commit/7757a4577b9a6bab3dbfeb832ab269eb30d33797))
+* **server:** fold restore_note into move_note ([3f4b90e](https://github.com/dakotahp/crystal-cove/commit/3f4b90ec267392867101cacac829a2a5100972e0))
+* **server:** offer list_vaults only when the server holds several vaults ([24fa7c8](https://github.com/dakotahp/crystal-cove/commit/24fa7c8c57278206a8c0bae0d0479098e3e543c7))
+* **server:** page list_notes at 200 entries ([17a84b1](https://github.com/dakotahp/crystal-cove/commit/17a84b1d340a06479417d00e6909b21c52af08f3))
+* **server:** replace replace_section with edit_section and its append, prepend and replace modes ([b6333d5](https://github.com/dakotahp/crystal-cove/commit/b6333d54ce8516ab5a72d99f6fe3b190878c0db8))
+* **server:** update links to a moved note with move_note update_links ([0e1cad1](https://github.com/dakotahp/crystal-cove/commit/0e1cad1230d38d1cf358a02b37b2c4ac6a52a8f1))
+* **vault:** keep a deleted note's folder in the trash so a restore puts it back ([fd5e14a](https://github.com/dakotahp/crystal-cove/commit/fd5e14a9cb746bc03a16156a05c08bc8c4a27220))
+
+
+### Bug Fixes
+
+* **search:** find every note holding all query words, and rank before limiting ([2bccca9](https://github.com/dakotahp/crystal-cove/commit/2bccca9e59ca99a36e4118070c492516f51a5f3e))
+* **search:** find every note holding all query words, and rank before limiting ([#24](https://github.com/dakotahp/crystal-cove/issues/24)) ([125581e](https://github.com/dakotahp/crystal-cove/commit/125581e3d7be3b5cd129574fa6ade2367731e191))
+* **vault:** close the vault root with defer in Append ([2980b64](https://github.com/dakotahp/crystal-cove/commit/2980b6461bffeea93ad71a97a988b2cbdd70f529))
+* **vault:** never overwrite a change sync writes during an edit ([2ad3ad5](https://github.com/dakotahp/crystal-cove/commit/2ad3ad5d0f1af7c92a282a7188492193bd277305))
+* **vault:** start appended content on a new line ([5b054f4](https://github.com/dakotahp/crystal-cove/commit/5b054f497e603d154b8d6d7b63253ba524286a5b))
+* **vault:** write created and appended notes atomically ([b9c1dce](https://github.com/dakotahp/crystal-cove/commit/b9c1dce3b660c4f2554233c6acf21e4b73372951))
+
 ## [0.8.0](https://github.com/dakotahp/crystal-cove/compare/v0.7.0...v0.8.0) (2026-09-25)
 
 
