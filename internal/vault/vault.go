@@ -295,12 +295,14 @@ func (v *Vault) Move(from, to string) error {
 	if err := root.Rename(src, dst); err != nil {
 		return fmt.Errorf("moving %q to %q: %w", from, to, err)
 	}
+	removeEmptyTrashFolders(root, filepath.Dir(src))
 	return nil
 }
 
 // Delete removes the note at path. By default it is moved into the vault's
-// .trash directory (recoverable, and the move syncs); when permanent is
-// true the note is removed outright.
+// .trash directory at the same path it had in the vault, so the trash
+// records where it came from and a restore can put it back there; when
+// permanent is true the note is removed outright.
 func (v *Vault) Delete(rel string, permanent bool) (trashedTo string, err error) {
 	root, clean, err := v.open(rel)
 	if err != nil {
@@ -319,28 +321,47 @@ func (v *Vault) Delete(rel string, permanent bool) (trashedTo string, err error)
 		}
 		return "", nil
 	}
-	if err := root.MkdirAll(TrashDir, 0o755); err != nil {
+	inTrash := filepath.Join(TrashDir, clean)
+	if err := root.MkdirAll(filepath.Dir(inTrash), 0o755); err != nil {
 		return "", fmt.Errorf("creating trash directory: %w", err)
 	}
-	dst := uniquePath(root, filepath.Join(TrashDir, filepath.Base(clean)))
+	dst, err := uniquePath(root, inTrash)
+	if err != nil {
+		return "", fmt.Errorf("choosing a name for %q in the trash: %w", rel, err)
+	}
 	if err := root.Rename(clean, dst); err != nil {
 		return "", fmt.Errorf("moving %q to trash: %w", rel, err)
 	}
-	return TrashDir + "/" + filepath.Base(dst), nil
+	return filepath.ToSlash(dst), nil
+}
+
+// removeEmptyTrashFolders removes dir, a folder inside the trash, and each
+// folder above it that is left empty, stopping at the trash itself.
+func removeEmptyTrashFolders(root *os.Root, dir string) {
+	for strings.HasPrefix(filepath.ToSlash(dir), TrashDir+"/") {
+		if root.Remove(dir) != nil {
+			return
+		}
+		dir = filepath.Dir(dir)
+	}
 }
 
 // uniquePath returns p, or p with " (n)" inserted before the extension when
-// p already exists, matching how Obsidian resolves trash collisions.
-func uniquePath(root *os.Root, p string) string {
-	if _, err := root.Lstat(p); errors.Is(err, fs.ErrNotExist) {
-		return p
-	}
+// p already exists, matching how Obsidian resolves trash collisions. Any
+// error other than a missing path is returned, since trying more names
+// could not get past it.
+func uniquePath(root *os.Root, p string) (string, error) {
 	ext := filepath.Ext(p)
 	stem := strings.TrimSuffix(p, ext)
+	candidate := p
 	for i := 1; ; i++ {
-		candidate := fmt.Sprintf("%s (%d)%s", stem, i, ext)
-		if _, err := root.Lstat(candidate); errors.Is(err, fs.ErrNotExist) {
-			return candidate
+		_, err := root.Lstat(candidate)
+		if errors.Is(err, fs.ErrNotExist) {
+			return candidate, nil
 		}
+		if err != nil {
+			return "", err
+		}
+		candidate = fmt.Sprintf("%s (%d)%s", stem, i, ext)
 	}
 }

@@ -79,7 +79,8 @@ func (s *Server) MCPServer() *mcp.Server {
 	mcp.AddTool(srv, &mcp.Tool{
 		Name: "list_notes",
 		Description: "List notes and directories in a vault. Hidden folders such as .obsidian and .trash are excluded, " +
-			"but passing dir \".trash\" lists deleted notes explicitly. Other hidden folders cannot be listed. Returns at " +
+			"but passing dir \".trash\" with recursive lists deleted notes, which keep their folders there. Other " +
+			"hidden folders cannot be listed. Returns at " +
 			"most 200 entries unless limit says otherwise (max 1000); when next_offset is not -1, call again with offset " +
 			"set to it, or narrow the listing with dir.",
 	}, s.listNotes)
@@ -193,8 +194,8 @@ func (s *Server) addWriteTools(srv *mcp.Server) {
 		Name: "move_note",
 		Description: "Move or rename a note within a vault. Fails if the destination already exists. A new name breaks " +
 			"[[links]] to the note unless update_links is set, which rewrites them in every note. It also restores " +
-			"a deleted note: pass its path inside .trash, and leave new_path out to put it back at that path from the " +
-			"vault root. Use list_notes with dir \".trash\" to see deleted notes.",
+			"a deleted note: pass its path inside .trash, and leave new_path out to put it back where it was deleted " +
+			"from. Use list_notes with dir \".trash\" and recursive to see deleted notes.",
 	}, s.moveNote)
 
 	mcp.AddTool(srv, &mcp.Tool{

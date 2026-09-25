@@ -184,34 +184,34 @@ func TestWriteTools(t *testing.T) {
 	}
 
 	_, del, err := s.deleteNote(ctx, nil, deleteNoteInput{Vault: "Personal", Path: "archive/new.md"})
-	if err != nil || !del.OK || del.TrashedTo != ".trash/new.md" {
+	if err != nil || !del.OK || del.TrashedTo != ".trash/archive/new.md" {
 		t.Fatalf("deleteNote: %+v %v", del, err)
 	}
 	if _, _, err := s.deleteNote(ctx, nil, deleteNoteInput{Vault: "Personal", Path: "archive/new.md"}); err == nil {
 		t.Error("deleteNote succeeded on missing note")
 	}
-	_, restored, err := s.moveNote(ctx, nil, moveNoteInput{Vault: "Personal", Path: ".trash/new.md"})
-	if err != nil || !restored.OK || restored.MovedTo != "new.md" {
-		t.Fatalf("moveNote out of the trash: %+v %v", restored, err)
+	_, restored, err := s.moveNote(ctx, nil, moveNoteInput{Vault: "Personal", Path: ".trash/archive/new.md"})
+	if err != nil || !restored.OK || restored.MovedTo != "archive/new.md" {
+		t.Fatalf("moveNote out of the trash: %+v %v, want it back where it was deleted from", restored, err)
 	}
 	if _, _, err := s.moveNote(ctx, nil, moveNoteInput{Vault: "Personal", Path: "journal.md"}); err == nil {
 		t.Error("moveNote without new_path accepted a path outside .trash")
 	}
-	_, restored, err = s.moveNote(ctx, nil, moveNoteInput{Vault: "Personal", Path: ".trash/new.md"})
+	_, restored, err = s.moveNote(ctx, nil, moveNoteInput{Vault: "Personal", Path: ".trash/archive/new.md"})
 	if err == nil {
 		t.Errorf("moveNote succeeded on missing trash note: %+v", restored)
 	}
-	if _, out, err := s.deleteNote(ctx, nil, deleteNoteInput{Vault: "Personal", Path: "new.md"}); err != nil || !out.OK {
+	if _, out, err := s.deleteNote(ctx, nil, deleteNoteInput{Vault: "Personal", Path: "archive/new.md"}); err != nil || !out.OK {
 		t.Fatalf("re-deleteNote: %+v %v", out, err)
 	}
-	_, restored, err = s.moveNote(ctx, nil, moveNoteInput{Vault: "Personal", Path: ".trash/new.md", NewPath: "archive/new.md"})
-	if err != nil || restored.MovedTo != "archive/new.md" {
+	_, restored, err = s.moveNote(ctx, nil, moveNoteInput{Vault: "Personal", Path: ".trash/archive/new.md", NewPath: "new.md"})
+	if err != nil || restored.MovedTo != "new.md" {
 		t.Fatalf("moveNote out of the trash with new_path: %+v %v", restored, err)
 	}
-	if _, _, err := s.moveNote(ctx, nil, moveNoteInput{Vault: "Personal", Path: "archive/new.md", NewPath: "../escape.md"}); err == nil {
+	if _, _, err := s.moveNote(ctx, nil, moveNoteInput{Vault: "Personal", Path: "new.md", NewPath: "../escape.md"}); err == nil {
 		t.Error("moveNote escaped the vault root")
 	}
-	if _, out, err := s.deleteNote(ctx, nil, deleteNoteInput{Vault: "Personal", Path: "archive/new.md"}); err != nil || !out.OK {
+	if _, out, err := s.deleteNote(ctx, nil, deleteNoteInput{Vault: "Personal", Path: "new.md"}); err != nil || !out.OK {
 		t.Fatalf("re-deleteNote 2: %+v %v", out, err)
 	}
 	_, del, err = s.deleteNote(ctx, nil, deleteNoteInput{Vault: "Personal", Path: ".trash/new.md", Permanent: true})

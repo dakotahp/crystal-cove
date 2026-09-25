@@ -147,7 +147,7 @@ func (s *Server) editNote(_ context.Context, _ *mcp.CallToolRequest, in editNote
 type moveNoteInput struct {
 	Vault       string `json:"vault,omitempty" jsonschema:"name of the vault; optional when the server holds one vault"`
 	Path        string `json:"path" jsonschema:"current vault-relative path of the note, which may be inside .trash"`
-	NewPath     string `json:"new_path,omitempty" jsonschema:"destination vault-relative path; for a note inside .trash it defaults to the note's path inside .trash, taken from the vault root"`
+	NewPath     string `json:"new_path,omitempty" jsonschema:"destination vault-relative path; for a note inside .trash it defaults to where the note was deleted from"`
 	UpdateLinks bool   `json:"update_links,omitempty" jsonschema:"also rewrite the [[links]] to this note in every note, so they keep pointing at it after a rename"`
 }
 
