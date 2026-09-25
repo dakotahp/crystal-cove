@@ -316,15 +316,15 @@ func TestDeleteSoft(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if trashedTo != ".trash/note.md" {
-		t.Errorf("trashedTo = %q", trashedTo)
+	if trashedTo != ".trash/dir/note.md" {
+		t.Errorf("trashedTo = %q, want the note's folder kept inside the trash", trashedTo)
 	}
-	if got := mustReadFile(t, v, ".trash/note.md"); got != "content" {
+	if got := mustReadFile(t, v, ".trash/dir/note.md"); got != "content" {
 		t.Errorf("trash content = %q", got)
 	}
 }
 
-func TestDeleteSoftNameCollision(t *testing.T) {
+func TestDeleteSoftKeepsSameNamedNotesApart(t *testing.T) {
 	v := newTestVault(t)
 	mustWrite(t, v, "a/note.md", "first")
 	mustWrite(t, v, "b/note.md", "second")
@@ -335,11 +335,72 @@ func TestDeleteSoftNameCollision(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if trashedTo != ".trash/note (1).md" {
+	if trashedTo != ".trash/b/note.md" {
 		t.Errorf("trashedTo = %q", trashedTo)
 	}
-	if got := mustReadFile(t, v, ".trash/note (1).md"); got != "second" {
+	if got := mustReadFile(t, v, ".trash/a/note.md"); got != "first" {
+		t.Errorf("first trashed note = %q", got)
+	}
+}
+
+func TestDeleteSoftSamePathTwice(t *testing.T) {
+	v := newTestVault(t)
+	mustWrite(t, v, "a/note.md", "first")
+	if _, err := v.Delete("a/note.md", false); err != nil {
+		t.Fatal(err)
+	}
+	mustWrite(t, v, "a/note.md", "second")
+	trashedTo, err := v.Delete("a/note.md", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if trashedTo != ".trash/a/note (1).md" {
+		t.Errorf("trashedTo = %q", trashedTo)
+	}
+	if got := mustReadFile(t, v, ".trash/a/note (1).md"); got != "second" {
 		t.Errorf("trash content = %q", got)
+	}
+}
+
+func TestDeleteSoftReportsATrashFolderItCannotSearch(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("permissions do not restrict root")
+	}
+	v := newTestVault(t)
+	mustWrite(t, v, "a/note.md", "live")
+	mustWrite(t, v, ".trash/a/old.md", "trashed")
+	locked := filepath.Join(v.Root(), ".trash", "a")
+	if err := os.Chmod(locked, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(locked, 0o755) })
+
+	if _, err := v.Delete("a/note.md", false); err == nil || !strings.Contains(err.Error(), "choosing a name") {
+		t.Errorf("err = %v, want the unsearchable trash folder reported rather than names tried forever", err)
+	}
+}
+
+func TestMoveOutOfTheTrashRemovesFoldersItEmptied(t *testing.T) {
+	v := newTestVault(t)
+	mustWrite(t, v, "Projects/Web/plan.md", "plan")
+	mustWrite(t, v, "Projects/other.md", "other")
+	for _, p := range []string{"Projects/Web/plan.md", "Projects/other.md"} {
+		if _, err := v.Delete(p, false); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if err := v.Move(".trash/Projects/Web/plan.md", "Projects/Web/plan.md"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(v.Root(), ".trash", "Projects", "Web")); !os.IsNotExist(err) {
+		t.Errorf("empty trash folder kept: %v", err)
+	}
+	if got := mustReadFile(t, v, ".trash/Projects/other.md"); got != "other" {
+		t.Errorf("trash folder holding another note = %q, want it kept", got)
+	}
+	if _, err := os.Stat(filepath.Join(v.Root(), ".trash")); err != nil {
+		t.Errorf("the trash itself: %v", err)
 	}
 }
 

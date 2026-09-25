@@ -98,10 +98,10 @@ func TestTrashToolsStillWork(t *testing.T) {
 	if _, _, err := s.deleteNote(ctx, &mcp.CallToolRequest{}, deleteNoteInput{Path: "Inbox/a.md"}); err != nil {
 		t.Fatalf("delete_note: %v", err)
 	}
-	if _, err := os.Stat(filepath.Join(v.Root(), ".trash", "a.md")); err != nil {
+	if _, err := os.Stat(filepath.Join(v.Root(), ".trash", "Inbox", "a.md")); err != nil {
 		t.Fatalf("note did not reach the trash: %v", err)
 	}
-	if _, _, err := s.moveNote(ctx, &mcp.CallToolRequest{}, moveNoteInput{Path: ".trash/a.md", NewPath: "Inbox/a.md"}); err != nil {
+	if _, _, err := s.moveNote(ctx, &mcp.CallToolRequest{}, moveNoteInput{Path: ".trash/Inbox/a.md", NewPath: "Inbox/a.md"}); err != nil {
 		t.Fatalf("move_note out of the trash: %v", err)
 	}
 	if _, _, err := s.listNotes(ctx, &mcp.CallToolRequest{}, listNotesInput{Dir: ".trash"}); err != nil {

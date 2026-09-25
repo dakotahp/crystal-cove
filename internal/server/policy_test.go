@@ -90,7 +90,7 @@ func TestPermanentDeleteIsOffByDefault(t *testing.T) {
 	}
 
 	_, out, err := s.deleteNote(ctx, &mcp.CallToolRequest{}, deleteNoteInput{Path: "Inbox/a.md"})
-	if err != nil || out.TrashedTo != ".trash/a.md" {
+	if err != nil || out.TrashedTo != ".trash/Inbox/a.md" {
 		t.Errorf("soft delete = %+v, %v; want it moved to the trash", out, err)
 	}
 }

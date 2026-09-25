@@ -33,8 +33,11 @@ Deliberate MVP boundaries (do not "fix" these without being asked):
   dotfiles) or `mcp-instructions.md` (an ordinary note, so it syncs). Several
   contributing vaults are labelled `## Vault: <name>`. Missing or unreadable
   files are not an error: guidance never blocks serving.
-- Deletes are soft by default: notes move to the vault's `.trash`
-  (Obsidian's own convention) so they sync and stay recoverable. Permanent
+- Deletes are soft by default: notes move to the vault's `.trash`, keeping
+  their folder (`Projects/Plan.md` goes to `.trash/Projects/Plan.md`), so they
+  stay recoverable and `move_note` without `new_path` puts them back where
+  they were. Obsidian's own trash keeps only the file name, so a note it
+  trashed goes back to the vault root. Permanent
   deletion, which includes deleting inside `.trash`, needs
   `MCP_ALLOW_PERMANENT_DELETE=true`. `MCP_READ_ONLY=true` registers no write
   tools at all (`Server.addWriteTools`); a new write tool belongs there.

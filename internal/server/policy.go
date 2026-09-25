@@ -18,8 +18,10 @@ func inTrash(p string) bool {
 
 // outOfTrash returns where a note inside the trash goes back to when no
 // destination is given: its path inside the trash, taken from the vault
-// root. Obsidian's trash keeps no record of the original folder. The second
-// value is false when p is not inside the trash.
+// root. delete_note keeps a note's folder inside the trash, so that is where
+// it was deleted from; a note trashed flat, as Obsidian itself does, goes
+// back to the vault root. The second value is false when p is not inside
+// the trash.
 func outOfTrash(p string) (string, bool) {
 	return strings.CutPrefix(path.Clean(filepath.ToSlash(p)), vault.TrashDir+"/")
 }
