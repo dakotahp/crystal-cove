@@ -36,8 +36,8 @@ func callsRejecting(t *testing.T, s *Server, path string) []string {
 	check("delete_note", err)
 	_, _, err = s.getSection(ctx, &mcp.CallToolRequest{}, getSectionInput{Path: path, HeadingPath: []string{"One"}})
 	check("get_section", err)
-	_, _, err = s.replaceSection(ctx, &mcp.CallToolRequest{}, replaceSectionInput{Path: path, HeadingPath: []string{"One"}, Content: "x"})
-	check("replace_section", err)
+	_, _, err = s.editSection(ctx, &mcp.CallToolRequest{}, editSectionInput{Path: path, HeadingPath: []string{"One"}, Mode: "append", Content: "x"})
+	check("edit_section", err)
 	return accepted
 }
 

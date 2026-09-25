@@ -25,6 +25,12 @@ type section struct {
 	path                    []string
 	level, start, body, end int
 	nextSetext              bool
+	// ownEnd is where the section's own text ends: at its first subheading,
+	// or at end when it has none. ownEndSetext reports that the heading
+	// found there is a setext one.
+	ownEnd       int
+	ownEndSetext bool
+	hasChild     bool
 }
 
 // positionedHeading preserves source boundaries even for empty ATX headings.
@@ -93,11 +99,23 @@ func markdownSections(source []byte) []section {
 		}
 		path := []string{}
 		if len(stack) > 0 {
-			path = slices.Clone(result[stack[len(stack)-1]].path)
+			parent := &result[stack[len(stack)-1]]
+			path = slices.Clone(parent.path)
+			if !parent.hasChild {
+				parent.hasChild = true
+				parent.ownEnd = base + start.(int)
+				parent.ownEndSetext = setext.(bool)
+			}
 		}
 		path = append(path, title)
 		result = append(result, section{path: path, level: h.Level, start: base + start.(int), body: base + body.(int), end: len(source)})
 		stack = append(stack, len(result)-1)
+	}
+	for i := range result {
+		if !result[i].hasChild {
+			result[i].ownEnd = result[i].end
+			result[i].ownEndSetext = result[i].nextSetext
+		}
 	}
 	return result
 }
@@ -144,34 +162,138 @@ func (v *Vault) GetSection(rel string, headingPath []string, offset int) (*Secti
 	return &SectionResult{HeadingPath: s.path, Level: s.level, ReadResult: body}, nil
 }
 
-// ReplaceSection replaces a body and its subsections, preserving the selected
-// heading and all bytes outside the body. Content excludes the selected heading.
-func (v *Vault) ReplaceSection(rel string, headingPath []string, content string) error {
-	_, err := v.Update(rel, func(data []byte) ([]byte, error) {
+// SectionMode says how EditSection changes a section.
+type SectionMode string
+
+const (
+	// SectionAppend adds content after the section's own text, before its
+	// first subheading.
+	SectionAppend SectionMode = "append"
+	// SectionPrepend adds content right below the heading, after any blank
+	// lines there.
+	SectionPrepend SectionMode = "prepend"
+	// SectionReplace replaces the whole body, subsections included.
+	SectionReplace SectionMode = "replace"
+)
+
+// EditSection changes the body of a uniquely selected heading and returns
+// the section's new version, which is empty when the edit leaves the heading
+// path ambiguous. The heading and every byte outside the section are kept.
+//
+// version is the one GetSection returned for this section; the edit is
+// refused when the section has changed since. It is required for
+// SectionReplace, which would otherwise remove text its caller never saw,
+// and optional for the modes that only add text. A change elsewhere in the
+// note does not count.
+func (v *Vault) EditSection(rel string, headingPath []string, mode SectionMode, content, version string) (string, error) {
+	switch mode {
+	case SectionReplace:
+		if version == "" {
+			return "", errors.New("replace needs the version get_section returned for this section, so it cannot remove text it has not seen")
+		}
+	case SectionAppend, SectionPrepend:
+		if content == "" {
+			return "", fmt.Errorf("%s needs content to add", mode)
+		}
+	default:
+		return "", fmt.Errorf("mode %q is not one of append, prepend or replace", mode)
+	}
+	updated, err := v.Update(rel, func(data []byte) ([]byte, error) {
 		s, err := selectSection(data, headingPath)
 		if err != nil {
 			return nil, err
 		}
-		body := content
-		// Keep subsequent headings on their own line. Preserve the note's newline style.
-		newline := "\n"
-		if bytes.Contains(data[s.start:s.body], []byte("\r\n")) {
-			newline = "\r\n"
+		if err := checkVersion(fmt.Sprintf("section %q", headingPath), data[s.body:s.end], version); err != nil {
+			return nil, err
 		}
-		prefix := string(data[:s.body])
-		if body != "" && !strings.HasSuffix(prefix, "\n") {
-			prefix += newline
+		if mode == SectionReplace {
+			return replaceBody(data, s, content), nil
 		}
-		if s.end < len(data) && body != "" {
-			if !strings.HasSuffix(body, "\n") {
-				body += newline
-			}
-			// A setext title must not merge into the replacement's last paragraph.
-			if s.nextSetext && !strings.HasSuffix(body, newline+newline) {
-				body += newline
-			}
-		}
-		return []byte(prefix + body + string(data[s.end:])), nil
+		return insertIntoSection(data, s, mode, content), nil
 	})
-	return err
+	if err != nil {
+		return "", err
+	}
+	s, err := selectSection(updated, headingPath)
+	if err != nil {
+		return "", nil
+	}
+	return Version(updated[s.body:s.end]), nil
+}
+
+// lineEnding returns the line ending a heading line uses.
+func lineEnding(heading []byte) string {
+	if bytes.Contains(heading, []byte("\r\n")) {
+		return "\r\n"
+	}
+	return "\n"
+}
+
+// replaceBody puts content in place of the section's body, keeping any
+// following heading on its own line.
+func replaceBody(data []byte, s section, content string) []byte {
+	newline := lineEnding(data[s.start:s.body])
+	prefix := string(data[:s.body])
+	if content != "" && !strings.HasSuffix(prefix, "\n") {
+		prefix += newline
+	}
+	if s.end < len(data) && content != "" {
+		if !strings.HasSuffix(content, "\n") {
+			content += newline
+		}
+		// A setext title must not merge into the replacement's last paragraph.
+		if s.nextSetext && !strings.HasSuffix(content, newline+newline) {
+			content += newline
+		}
+	}
+	return []byte(prefix + content + string(data[s.end:]))
+}
+
+// insertIntoSection adds content as whole lines inside the section's own
+// text: after its last line of text for SectionAppend, before its first for
+// SectionPrepend.
+func insertIntoSection(data []byte, s section, mode SectionMode, content string) []byte {
+	newline := lineEnding(data[s.start:s.body])
+	own := data[s.body:s.ownEnd]
+	at := s.body + firstTextLine(own)
+	if mode == SectionAppend {
+		at = s.body + afterLastTextLine(own)
+	}
+	insert := content
+	if !strings.HasSuffix(insert, "\n") {
+		insert += newline
+	}
+	if at > 0 && data[at-1] != '\n' {
+		insert = newline + insert
+	}
+	// A setext title must not merge into the inserted paragraph.
+	if at == s.ownEnd && s.ownEndSetext && !strings.HasSuffix(insert, newline+newline) {
+		insert += newline
+	}
+	return slices.Concat(data[:at], []byte(insert), data[at:])
+}
+
+func isSpace(r rune) bool { return r == ' ' || r == '\t' || r == '\r' || r == '\n' }
+
+// firstTextLine returns the offset of the first line in text that is not
+// blank, or the end of text when every line is.
+func firstTextLine(text []byte) int {
+	i := bytes.IndexFunc(text, func(r rune) bool { return !isSpace(r) })
+	if i < 0 {
+		return len(text)
+	}
+	return bytes.LastIndexByte(text[:i], '\n') + 1
+}
+
+// afterLastTextLine returns the offset just past the last line in text that
+// is not blank, or zero when every line is.
+func afterLastTextLine(text []byte) int {
+	i := bytes.LastIndexFunc(text, func(r rune) bool { return !isSpace(r) })
+	if i < 0 {
+		return 0
+	}
+	if j := bytes.IndexByte(text[i:], '\n'); j >= 0 {
+		return i + j + 1
+	}
+	return len(text)
 }

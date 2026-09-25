@@ -75,7 +75,7 @@ func TestSectionSelectionErrors(t *testing.T) {
 	}
 	for _, note := range []string{"plain text", "---\n# Unclosed frontmatter", "# A\n## Tasks\n## Tasks\n"} {
 		mustWrite(t, v, "other.md", note)
-		if err := v.ReplaceSection("other.md", []string{"Tasks"}, "oops"); err == nil {
+		if _, err := v.EditSection("other.md", []string{"Tasks"}, SectionReplace, "oops", "any"); err == nil {
 			t.Fatal("unexpected replacement")
 		}
 		if got := mustReadFile(t, v, "other.md"); got != note {
@@ -102,7 +102,7 @@ func TestSectionPaging(t *testing.T) {
 	}
 }
 
-func TestReplaceSection(t *testing.T) {
+func TestEditSectionReplaceKeepsTheLayout(t *testing.T) {
 	for _, tc := range []struct{ name, note, content, want string }{
 		{"subtree", "---\ntitle: Keep\n---\n# Project\nlead\n## Tasks\nold\n### Detail\nold\n## Done\nkeep\n", "new\n### New detail\nyes\n\n", "---\ntitle: Keep\n---\n# Project\nlead\n## Tasks\nnew\n### New detail\nyes\n\n## Done\nkeep\n"},
 		{"separator", "## Tasks\nold\n## Done\nkeep", "new", "## Tasks\nnew\n## Done\nkeep"},
@@ -117,7 +117,7 @@ func TestReplaceSection(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			v := newTestVault(t)
 			mustWrite(t, v, "note.md", tc.note)
-			if err := v.ReplaceSection("note.md", []string{"Tasks"}, tc.content); err != nil {
+			if err := replaceSection(t, v, "note.md", []string{"Tasks"}, tc.content); err != nil {
 				t.Fatal(err)
 			}
 			if got := mustReadFile(t, v, "note.md"); got != tc.want {
@@ -127,7 +127,7 @@ func TestReplaceSection(t *testing.T) {
 	}
 }
 
-func TestReplaceSectionWriteError(t *testing.T) {
+func TestEditSectionReportsAWriteError(t *testing.T) {
 	if os.Geteuid() == 0 {
 		t.Skip("permissions do not restrict root")
 	}
@@ -140,7 +140,7 @@ func TestReplaceSectionWriteError(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = os.Chmod(dir, 0o755) })
-	if err := v.ReplaceSection("sub/note.md", []string{"Tasks"}, "new"); err == nil || !strings.Contains(err.Error(), "temporary file") {
+	if err := replaceSection(t, v, "sub/note.md", []string{"Tasks"}, "new"); err == nil || !strings.Contains(err.Error(), "temporary file") {
 		t.Fatalf("%v", err)
 	}
 }

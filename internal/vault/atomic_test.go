@@ -52,7 +52,7 @@ func TestUpdateReplacesInPlaceForReaders(t *testing.T) {
 	}
 }
 
-func TestEditAndReplaceSectionKeepNoTemporaryFiles(t *testing.T) {
+func TestEditAndEditSectionKeepNoTemporaryFiles(t *testing.T) {
 	v := newNotesVault(t, "Inbox/today.md")
 	if _, err := v.Update("Inbox/today.md", setTo("## One\n\nalpha\n")); err != nil {
 		t.Fatal(err)
@@ -60,7 +60,7 @@ func TestEditAndReplaceSectionKeepNoTemporaryFiles(t *testing.T) {
 	if _, _, err := v.Edit("Inbox/today.md", "alpha", "beta", false, ""); err != nil {
 		t.Fatal(err)
 	}
-	if err := v.ReplaceSection("Inbox/today.md", []string{"One"}, "gamma\n"); err != nil {
+	if err := replaceSection(t, v, "Inbox/today.md", []string{"One"}, "gamma\n"); err != nil {
 		t.Fatal(err)
 	}
 	entries, err := os.ReadDir(filepath.Join(v.Root(), "Inbox"))

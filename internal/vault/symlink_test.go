@@ -69,8 +69,8 @@ func TestSymlinksCannotWriteOutsideTheVault(t *testing.T) {
 	if _, _, err := v.Edit("leak.md", "key", "gone", false, ""); err == nil {
 		t.Error("Edit followed a symlink out of the vault")
 	}
-	if err := v.ReplaceSection("Out/secret.md", []string{"Secret"}, "gone\n"); err == nil {
-		t.Error("ReplaceSection wrote through a symlinked folder")
+	if _, err := v.EditSection("Out/secret.md", []string{"Secret"}, SectionReplace, "gone\n", "any"); err == nil {
+		t.Error("EditSection wrote through a symlinked folder")
 	}
 	if err := v.Move("Inbox/a.md", "Out/a.md"); err == nil {
 		t.Error("Move put a note outside the vault")
