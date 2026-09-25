@@ -91,6 +91,16 @@ jobs:
           advanced-security: false
           annotations: true
 
+  secrets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Scan every commit for secrets
+        run: ./scripts/secret-scan.sh
+
   vulncheck:
     runs-on: ubuntu-latest
     steps:
@@ -127,6 +137,8 @@ jobs:
     permissions:
       contents: read
       packages: write
+      # Keyless signing proves the workflow's identity to Sigstore.
+      id-token: write
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -146,7 +158,8 @@ jobs:
             type=raw,value=latest,enable={{is_default_branch}}
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
-      - uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
+      - id: build
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
         with:
           context: .
           platforms: linux/amd64,linux/arm64
@@ -161,3 +174,9 @@ jobs:
           no-cache: ${{ github.event_name != 'push' }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+      - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+      - name: Sign the image
+        env:
+          IMAGE: ghcr.io/${{ github.repository }}
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: cosign sign --yes "${IMAGE}@${DIGEST}"

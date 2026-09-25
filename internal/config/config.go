@@ -88,6 +88,11 @@ type Config struct {
 	PublicURL string
 	// Port is the HTTP listen port.
 	Port int
+	// ReadOnly leaves out every tool that changes a note.
+	ReadOnly bool
+	// AllowPermanentDelete lets delete_note remove a note outright instead
+	// of moving it to the vault's trash.
+	AllowPermanentDelete bool
 }
 
 // Getenv is the subset of os.Getenv needed by Load, injectable for tests.
@@ -146,6 +151,13 @@ func Load(getenv Getenv, randSource io.Reader) (*Config, error) {
 			home = "/"
 		}
 		cfg.VaultsDir = filepath.Join(home, "vaults")
+	}
+
+	if cfg.ReadOnly, err = parseBool(getenv, "MCP_READ_ONLY"); err != nil {
+		return nil, err
+	}
+	if cfg.AllowPermanentDelete, err = parseBool(getenv, "MCP_ALLOW_PERMANENT_DELETE"); err != nil {
+		return nil, err
 	}
 
 	cfg.Port = DefaultPort
@@ -261,6 +273,19 @@ func parseVaults(list, sharedPassword string) ([]Vault, error) {
 		return nil, errors.New("OBSIDIAN_VAULTS must list at least one vault (comma-separated, optionally Name:password)")
 	}
 	return vaults, nil
+}
+
+// parseBool reads an optional true/false variable; unset means false.
+func parseBool(getenv Getenv, key string) (bool, error) {
+	v := strings.TrimSpace(getenv(key))
+	if v == "" {
+		return false, nil
+	}
+	b, err := strconv.ParseBool(v)
+	if err != nil {
+		return false, fmt.Errorf("%s must be true or false, got %q", key, v)
+	}
+	return b, nil
 }
 
 // randomDeviceName returns deviceNamePrefix followed by 8 hex characters.

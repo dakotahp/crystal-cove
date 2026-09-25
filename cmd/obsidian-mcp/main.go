@@ -58,11 +58,19 @@ func run(ctx context.Context, getenv config.Getenv, logOut io.Writer, onReady fu
 		vaults = append(vaults, vault.New(v.Name, b.VaultPath(v)))
 	}
 	srv := server.New(vaults, search.New("rg", nil), b.SyncReady)
+	srv.SetPolicy(server.Policy{ReadOnly: cfg.ReadOnly, AllowPermanentDelete: cfg.AllowPermanentDelete})
+	logger.Info("tool policy", "read_only", cfg.ReadOnly, "permanent_delete", cfg.AllowPermanentDelete)
+	srv.SetAuditLog(logger.With("audit", true))
 	logger.Info("vault instructions loaded", "characters", len(srv.Instructions()))
 
 	authCfg := server.AuthConfig{StaticToken: cfg.AuthToken}
 	if cfg.OAuth != nil {
 		logger.Info("delegating auth to OIDC provider", "issuer", cfg.OAuth.Issuer, "audience", cfg.OAuth.Audience)
+		if len(cfg.OAuth.RequiredRoles) == 0 {
+			logger.Warn("OAUTH_REQUIRED_ROLES is not set: any account that can get a token for this audience from the " +
+				"identity provider can use every tool, which on a provider with open sign-up means anyone. " +
+				"Set OAUTH_REQUIRED_ROLES to a role only you hold.")
+		}
 		verifier, err := oidcauth.New(ctx, cfg.OAuth, nil)
 		if err != nil {
 			return fmt.Errorf("configuring OIDC auth: %w", err)

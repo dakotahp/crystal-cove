@@ -19,7 +19,7 @@ Every MCP request carries a bearer token. There is no unauthenticated mode and n
 - **Static token** (`MCP_AUTH_TOKEN`): compared in constant time, so a
   wrong token takes the same time to reject as a right one and cannot be guessed byte by byte. The server refuses to start with a token shorter than 32 characters, so a placeholder or a short word never guards a live vault.
 - **OpenID Connect** (`OAUTH_ISSUER`): tokens are validated against the
-  provider's published keys, with issuer, audience and expiry checked, and optional required roles (`OAUTH_REQUIRED_ROLES`) to bind the endpoint to specific principals. The server advertises RFC 9728 protected-resource metadata so clients can find the authorization server themselves.
+  provider's published keys, with issuer, audience and expiry checked, and optional required roles (`OAUTH_REQUIRED_ROLES`) to bind the endpoint to specific principals. Without required roles, any account the provider will issue a token to is accepted, so the server warns at startup when they are unset. The server advertises RFC 9728 protected-resource metadata so clients can find the authorization server themselves.
 - Both can run side by side.
 
 Only two endpoints are unauthenticated, and neither reads the vault:
@@ -63,6 +63,17 @@ Two layers, because one is not enough:
   as arguments.
 - `.env` is ignored by git, and the repository carries only placeholders.
 
+### Every tool call is logged
+
+Each call writes one log line tagged `audit=true`: the tool, the caller
+(the OIDC subject, or `api-key` for the static token), the outcome, the
+time taken, and the vault and paths it named. Note text, search queries
+and edit text are never logged, and long arguments are cut short. A
+presented token that is refused is logged too, with the remote address
+and the reason but never the token, so guessing leaves a trace. A token
+used from somewhere unexpected shows up here, so review the log with
+`docker compose logs | grep audit=true`.
+
 ### Writes cannot corrupt a note
 
 - A note is replaced by writing a temporary file and renaming it over the
@@ -70,7 +81,11 @@ Two layers, because one is not enough:
   sees either the old note or the new one, and an interrupted write leaves
   the original intact.
 - Deletes move a note to the vault's `.trash` by default, where it stays
-  recoverable from any device; permanent deletion is explicit.
+  recoverable from any device. Permanent deletion is off unless the
+  operator sets `MCP_ALLOW_PERMANENT_DELETE=true`, so a steered assistant
+  cannot destroy a note outright.
+- `MCP_READ_ONLY=true` removes every tool that changes a note, for clients
+  that only need to read and search.
 - Creating a note fails if it already exists, and an edit must match
   exactly once unless the caller asks for every occurrence.
 
@@ -80,7 +95,9 @@ A multi-stage build produces a small Alpine runtime holding only Node, the
 sync client, ripgrep and an init process. It runs as an unprivileged user,
 with `tini` as PID 1 to reap the sync children. The compose file drops
 every Linux capability and blocks privilege escalation, since nothing in
-the container needs either. The image is built and
+the container needs either. Its root filesystem is read-only: only the
+vaults volume and a small in-memory `/tmp` can be written, and the smoke
+test runs the image under the same restrictions. The image is built and
 published by CI rather than by hand.
 
 ## Keeping dependencies current
@@ -127,9 +144,28 @@ full build provenance as registry attestations, so what it contains and
 which workflow built it can be checked with `docker buildx imagetools
 inspect`.
 
+Each published image is also signed with cosign keyless signing: the
+signature is tied to the workflow that built it, through GitHub's OIDC
+identity, and recorded in Sigstore's public transparency log. There is no
+signing key to leak. Check an image before running it:
+
+```sh
+cosign verify ghcr.io/dakotahp/vault-bridge:latest \
+  --certificate-identity-regexp '^https://github.com/dakotahp/vault-bridge/\.github/workflows/(ci|release-please)\.yml@' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com
+```
+
+A pass means the image came from this repository's CI, not from someone
+who only obtained write access to the registry.
+
 CI also rebuilds and republishes `:latest` every week without the layer
 cache, so Alpine, Node and Go security patches reach the image even when
 nothing in this repository changes. Versioned tags are not rebuilt.
+
+CI scans every commit for committed secrets with gitleaks
+(`scripts/secret-scan.sh`). A finding turns CI red; the fix is to rotate
+the secret, since it is exposed once pushed. `.gitleaks.toml` allowlists
+only the tests' dummy token.
 
 CI audits its own workflows with zizmor, which catches injectable
 expressions, over-broad tokens, unpinned actions and cache poisoning.
@@ -145,7 +181,7 @@ Stated plainly, because a security document that claims everything is
 covered is not useful.
 
 - **A static token is a shared secret.** Anyone holding it has the vault's
-  full tool set. Use OpenID Connect where individual identity matters, and
+  full tool set, or only the read tools with `MCP_READ_ONLY=true`. Use OpenID Connect where individual identity matters, and
   rotate the token by restarting with a new one.
 - **Notes are untrusted input to a language model.** A note can contain
   text that tries to steer an assistant into doing something you did not
@@ -156,8 +192,7 @@ covered is not useful.
   instructions that every later session would receive.
 - **Single tenant.** One credential set, one account. This is not a
   multi-user service, and it does not try to be.
-- **No rate limiting and no audit log.** A reverse proxy can add the first.
-  The second is not implemented.
+- **No rate limiting.** A reverse proxy can add it.
 - **Vault data sits unencrypted on the host**, in the container's volume,
   protected by the host's own disk encryption and access control. An
   end-to-end encrypted vault is decrypted here, because the server has to

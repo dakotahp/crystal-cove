@@ -6,7 +6,10 @@ import (
 	"context"
 	"crypto/subtle"
 	"fmt"
+	"log/slog"
 	"net/http"
+	"path"
+	"path/filepath"
 	"sort"
 	"strings"
 	"time"
@@ -30,7 +33,21 @@ type Server struct {
 	searcher  *search.Searcher
 	// syncReady reports whether every vault has a fresh sync heartbeat.
 	syncReady func() bool
+	policy    Policy
+	audit     *slog.Logger
 }
+
+// Policy limits what the tools may do to a vault.
+type Policy struct {
+	// ReadOnly leaves out every tool that changes a note.
+	ReadOnly bool
+	// AllowPermanentDelete lets delete_note remove a note outright. Without
+	// it, deletes only move notes to the trash, where they stay recoverable.
+	AllowPermanentDelete bool
+}
+
+// SetPolicy sets what the tools may do. Call it before serving.
+func (s *Server) SetPolicy(p Policy) { s.policy = p }
 
 // New returns a Server over the given vaults.
 func New(vaults []*vault.Vault, searcher *search.Searcher, syncReady func() bool) *Server {
@@ -82,11 +99,6 @@ func (s *Server) MCPServer() *mcp.Server {
 	}, s.getSection)
 
 	mcp.AddTool(srv, &mcp.Tool{
-		Name:        "replace_section",
-		Description: "Replace a Markdown heading section's entire body, including nested subsections, while preserving its heading. content excludes the selected heading. heading_path is an exact case-sensitive suffix of the heading hierarchy; missing or ambiguous matches fail. The section ends at the next heading of equal or higher rank. Adds newline separation when needed before a following heading.",
-	}, s.replaceSection)
-
-	mcp.AddTool(srv, &mcp.Tool{
 		Name: "search_notes",
 		Description: "Search a vault by note name and by content. A plain multi-word query finds notes holding every " +
 			"word, in any order; a query with regular-expression characters is read as a regex (ripgrep syntax), and mode " +
@@ -132,6 +144,23 @@ func (s *Server) MCPServer() *mcp.Server {
 		Description: "Read one note's frontmatter fields and its tags, without its body.",
 	}, s.getFrontmatter)
 
+	if !s.policy.ReadOnly {
+		s.addWriteTools(srv)
+	}
+	if s.audit != nil {
+		srv.AddReceivingMiddleware(auditMiddleware(s.audit))
+	}
+	return srv
+}
+
+// addWriteTools registers every tool that changes a note. A read-only
+// server leaves them out, so clients never see them.
+func (s *Server) addWriteTools(srv *mcp.Server) {
+	mcp.AddTool(srv, &mcp.Tool{
+		Name:        "replace_section",
+		Description: "Replace a Markdown heading section's entire body, including nested subsections, while preserving its heading. content excludes the selected heading. heading_path is an exact case-sensitive suffix of the heading hierarchy; missing or ambiguous matches fail. The section ends at the next heading of equal or higher rank. Adds newline separation when needed before a following heading.",
+	}, s.replaceSection)
+
 	mcp.AddTool(srv, &mcp.Tool{
 		Name: "update_frontmatter",
 		Description: "Add, replace or delete frontmatter fields on one note. Fields that are not mentioned keep their " +
@@ -160,9 +189,8 @@ func (s *Server) MCPServer() *mcp.Server {
 	}, s.moveNote)
 
 	mcp.AddTool(srv, &mcp.Tool{
-		Name: "delete_note",
-		Description: "Delete a note. By default it is moved to the vault's .trash folder (recoverable with restore_note); " +
-			"set permanent to remove it outright.",
+		Name:        "delete_note",
+		Description: s.deleteDescription(),
 	}, s.deleteNote)
 
 	mcp.AddTool(srv, &mcp.Tool{
@@ -170,8 +198,21 @@ func (s *Server) MCPServer() *mcp.Server {
 		Description: "Restore (undelete) a note from the vault's .trash folder. Restores to the note's path inside .trash " +
 			"unless to is set; use list_notes with dir \".trash\" to see what can be restored.",
 	}, s.restoreNote)
+}
 
-	return srv
+// inTrash reports whether a vault-relative path lies inside the trash, where
+// Vault.Delete always deletes outright.
+func inTrash(p string) bool {
+	return strings.HasPrefix(path.Clean(filepath.ToSlash(p)), vault.TrashDir+"/")
+}
+
+func (s *Server) deleteDescription() string {
+	if s.policy.AllowPermanentDelete {
+		return "Delete a note. By default it is moved to the vault's .trash folder (recoverable with restore_note); " +
+			"set permanent to remove it outright. Deleting a note inside .trash is always permanent."
+	}
+	return "Delete a note by moving it to the vault's .trash folder, recoverable with restore_note. Permanent " +
+		"deletion, including deleting a note already in .trash, is turned off on this server."
 }
 
 // metadataPath is where RFC 9728 protected-resource metadata is served
@@ -232,8 +273,23 @@ func (s *Server) Handler(authCfg AuthConfig) http.Handler {
 			BearerMethodsSupported: []string{"header"},
 		}))
 	}
-	mux.Handle("/", auth.RequireBearerToken(verifyToken(authCfg), opts)(mcpHandler))
+	mux.Handle("/", auth.RequireBearerToken(s.logRejections(verifyToken(authCfg)), opts)(mcpHandler))
 	return mux
+}
+
+// logRejections records each presented token that verify refuses, without
+// the token itself, so guessing shows up in the audit log.
+func (s *Server) logRejections(verify auth.TokenVerifier) auth.TokenVerifier {
+	if s.audit == nil {
+		return verify
+	}
+	return func(ctx context.Context, token string, r *http.Request) (*auth.TokenInfo, error) {
+		info, err := verify(ctx, token, r)
+		if err != nil {
+			s.audit.Warn("rejected bearer token", "remote_addr", r.RemoteAddr, "reason", err.Error())
+		}
+		return info, err
+	}
 }
 
 // verifyToken accepts the static token (constant-time compare) when one is
@@ -580,6 +636,10 @@ func (s *Server) deleteNote(_ context.Context, _ *mcp.CallToolRequest, in delete
 	}
 	if err := requireWritableNote(in.Path); err != nil {
 		return nil, deleteNoteOutput{}, err
+	}
+	if !s.policy.AllowPermanentDelete && (in.Permanent || inTrash(in.Path)) {
+		return nil, deleteNoteOutput{}, fmt.Errorf("permanent deletion is turned off on this server: delete %q without "+
+			"permanent to move it to the trash, or set MCP_ALLOW_PERMANENT_DELETE=true to allow it", in.Path)
 	}
 	trashedTo, err := v.Delete(in.Path, in.Permanent)
 	if err != nil {

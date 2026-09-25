@@ -154,6 +154,7 @@ func TestSearchNotes(t *testing.T) {
 
 func TestWriteTools(t *testing.T) {
 	s := newTestServer(t)
+	s.SetPolicy(Policy{AllowPermanentDelete: true})
 	ctx := context.Background()
 	v := s.vaults["Personal"]
 

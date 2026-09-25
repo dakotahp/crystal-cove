@@ -34,7 +34,10 @@ Deliberate MVP boundaries (do not "fix" these without being asked):
   contributing vaults are labelled `## Vault: <name>`. Missing or unreadable
   files are not an error: guidance never blocks serving.
 - Deletes are soft by default: notes move to the vault's `.trash`
-  (Obsidian's own convention) so they sync and stay recoverable.
+  (Obsidian's own convention) so they sync and stay recoverable. Permanent
+  deletion, which includes deleting inside `.trash`, needs
+  `MCP_ALLOW_PERMANENT_DELETE=true`. `MCP_READ_ONLY=true` registers no write
+  tools at all (`Server.addWriteTools`); a new write tool belongs there.
 - `read_note` returns at most 10,240 characters per call
   (`vault.ReadPageSize`) with `offset`/`next_offset` paging — chosen
   deliberately for LLM context-window hygiene.
@@ -153,19 +156,23 @@ CI (`.github/workflows/ci.yml`) enforces, in order:
 4b. `scripts/smoke-test.sh` runs against a freshly built image: building it
    proves nothing about whether it runs, so this opens a database with the
    native sqlite module under the runtime's Node, runs `ob` and `rg`, and
-   checks the server binary refuses an empty configuration. No credentials
+   checks the server binary refuses an empty configuration, all under the
+   compose file's read-only root filesystem and dropped capabilities. No credentials
    needed. Grype then scans the image and fails on a fixable high or
    critical vulnerability.
 4c. Security jobs: a 20-second fuzz run per `Fuzz*` target, gosec
    (silence a false positive on its own line with `#nosec <rule> --
    reason`, never project-wide), `scripts/vulncheck.sh` (govulncheck under
-   the Dockerfile's Go builder image), and zizmor on the workflows and
-   Dependabot config (run it on the whole repo, as CI does). Fuzz and
+   the Dockerfile's Go builder image), zizmor on the workflows and
+   Dependabot config (run it on the whole repo, as CI does), and
+   `scripts/secret-scan.sh` (gitleaks over every commit; run it from a
+   normal clone, not a worktree). Fuzz and
    gosec gate publishing; govulncheck and zizmor only turn CI red.
    Workflow actions are pinned to commit SHAs; keep new ones pinned.
 5. On push to `master`, and weekly on a schedule without the layer cache:
    multi-arch (amd64/arm64) image publish of `:latest` to
-   `ghcr.io/dakotahp/vault-bridge`, with an SBOM and provenance attached. Versioned images come from
+   `ghcr.io/dakotahp/vault-bridge`, with an SBOM and provenance attached
+   and a cosign keyless signature. Versioned images come from
    `.github/workflows/release-please.yml`, not from a tag push: a tag made
    with the default token starts no other workflow, so that workflow builds
    and pushes `:X.Y.Z` and `:X.Y` itself once a release is created.
