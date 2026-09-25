@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -59,6 +60,42 @@ func TestListNotesHonoursALimitUpToTheCeiling(t *testing.T) {
 	}
 	if len(out.Entries) != MaxListLimit || out.NextOffset != MaxListLimit {
 		t.Errorf("huge limit: %d entries, next %d; want the ceiling of %d", len(out.Entries), out.NextOffset, MaxListLimit)
+	}
+}
+
+func TestMoveNoteRestoresFromTheTrash(t *testing.T) {
+	s, _ := metaServer(t, map[string]string{"Inbox/a.md": "body\n", "Inbox/b.md": "body\n"})
+	ctx := context.Background()
+
+	for _, p := range []string{"Inbox/a.md", "Inbox/b.md"} {
+		if _, _, err := s.deleteNote(ctx, &mcp.CallToolRequest{}, deleteNoteInput{Path: p}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	_, out, err := s.moveNote(ctx, &mcp.CallToolRequest{}, moveNoteInput{Path: ".trash/a.md"})
+	if err != nil || out.MovedTo != "a.md" {
+		t.Errorf("move out of the trash without new_path = %+v, %v; want it back at a.md", out, err)
+	}
+	_, out, err = s.moveNote(ctx, &mcp.CallToolRequest{}, moveNoteInput{Path: ".trash/b.md", NewPath: "Inbox/b.md"})
+	if err != nil || out.MovedTo != "Inbox/b.md" {
+		t.Errorf("move out of the trash with new_path = %+v, %v", out, err)
+	}
+	_, _, err = s.moveNote(ctx, &mcp.CallToolRequest{}, moveNoteInput{Path: "Inbox/b.md"})
+	if err == nil || !strings.Contains(err.Error(), "new_path") {
+		t.Errorf("move outside the trash without new_path err = %v, want one naming new_path", err)
+	}
+
+	if _, _, err := s.deleteNote(ctx, &mcp.CallToolRequest{}, deleteNoteInput{Path: "a.md"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := s.createNote(ctx, &mcp.CallToolRequest{}, writeNoteInput{Path: "a.md", Content: "new\n"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := s.moveNote(ctx, &mcp.CallToolRequest{}, moveNoteInput{Path: ".trash/a.md"}); err == nil {
+		t.Error("move out of the trash replaced a note already at the default destination")
+	}
+	if _, _, err := s.moveNote(ctx, &mcp.CallToolRequest{}, moveNoteInput{Path: ".trash"}); err == nil {
+		t.Error("move_note moved the trash folder itself")
 	}
 }
 

@@ -144,22 +144,34 @@ func (s *Server) editNote(_ context.Context, _ *mcp.CallToolRequest, in editNote
 
 type moveNoteInput struct {
 	Vault   string `json:"vault,omitempty" jsonschema:"name of the vault; optional when the server holds one vault"`
-	Path    string `json:"path" jsonschema:"current vault-relative path of the note"`
-	NewPath string `json:"new_path" jsonschema:"destination vault-relative path"`
+	Path    string `json:"path" jsonschema:"current vault-relative path of the note, which may be inside .trash"`
+	NewPath string `json:"new_path,omitempty" jsonschema:"destination vault-relative path; for a note inside .trash it defaults to the note's path inside .trash, taken from the vault root"`
 }
 
-func (s *Server) moveNote(_ context.Context, _ *mcp.CallToolRequest, in moveNoteInput) (*mcp.CallToolResult, okOutput, error) {
+type moveNoteOutput struct {
+	OK      bool   `json:"ok"`
+	MovedTo string `json:"moved_to" jsonschema:"vault-relative path the note now has"`
+}
+
+func (s *Server) moveNote(_ context.Context, _ *mcp.CallToolRequest, in moveNoteInput) (*mcp.CallToolResult, moveNoteOutput, error) {
 	v, err := s.writableNote(in.Vault, in.Path)
 	if err != nil {
-		return nil, okOutput{}, err
+		return nil, moveNoteOutput{}, err
 	}
-	if err := requireWritableNote(in.NewPath); err != nil {
-		return nil, okOutput{}, err
+	to := in.NewPath
+	if to == "" {
+		var ok bool
+		if to, ok = outOfTrash(in.Path); !ok {
+			return nil, moveNoteOutput{}, fmt.Errorf("give new_path: only a note inside %s can be moved without one", vault.TrashDir)
+		}
 	}
-	if err := v.Move(in.Path, in.NewPath); err != nil {
-		return nil, okOutput{}, err
+	if err := requireWritableNote(to); err != nil {
+		return nil, moveNoteOutput{}, err
 	}
-	return nil, okOutput{OK: true}, nil
+	if err := v.Move(in.Path, to); err != nil {
+		return nil, moveNoteOutput{}, err
+	}
+	return nil, moveNoteOutput{OK: true, MovedTo: to}, nil
 }
 
 type deleteNoteInput struct {
@@ -173,37 +185,6 @@ type deleteNoteOutput struct {
 	// TrashedTo is the vault-relative path the note was moved to inside
 	// .trash; empty for permanent deletions.
 	TrashedTo string `json:"trashed_to,omitempty" jsonschema:"where the note was moved inside .trash; empty when deleted permanently"`
-}
-
-type restoreNoteInput struct {
-	Vault string `json:"vault,omitempty" jsonschema:"name of the vault; optional when the server holds one vault"`
-	Path  string `json:"path" jsonschema:"vault-relative path of the note inside .trash"`
-	To    string `json:"to,omitempty" jsonschema:"destination vault-relative path; defaults to the note's path inside .trash"`
-}
-
-type restoreNoteOutput struct {
-	OK bool `json:"ok"`
-	// RestoredTo is the vault-relative path the note was restored to.
-	RestoredTo string `json:"restored_to" jsonschema:"vault-relative path the note was restored to"`
-}
-
-func (s *Server) restoreNote(_ context.Context, _ *mcp.CallToolRequest, in restoreNoteInput) (*mcp.CallToolResult, restoreNoteOutput, error) {
-	v, err := s.note(in.Vault, in.Path)
-	if err != nil {
-		return nil, restoreNoteOutput{}, err
-	}
-	to, err := vault.RestoreDestination(in.Path, in.To)
-	if err != nil {
-		return nil, restoreNoteOutput{}, err
-	}
-	if err := requireWritableNote(to); err != nil {
-		return nil, restoreNoteOutput{}, err
-	}
-	restoredTo, err := v.Restore(in.Path, in.To)
-	if err != nil {
-		return nil, restoreNoteOutput{}, err
-	}
-	return nil, restoreNoteOutput{OK: true, RestoredTo: restoredTo}, nil
 }
 
 func (s *Server) deleteNote(_ context.Context, _ *mcp.CallToolRequest, in deleteNoteInput) (*mcp.CallToolResult, deleteNoteOutput, error) {

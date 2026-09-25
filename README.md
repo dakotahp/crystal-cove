@@ -187,7 +187,7 @@ Agents get tools that work with notes, not raw files:
 
 - **Read:** `read_note`, `get_section`, `get_frontmatter`, `list_notes`, `recent_notes`
 - **Find:** `search_notes` (by name and content, ranked), `find_notes` (by tags and frontmatter), `list_tags`, `get_links`, `get_backlinks`
-- **Write:** `create_note`, `append_note`, `edit_note`, `replace_section`, `update_frontmatter`, `move_note`, `delete_note`, `restore_note`
+- **Write:** `create_note`, `append_note`, `edit_note`, `replace_section`, `update_frontmatter`, `move_note` (also restores from the trash), `delete_note`
 
 Deletes are soft: notes move to the vault's `.trash` and stay recoverable. Set `MCP_READ_ONLY=true` to give agents only the read and find tools. See [docs/tools.md](docs/tools.md) for every tool's details.
 

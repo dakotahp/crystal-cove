@@ -89,10 +89,6 @@ func TestUnknownVaultRejectedByEveryTool(t *testing.T) {
 			_, _, err := s.deleteNote(ctx, nil, deleteNoteInput{Vault: "Nope", Path: "x"})
 			return err
 		}},
-		{"restore_note", func() error {
-			_, _, err := s.restoreNote(ctx, nil, restoreNoteInput{Vault: "Nope", Path: ".trash/x"})
-			return err
-		}},
 	}
 	for _, c := range checks {
 		if err := c.call(); err == nil || !strings.Contains(err.Error(), "unknown vault") {
@@ -194,23 +190,26 @@ func TestWriteTools(t *testing.T) {
 	if _, _, err := s.deleteNote(ctx, nil, deleteNoteInput{Vault: "Personal", Path: "archive/new.md"}); err == nil {
 		t.Error("deleteNote succeeded on missing note")
 	}
-	_, restored, err := s.restoreNote(ctx, nil, restoreNoteInput{Vault: "Personal", Path: ".trash/new.md"})
-	if err != nil || !restored.OK || restored.RestoredTo != "new.md" {
-		t.Fatalf("restoreNote: %+v %v", restored, err)
+	_, restored, err := s.moveNote(ctx, nil, moveNoteInput{Vault: "Personal", Path: ".trash/new.md"})
+	if err != nil || !restored.OK || restored.MovedTo != "new.md" {
+		t.Fatalf("moveNote out of the trash: %+v %v", restored, err)
 	}
-	if _, _, err := s.restoreNote(ctx, nil, restoreNoteInput{Vault: "Personal", Path: "journal.md"}); err == nil {
-		t.Error("restoreNote accepted a path outside .trash")
+	if _, _, err := s.moveNote(ctx, nil, moveNoteInput{Vault: "Personal", Path: "journal.md"}); err == nil {
+		t.Error("moveNote without new_path accepted a path outside .trash")
 	}
-	_, restored, err = s.restoreNote(ctx, nil, restoreNoteInput{Vault: "Personal", Path: ".trash/new.md"})
+	_, restored, err = s.moveNote(ctx, nil, moveNoteInput{Vault: "Personal", Path: ".trash/new.md"})
 	if err == nil {
-		t.Errorf("restoreNote succeeded on missing trash note: %+v", restored)
+		t.Errorf("moveNote succeeded on missing trash note: %+v", restored)
 	}
 	if _, out, err := s.deleteNote(ctx, nil, deleteNoteInput{Vault: "Personal", Path: "new.md"}); err != nil || !out.OK {
 		t.Fatalf("re-deleteNote: %+v %v", out, err)
 	}
-	_, restored, err = s.restoreNote(ctx, nil, restoreNoteInput{Vault: "Personal", Path: ".trash/new.md", To: "archive/new.md"})
-	if err != nil || restored.RestoredTo != "archive/new.md" {
-		t.Fatalf("restoreNote with to: %+v %v", restored, err)
+	_, restored, err = s.moveNote(ctx, nil, moveNoteInput{Vault: "Personal", Path: ".trash/new.md", NewPath: "archive/new.md"})
+	if err != nil || restored.MovedTo != "archive/new.md" {
+		t.Fatalf("moveNote out of the trash with new_path: %+v %v", restored, err)
+	}
+	if _, _, err := s.moveNote(ctx, nil, moveNoteInput{Vault: "Personal", Path: "archive/new.md", NewPath: "../escape.md"}); err == nil {
+		t.Error("moveNote escaped the vault root")
 	}
 	if _, out, err := s.deleteNote(ctx, nil, deleteNoteInput{Vault: "Personal", Path: "archive/new.md"}); err != nil || !out.OK {
 		t.Fatalf("re-deleteNote 2: %+v %v", out, err)
@@ -332,7 +331,7 @@ func TestEndToEndOverHTTP(t *testing.T) {
 		"append_note", "create_note", "delete_note", "edit_note", "find_notes",
 		"get_backlinks", "get_frontmatter", "get_links",
 		"get_section", "list_notes", "list_tags", "list_vaults",
-		"move_note", "read_note", "recent_notes", "replace_section", "restore_note",
+		"move_note", "read_note", "recent_notes", "replace_section",
 		"search_notes", "update_frontmatter",
 	}
 	if !slices.Equal(names, want) {

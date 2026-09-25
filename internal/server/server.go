@@ -181,28 +181,24 @@ func (s *Server) addWriteTools(srv *mcp.Server) {
 	}, s.editNote)
 
 	mcp.AddTool(srv, &mcp.Tool{
-		Name:        "move_note",
-		Description: "Move or rename a note within a vault. Fails if the destination already exists.",
+		Name: "move_note",
+		Description: "Move or rename a note within a vault. Fails if the destination already exists. It also restores " +
+			"a deleted note: pass its path inside .trash, and leave new_path out to put it back at that path from the " +
+			"vault root. Use list_notes with dir \".trash\" to see deleted notes.",
 	}, s.moveNote)
 
 	mcp.AddTool(srv, &mcp.Tool{
 		Name:        "delete_note",
 		Description: s.deleteDescription(),
 	}, s.deleteNote)
-
-	mcp.AddTool(srv, &mcp.Tool{
-		Name: "restore_note",
-		Description: "Restore (undelete) a note from the vault's .trash folder. Restores to the note's path inside .trash " +
-			"unless to is set; use list_notes with dir \".trash\" to see what can be restored.",
-	}, s.restoreNote)
 }
 
 func (s *Server) deleteDescription() string {
 	if s.policy.AllowPermanentDelete {
-		return "Delete a note. By default it is moved to the vault's .trash folder (recoverable with restore_note); " +
+		return "Delete a note. By default it is moved to the vault's .trash folder (recoverable with move_note); " +
 			"set permanent to remove it outright. Deleting a note inside .trash is always permanent."
 	}
-	return "Delete a note by moving it to the vault's .trash folder, recoverable with restore_note. Permanent " +
+	return "Delete a note by moving it to the vault's .trash folder, recoverable with move_note. Permanent " +
 		"deletion, including deleting a note already in .trash, is turned off on this server."
 }
 

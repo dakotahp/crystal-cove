@@ -12,7 +12,7 @@ import (
 // auditedArgs are the only tool arguments the audit log records. Note text,
 // search queries and edit text stay out: the log says who touched which
 // note, never what the note says.
-var auditedArgs = []string{"vault", "path", "new_path", "to", "dir"}
+var auditedArgs = []string{"vault", "path", "new_path", "dir"}
 
 // maxAuditedArg caps a recorded argument, so a client cannot flood the log.
 const maxAuditedArg = 256

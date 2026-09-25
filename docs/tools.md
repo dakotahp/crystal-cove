@@ -24,9 +24,8 @@ All paths are vault-relative and sandboxed: absolute paths and `..` escapes are 
 | `create_note` | Create a new note; fails if it already exists. |
 | `append_note` | Append to a note, creating it if needed. The content starts on a new line. |
 | `edit_note` | Exact find/replace; the snippet must be unique unless `replace_all` is set. |
-| `move_note` | Move or rename a note. |
-| `delete_note` | Move a note to the vault's `.trash` (Obsidian's own convention, recoverable everywhere). With `MCP_ALLOW_PERMANENT_DELETE=true`, `permanent: true` removes it outright. |
-| `restore_note` | Undelete: move a note out of `.trash`, back to its original name or an explicit destination. |
+| `move_note` | Move or rename a note. Also restores a deleted note: pass its path inside `.trash`, and leave `new_path` out to put it back at that path from the vault root. |
+| `delete_note` | Move a note to the vault's `.trash` (Obsidian's own convention, recoverable everywhere with `move_note`). With `MCP_ALLOW_PERMANENT_DELETE=true`, `permanent: true` removes it outright. |
 
 With `MCP_READ_ONLY=true`, the server leaves out every tool that changes a note.
 
