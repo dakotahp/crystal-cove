@@ -162,10 +162,16 @@ func (v *Vault) Read(rel string, offset int) (*ReadResult, error) {
 	if err != nil {
 		return nil, err
 	}
-	runes := []rune(string(data))
+	return page(string(data), offset, "note")
+}
+
+// page returns up to ReadPageSize characters of text starting at the
+// character offset. what names the text in the out-of-range error.
+func page(text string, offset int, what string) (*ReadResult, error) {
+	runes := []rune(text)
 	total := len(runes)
 	if offset < 0 || offset > total {
-		return nil, fmt.Errorf("offset %d is out of range: note has %d characters", offset, total)
+		return nil, fmt.Errorf("offset %d is out of range: %s has %d characters", offset, what, total)
 	}
 	end := min(offset+ReadPageSize, total)
 	res := &ReadResult{

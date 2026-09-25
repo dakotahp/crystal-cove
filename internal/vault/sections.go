@@ -137,16 +137,11 @@ func (v *Vault) GetSection(rel string, headingPath []string, offset int) (*Secti
 	if err != nil {
 		return nil, err
 	}
-	runes := []rune(string(data[s.body:s.end]))
-	if offset < 0 || offset > len(runes) {
-		return nil, fmt.Errorf("offset %d is out of range: section has %d characters", offset, len(runes))
+	body, err := page(string(data[s.body:s.end]), offset, "section")
+	if err != nil {
+		return nil, err
 	}
-	end := min(offset+ReadPageSize, len(runes))
-	page := &ReadResult{Content: string(runes[offset:end]), Offset: offset, TotalCharacters: len(runes), Truncated: end < len(runes), NextOffset: -1}
-	if page.Truncated {
-		page.NextOffset = end
-	}
-	return &SectionResult{HeadingPath: s.path, Level: s.level, ReadResult: page}, nil
+	return &SectionResult{HeadingPath: s.path, Level: s.level, ReadResult: body}, nil
 }
 
 // ReplaceSection replaces a body and its subsections, preserving the selected
