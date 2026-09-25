@@ -8,7 +8,7 @@ All paths are vault-relative and sandboxed: absolute paths and `..` escapes are 
 
 | Tool | Description |
 | --- | --- |
-| `list_vaults` | Names of the vaults served. |
+| `list_vaults` | Names of the vaults served. Offered only when the server holds more than one vault. |
 | `list_notes` | List files and folders in a vault, optionally recursive. Hidden folders (`.obsidian`, `.trash`) are excluded; pass `dir: ".trash"` to browse deleted notes. Other hidden folders cannot be listed. |
 | `read_note` | Read a note, paged at 10,240 characters per call with `offset`/`next_offset` for longer notes. |
 | `get_section` | Read a heading section's body (including subsections), with character paging. |
@@ -22,7 +22,7 @@ All paths are vault-relative and sandboxed: absolute paths and `..` escapes are 
 | `get_frontmatter` | One note's frontmatter fields and tags, without its body. |
 | `update_frontmatter` | Add, replace or delete frontmatter fields. Untouched fields keep their value and order, and the body is unchanged. |
 | `create_note` | Create a new note; fails if it already exists. |
-| `append_note` | Append to a note, creating it if needed. |
+| `append_note` | Append to a note, creating it if needed. The content starts on a new line. |
 | `edit_note` | Exact find/replace; the snippet must be unique unless `replace_all` is set. |
 | `move_note` | Move or rename a note. |
 | `delete_note` | Move a note to the vault's `.trash` (Obsidian's own convention, recoverable everywhere). With `MCP_ALLOW_PERMANENT_DELETE=true`, `permanent: true` removes it outright. |

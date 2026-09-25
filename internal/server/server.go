@@ -69,10 +69,12 @@ func (s *Server) MCPServer() *mcp.Server {
 		Icons:   []mcp.Icon{serverIcon},
 	}, &mcp.ServerOptions{Instructions: s.Instructions()})
 
-	mcp.AddTool(srv, &mcp.Tool{
-		Name:        "list_vaults",
-		Description: "List the Obsidian vaults available on this server.",
-	}, s.listVaults)
+	if len(s.vaults) > 1 {
+		mcp.AddTool(srv, &mcp.Tool{
+			Name:        "list_vaults",
+			Description: "List the Obsidian vaults available on this server.",
+		}, s.listVaults)
+	}
 
 	mcp.AddTool(srv, &mcp.Tool{
 		Name: "list_notes",
@@ -216,7 +218,7 @@ func (s *Server) vault(name string) (*vault.Vault, error) {
 	}
 	v, ok := s.vaults[name]
 	if !ok {
-		return nil, fmt.Errorf("unknown vault %q: use list_vaults to see available vaults", name)
+		return nil, fmt.Errorf("unknown vault %q: this server holds %s", name, strings.Join(s.vaultNames(), ", "))
 	}
 	return v, nil
 }
