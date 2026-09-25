@@ -11,11 +11,15 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path"
 	"regexp"
+	"slices"
 	"strings"
+
+	"github.com/dakotahp/crystal-cove/internal/vault"
 )
 
-// DefaultMaxResults caps the notes returned when the caller does not
+// DefaultMaxResults caps the notes Limit keeps when the caller does not
 // specify a limit.
 const DefaultMaxResults = 50
 
@@ -63,9 +67,6 @@ type Options struct {
 	// ContextLines is the number of lines of context to include around
 	// each match.
 	ContextLines int
-	// MaxResults caps the number of notes returned; zero means
-	// DefaultMaxResults.
-	MaxResults int
 }
 
 // Line is a single line of search output.
@@ -99,8 +100,27 @@ type Result struct {
 	Files []FileMatches `json:"files"`
 	// TotalMatches counts matching lines across every note returned.
 	TotalMatches int `json:"total_matches"`
-	// Truncated reports whether notes were left out by MaxResults.
+	// Truncated reports whether notes were left out by Limit.
 	Truncated bool `json:"truncated"`
+}
+
+// Limit keeps the first n notes and recounts TotalMatches over them. A
+// non-positive n means DefaultMaxResults, and n never exceeds
+// MaxResultsCeiling. Rank the notes before calling it: it keeps whatever
+// comes first.
+func (r *Result) Limit(n int) {
+	if n <= 0 {
+		n = DefaultMaxResults
+	}
+	n = min(n, MaxResultsCeiling)
+	if len(r.Files) > n {
+		r.Files = r.Files[:n]
+		r.Truncated = true
+	}
+	r.TotalMatches = 0
+	for _, f := range r.Files {
+		r.TotalMatches += f.TotalMatches
+	}
 }
 
 // RunFunc executes a command in dir and returns its stdout, stderr, and
@@ -143,7 +163,8 @@ func execRun(ctx context.Context, dir, name string, args ...string) ([]byte, []b
 	return stdout.Bytes(), stderr.Bytes(), 0, nil
 }
 
-// Search runs the query over the vault rooted at root. Hidden directories
+// Search runs the query over the vault rooted at root and returns every
+// matching note, in path order. Hidden directories
 // (.obsidian, .trash, ...) are excluded because ripgrep skips hidden files
 // by default; --no-ignore prevents any stray ignore files in the vault from
 // silently hiding notes.
@@ -151,11 +172,6 @@ func (s *Searcher) Search(ctx context.Context, root string, opts Options) (*Resu
 	if strings.TrimSpace(opts.Query) == "" {
 		return nil, errors.New("query must not be empty")
 	}
-	maxResults := opts.MaxResults
-	if maxResults <= 0 {
-		maxResults = DefaultMaxResults
-	}
-	maxResults = min(maxResults, MaxResultsCeiling)
 	maxLines := opts.MaxLinesPerFile
 	if maxLines == 0 {
 		maxLines = DefaultLinesPerNote
@@ -192,14 +208,7 @@ func (s *Searcher) Search(ctx context.Context, root string, opts Options) (*Resu
 	if exitCode > 1 {
 		return nil, fmt.Errorf("search failed: %s", strings.TrimSpace(string(stderr)))
 	}
-	res, err := parseJSONEvents(stdout, maxResults, maxLines)
-	if err != nil {
-		return nil, err
-	}
-	if len(words) > 0 {
-		keepNotesHoldingEveryWord(res, words)
-	}
-	return res, nil
+	return parseJSONEvents(stdout, maxLines, newWordCheck(words, opts.CaseSensitive))
 }
 
 // QueryWords returns the words a query asks for, or nothing when the query
@@ -219,39 +228,35 @@ func QueryWords(opts Options) []string {
 	return words
 }
 
-// keepNotesHoldingEveryWord drops notes whose matched lines do not cover
-// every word, which is what makes a multi-word query mean "all of these".
-func keepNotesHoldingEveryWord(res *Result, words []string) {
-	kept := make([]FileMatches, 0, len(res.Files))
-	total := 0
-	for _, f := range res.Files {
-		var text strings.Builder
-		for _, l := range f.Lines {
-			if l.Match {
-				text.WriteString(strings.ToLower(l.Text))
-				text.WriteByte('\n')
-			}
+// wordCheck tracks which query words a note's matching lines hold, which is
+// what makes a multi-word query mean "all of these". It reads every matching
+// line, including those the per-note line cap leaves out of the result.
+type wordCheck struct {
+	words         []string
+	caseSensitive bool
+}
+
+func newWordCheck(words []string, caseSensitive bool) wordCheck {
+	if !caseSensitive {
+		lowered := make([]string, len(words))
+		for i, w := range words {
+			lowered[i] = strings.ToLower(w)
 		}
-		body := text.String()
-		holdsAll := true
-		for _, w := range words {
-			if !strings.Contains(body, strings.ToLower(w)) {
-				holdsAll = false
-				break
-			}
-		}
-		if !holdsAll {
-			continue
-		}
-		kept = append(kept, f)
-		for _, l := range f.Lines {
-			if l.Match {
-				total++
-			}
+		words = lowered
+	}
+	return wordCheck{words: words, caseSensitive: caseSensitive}
+}
+
+// mark records in found the words that line holds.
+func (c wordCheck) mark(found []bool, line string) {
+	if !c.caseSensitive {
+		line = strings.ToLower(line)
+	}
+	for i, w := range c.words {
+		if !found[i] && strings.Contains(line, w) {
+			found[i] = true
 		}
 	}
-	res.Files = kept
-	res.TotalMatches = total
 }
 
 // event is the subset of ripgrep's --json output the parser consumes.
@@ -268,11 +273,19 @@ type event struct {
 	} `json:"data"`
 }
 
-func parseJSONEvents(out []byte, maxResults, maxLinesPerFile int) (*Result, error) {
+func parseJSONEvents(out []byte, maxLinesPerFile int, words wordCheck) (*Result, error) {
 	// Files starts non-nil so a zero-match result marshals as "files": []
 	// rather than "files": null.
 	res := &Result{Files: []FileMatches{}}
 	var current *FileMatches
+	var found []bool
+	keep := func() {
+		if current == nil || slices.Contains(found, false) {
+			return
+		}
+		res.Files = append(res.Files, *current)
+		res.TotalMatches += current.TotalMatches
+	}
 	scanner := bufio.NewScanner(bytes.NewReader(out))
 	scanner.Buffer(make([]byte, 0, 64*1024), 4*1024*1024)
 	for scanner.Scan() {
@@ -287,20 +300,18 @@ func parseJSONEvents(out []byte, maxResults, maxLinesPerFile int) (*Result, erro
 		if ev.Type != "match" && ev.Type != "context" {
 			continue
 		}
-		path := strings.TrimPrefix(ev.Data.Path.Text, "./")
-		if current == nil || current.Path != path {
-			// The budget counts notes, so a long note cannot crowd the
-			// others out of the result.
-			if len(res.Files) == maxResults {
-				res.Truncated = true
-				break
-			}
-			res.Files = append(res.Files, FileMatches{Path: path})
-			current = &res.Files[len(res.Files)-1]
+		p := strings.TrimPrefix(ev.Data.Path.Text, "./")
+		if !strings.EqualFold(path.Ext(p), vault.NoteExtension) {
+			continue
+		}
+		if current == nil || current.Path != p {
+			keep()
+			current = &FileMatches{Path: p}
+			found = make([]bool, len(words.words))
 		}
 		if ev.Type == "match" {
 			current.TotalMatches++
-			res.TotalMatches++
+			words.mark(found, ev.Data.Lines.Text)
 		}
 		if maxLinesPerFile > 0 && len(current.Lines) >= maxLinesPerFile {
 			continue
@@ -314,5 +325,6 @@ func parseJSONEvents(out []byte, maxResults, maxLinesPerFile int) (*Result, erro
 	if err := scanner.Err(); err != nil {
 		return nil, fmt.Errorf("scanning search output: %w", err)
 	}
+	keep()
 	return res, nil
 }

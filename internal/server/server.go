@@ -103,8 +103,8 @@ func (s *Server) MCPServer() *mcp.Server {
 		Name: "search_notes",
 		Description: "Search a vault by note name and by content. A plain multi-word query finds notes holding every " +
 			"word, in any order; a query with regular-expression characters is read as a regex (ripgrep syntax), and mode " +
-			"forces either reading. Results are ranked: notes named after the query first, flagged title_match, then notes " +
-			"covering more of the query's words, then notes with more matching lines. Case-insensitive unless " +
+			"forces either reading. Only Markdown notes are searched. Results are ranked: notes named after the query first, " +
+			"flagged title_match, then notes with more matching lines. Case-insensitive unless " +
 			"case_sensitive is set. max_results counts notes, and each note returns at most 5 matching lines unless max_lines_per_note says otherwise; every note reports its own total_matches.",
 	}, s.searchNotes)
 
@@ -399,10 +399,10 @@ type searchNotesInput struct {
 	Query           string `json:"query" jsonschema:"words to look for, or a regular expression in ripgrep syntax"`
 	Mode            string `json:"mode,omitempty" jsonschema:"how to read the query: words (every word, any order), regex, or auto (the default: regex when the query holds regex characters, words otherwise)"`
 	MaxLinesPerNote int    `json:"max_lines_per_note,omitempty" jsonschema:"lines to return per note (default 5); use -1 for every matching line"`
-	Glob            string `json:"glob,omitempty" jsonschema:"restrict the search to paths matching this glob, e.g. *.md or daily/**"`
+	Glob            string `json:"glob,omitempty" jsonschema:"restrict the search to note paths matching this glob, e.g. daily/**"`
 	CaseSensitive   bool   `json:"case_sensitive,omitempty" jsonschema:"match case exactly instead of the default case-insensitive search"`
 	ContextLines    int    `json:"context_lines,omitempty" jsonschema:"lines of context to include around each match"`
-	MaxResults      int    `json:"max_results,omitempty" jsonschema:"maximum matching lines to return (default 50, max 500)"`
+	MaxResults      int    `json:"max_results,omitempty" jsonschema:"maximum notes to return (default 50, max 500)"`
 }
 
 func (s *Server) searchNotes(ctx context.Context, _ *mcp.CallToolRequest, in searchNotesInput) (*mcp.CallToolResult, *search.Result, error) {
@@ -421,7 +421,6 @@ func (s *Server) searchNotes(ctx context.Context, _ *mcp.CallToolRequest, in sea
 		Glob:            in.Glob,
 		CaseSensitive:   in.CaseSensitive,
 		ContextLines:    in.ContextLines,
-		MaxResults:      in.MaxResults,
 	}
 	res, err := s.searcher.Search(ctx, v.Root(), opts)
 	if err != nil {
@@ -437,7 +436,8 @@ func (s *Server) searchNotes(ctx context.Context, _ *mcp.CallToolRequest, in sea
 		return nil, nil, err
 	}
 	res = withTitleMatches(res, titles, truncated)
-	rankFiles(res, in.Query, words)
+	rankFiles(res)
+	res.Limit(limit)
 	return nil, res, nil
 }
 

@@ -53,12 +53,13 @@ func TestSearchParsesMatchesAndContext(t *testing.T) {
 	}
 }
 
-func TestSearchTruncatesAtMaxResults(t *testing.T) {
+func TestLimitTruncatesAndRecountsMatches(t *testing.T) {
 	s := New("rg", fakeRun(sampleOutput, "", 0, nil))
-	res, err := s.Search(context.Background(), "/vault", Options{Query: "hit", MaxResults: 1})
+	res, err := s.Search(context.Background(), "/vault", Options{Query: "hit"})
 	if err != nil {
 		t.Fatal(err)
 	}
+	res.Limit(1)
 	if res.TotalMatches != 1 || !res.Truncated {
 		t.Fatalf("got %+v", res)
 	}
@@ -67,17 +68,33 @@ func TestSearchTruncatesAtMaxResults(t *testing.T) {
 	}
 }
 
-func TestSearchMaxResultsCeiling(t *testing.T) {
+func TestLimitDefaultsWhenUnset(t *testing.T) {
+	res := &Result{}
+	for i := range DefaultMaxResults + 1 {
+		res.Files = append(res.Files, FileMatches{Path: fmt.Sprintf("n%d.md", i), TotalMatches: 1})
+	}
+	res.Limit(0)
+	if len(res.Files) != DefaultMaxResults || !res.Truncated || res.TotalMatches != DefaultMaxResults {
+		t.Fatalf("got %d notes, Truncated=%v, TotalMatches=%d; want the default limit",
+			len(res.Files), res.Truncated, res.TotalMatches)
+	}
+}
+
+func TestLimitCeiling(t *testing.T) {
 	var events strings.Builder
 	for i := range MaxResultsCeiling + 10 {
 		fmt.Fprintf(&events,
 			`{"type":"match","data":{"path":{"text":"./n%d.md"},"lines":{"text":"hit\n"},"line_number":1}}`+"\n", i)
 	}
 	s := New("rg", fakeRun(events.String(), "", 0, nil))
-	res, err := s.Search(context.Background(), "/vault", Options{Query: "hit", MaxResults: 10000})
+	res, err := s.Search(context.Background(), "/vault", Options{Query: "hit"})
 	if err != nil {
 		t.Fatal(err)
 	}
+	if len(res.Files) != MaxResultsCeiling+10 || res.Truncated {
+		t.Fatalf("Search returned %d notes, Truncated=%v; want every note before Limit", len(res.Files), res.Truncated)
+	}
+	res.Limit(10000)
 	if len(res.Files) != MaxResultsCeiling || !res.Truncated {
 		t.Fatalf("got %d notes, Truncated=%v; want the ceiling to cap notes", len(res.Files), res.Truncated)
 	}

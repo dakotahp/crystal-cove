@@ -2,10 +2,78 @@ package search
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
+	"strings"
 	"testing"
 )
+
+func TestWordsModeFindsWordsBeyondTheLineCap(t *testing.T) {
+	s := requireRipgrep(t)
+	body := strings.Repeat("alpha\n", 2*DefaultLinesPerNote) + "beta\n"
+	root := wordsVault(t, map[string]string{"a.md": body})
+
+	res, err := s.Search(context.Background(), root, Options{Query: "alpha beta"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := paths(res); len(got) != 1 || got[0] != "a.md" {
+		t.Errorf("matched %q, want the note even though its first lines hold only one word", got)
+	}
+}
+
+func TestWordsModeKeepsEveryNoteHoldingAllWords(t *testing.T) {
+	s := requireRipgrep(t)
+	notes := map[string]string{"z.md": "alpha beta\n"}
+	for i := range DefaultMaxResults + 10 {
+		notes[fmt.Sprintf("a%02d.md", i)] = "alpha\n"
+	}
+	root := wordsVault(t, notes)
+
+	res, err := s.Search(context.Background(), root, Options{Query: "alpha beta"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := paths(res); len(got) != 1 || got[0] != "z.md" {
+		t.Errorf("matched %q, want the one note holding both words", got)
+	}
+}
+
+func TestWordsModeHonoursCaseSensitivity(t *testing.T) {
+	s := requireRipgrep(t)
+	root := wordsVault(t, map[string]string{
+		"lower.md": "Bike trail\n",
+		"upper.md": "Bike Trail\n",
+	})
+
+	res, err := s.Search(context.Background(), root, Options{Query: "Bike Trail", CaseSensitive: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := paths(res); len(got) != 1 || got[0] != "upper.md" {
+		t.Errorf("matched %q, want only the note with the exact case", got)
+	}
+}
+
+func TestSearchSkipsFilesThatAreNotNotes(t *testing.T) {
+	s := requireRipgrep(t)
+	root := wordsVault(t, map[string]string{
+		"a.md":       "bike\n",
+		"b.canvas":   `{"text":"bike"}` + "\n",
+		"styles.css": "/* bike */\n",
+		"Upper.MD":   "bike\n",
+	})
+
+	res, err := s.Search(context.Background(), root, Options{Query: "bike"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := paths(res); !slices.Equal(got, []string{"Upper.MD", "a.md"}) {
+		t.Errorf("matched %q, want only Markdown notes", got)
+	}
+}
 
 func wordsVault(t *testing.T, notes map[string]string) string {
 	t.Helper()

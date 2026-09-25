@@ -72,11 +72,11 @@ func (v *Vault) matchNames(matches func(name string) bool, limit int) ([]string,
 			}
 			return nil
 		}
-		if d.IsDir() {
+		ext := filepath.Ext(d.Name())
+		if d.IsDir() || !strings.EqualFold(ext, NoteExtension) {
 			return nil
 		}
-		name := strings.TrimSuffix(d.Name(), filepath.Ext(d.Name()))
-		if !matches(name) {
+		if !matches(strings.TrimSuffix(d.Name(), ext)) {
 			return nil
 		}
 		rel, err := filepath.Rel(v.root, p)
