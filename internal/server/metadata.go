@@ -200,15 +200,14 @@ func (s *Server) updateFrontmatter(_ context.Context, _ *mcp.CallToolRequest, in
 	if len(in.Set) == 0 && len(in.Remove) == 0 {
 		return nil, nil, errors.New("give set, remove, or both: update_frontmatter changes nothing otherwise")
 	}
-	data, err := v.ReadAll(in.Path)
+	updated, err := v.Update(in.Path, func(old []byte) ([]byte, error) {
+		updated, err := notes.UpdateFrontmatter(old, in.Set, in.Remove)
+		if err != nil {
+			return nil, fmt.Errorf("updating %q: %w", in.Path, err)
+		}
+		return updated, nil
+	})
 	if err != nil {
-		return nil, nil, err
-	}
-	updated, err := notes.UpdateFrontmatter(data, in.Set, in.Remove)
-	if err != nil {
-		return nil, nil, fmt.Errorf("updating %q: %w", in.Path, err)
-	}
-	if err := v.WriteAll(in.Path, updated); err != nil {
 		return nil, nil, err
 	}
 	n, err := notes.Parse(updated)

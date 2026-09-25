@@ -147,31 +147,31 @@ func (v *Vault) GetSection(rel string, headingPath []string, offset int) (*Secti
 // ReplaceSection replaces a body and its subsections, preserving the selected
 // heading and all bytes outside the body. Content excludes the selected heading.
 func (v *Vault) ReplaceSection(rel string, headingPath []string, content string) error {
-	data, s, err := v.loadSection(rel, headingPath)
-	if err != nil {
-		return err
-	}
-	// Keep subsequent headings on their own line. Preserve the note's newline style.
-	newline := "\n"
-	if bytes.Contains(data[s.start:s.body], []byte("\r\n")) {
-		newline = "\r\n"
-	}
-	prefix := string(data[:s.body])
-	if content != "" && !strings.HasSuffix(prefix, "\n") {
-		prefix += newline
-	}
-	if s.end < len(data) && content != "" {
-		if !strings.HasSuffix(content, "\n") {
-			content += newline
+	_, err := v.Update(rel, func(data []byte) ([]byte, error) {
+		s, err := selectSection(data, headingPath)
+		if err != nil {
+			return nil, err
 		}
-		// A setext title must not merge into the replacement's last paragraph.
-		if s.nextSetext && !strings.HasSuffix(content, newline+newline) {
-			content += newline
+		body := content
+		// Keep subsequent headings on their own line. Preserve the note's newline style.
+		newline := "\n"
+		if bytes.Contains(data[s.start:s.body], []byte("\r\n")) {
+			newline = "\r\n"
 		}
-	}
-	updated := prefix + content + string(data[s.end:])
-	if err := v.WriteAll(rel, []byte(updated)); err != nil {
-		return err
-	}
-	return nil
+		prefix := string(data[:s.body])
+		if body != "" && !strings.HasSuffix(prefix, "\n") {
+			prefix += newline
+		}
+		if s.end < len(data) && body != "" {
+			if !strings.HasSuffix(body, "\n") {
+				body += newline
+			}
+			// A setext title must not merge into the replacement's last paragraph.
+			if s.nextSetext && !strings.HasSuffix(body, newline+newline) {
+				body += newline
+			}
+		}
+		return []byte(prefix + body + string(data[s.end:])), nil
+	})
+	return err
 }

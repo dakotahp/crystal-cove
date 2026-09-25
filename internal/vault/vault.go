@@ -10,6 +10,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -217,22 +218,22 @@ func (v *Vault) Append(rel, content string) error {
 	if err != nil {
 		return err
 	}
-	defer root.Close()
-	if err := root.MkdirAll(filepath.Dir(clean), 0o755); err != nil {
+	err = root.MkdirAll(filepath.Dir(clean), 0o755)
+	root.Close()
+	if err != nil {
 		return fmt.Errorf("creating parent directories for %q: %w", rel, err)
 	}
-	existing, err := root.ReadFile(clean)
-	if err != nil && !errors.Is(err, fs.ErrNotExist) {
-		return fmt.Errorf("reading %q to append to it: %w", rel, err)
-	}
-	if len(existing) > 0 && content != "" && existing[len(existing)-1] != '\n' {
-		newline := "\n"
-		if bytes.Contains(existing, []byte("\r\n")) {
-			newline = "\r\n"
+	_, err = v.update(rel, true, func(existing []byte) ([]byte, error) {
+		sep := ""
+		if len(existing) > 0 && content != "" && existing[len(existing)-1] != '\n' {
+			sep = "\n"
+			if bytes.Contains(existing, []byte("\r\n")) {
+				sep = "\r\n"
+			}
 		}
-		existing = append(existing, newline...)
-	}
-	if err := writeAtomic(root, clean, append(existing, content...)); err != nil {
+		return slices.Concat(existing, []byte(sep), []byte(content)), nil
+	})
+	if err != nil {
 		return fmt.Errorf("appending to %q: %w", rel, err)
 	}
 	return nil
@@ -245,19 +246,19 @@ func (v *Vault) Edit(rel, find, replace string, replaceAll bool) (int, error) {
 	if find == "" {
 		return 0, errors.New("find must not be empty")
 	}
-	data, err := v.ReadAll(rel)
+	var count int
+	_, err := v.Update(rel, func(old []byte) ([]byte, error) {
+		content := string(old)
+		count = strings.Count(content, find)
+		if count == 0 {
+			return nil, fmt.Errorf("text not found in %q", rel)
+		}
+		if count > 1 && !replaceAll {
+			return nil, fmt.Errorf("text occurs %d times in %q: provide more surrounding context to make it unique, or set replace_all", count, rel)
+		}
+		return []byte(strings.ReplaceAll(content, find, replace)), nil
+	})
 	if err != nil {
-		return 0, err
-	}
-	content := string(data)
-	count := strings.Count(content, find)
-	if count == 0 {
-		return 0, fmt.Errorf("text not found in %q", rel)
-	}
-	if count > 1 && !replaceAll {
-		return 0, fmt.Errorf("text occurs %d times in %q: provide more surrounding context to make it unique, or set replace_all", count, rel)
-	}
-	if err := v.WriteAll(rel, []byte(strings.ReplaceAll(content, find, replace))); err != nil {
 		return 0, err
 	}
 	return count, nil
