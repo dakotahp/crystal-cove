@@ -16,11 +16,8 @@ type getSectionInput struct {
 }
 
 func (s *Server) getSection(_ context.Context, _ *mcp.CallToolRequest, in getSectionInput) (*mcp.CallToolResult, *vault.SectionResult, error) {
-	v, err := s.vault(in.Vault)
+	v, err := s.note(in.Vault, in.Path)
 	if err != nil {
-		return nil, nil, err
-	}
-	if err := requireNote(in.Path); err != nil {
 		return nil, nil, err
 	}
 	out, err := v.GetSection(in.Path, in.HeadingPath, in.Offset)
@@ -35,11 +32,8 @@ type replaceSectionInput struct {
 }
 
 func (s *Server) replaceSection(_ context.Context, _ *mcp.CallToolRequest, in replaceSectionInput) (*mcp.CallToolResult, okOutput, error) {
-	v, err := s.vault(in.Vault)
+	v, err := s.writableNote(in.Vault, in.Path)
 	if err != nil {
-		return nil, okOutput{}, err
-	}
-	if err := requireWritableNote(in.Path); err != nil {
 		return nil, okOutput{}, err
 	}
 	if err := v.ReplaceSection(in.Path, in.HeadingPath, in.Content); err != nil {

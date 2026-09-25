@@ -3,7 +3,6 @@ package server
 import (
 	"context"
 	"fmt"
-	"sort"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
@@ -15,12 +14,7 @@ type listVaultsOutput struct {
 }
 
 func (s *Server) listVaults(context.Context, *mcp.CallToolRequest, any) (*mcp.CallToolResult, listVaultsOutput, error) {
-	names := make([]string, 0, len(s.vaults))
-	for name := range s.vaults {
-		names = append(names, name)
-	}
-	sort.Strings(names)
-	return nil, listVaultsOutput{Vaults: names}, nil
+	return nil, listVaultsOutput{Vaults: s.vaultNames()}, nil
 }
 
 type listNotesInput struct {
@@ -55,11 +49,8 @@ type readNoteInput struct {
 }
 
 func (s *Server) readNote(_ context.Context, _ *mcp.CallToolRequest, in readNoteInput) (*mcp.CallToolResult, *vault.ReadResult, error) {
-	v, err := s.vault(in.Vault)
+	v, err := s.note(in.Vault, in.Path)
 	if err != nil {
-		return nil, nil, err
-	}
-	if err := requireNote(in.Path); err != nil {
 		return nil, nil, err
 	}
 	res, err := v.Read(in.Path, in.Offset)
@@ -80,11 +71,8 @@ type okOutput struct {
 }
 
 func (s *Server) createNote(_ context.Context, _ *mcp.CallToolRequest, in writeNoteInput) (*mcp.CallToolResult, okOutput, error) {
-	v, err := s.vault(in.Vault)
+	v, err := s.writableNote(in.Vault, in.Path)
 	if err != nil {
-		return nil, okOutput{}, err
-	}
-	if err := requireWritableNote(in.Path); err != nil {
 		return nil, okOutput{}, err
 	}
 	if err := v.Create(in.Path, in.Content); err != nil {
@@ -94,11 +82,8 @@ func (s *Server) createNote(_ context.Context, _ *mcp.CallToolRequest, in writeN
 }
 
 func (s *Server) appendNote(_ context.Context, _ *mcp.CallToolRequest, in writeNoteInput) (*mcp.CallToolResult, okOutput, error) {
-	v, err := s.vault(in.Vault)
+	v, err := s.writableNote(in.Vault, in.Path)
 	if err != nil {
-		return nil, okOutput{}, err
-	}
-	if err := requireWritableNote(in.Path); err != nil {
 		return nil, okOutput{}, err
 	}
 	if err := v.Append(in.Path, in.Content); err != nil {
@@ -120,11 +105,8 @@ type editNoteOutput struct {
 }
 
 func (s *Server) editNote(_ context.Context, _ *mcp.CallToolRequest, in editNoteInput) (*mcp.CallToolResult, editNoteOutput, error) {
-	v, err := s.vault(in.Vault)
+	v, err := s.writableNote(in.Vault, in.Path)
 	if err != nil {
-		return nil, editNoteOutput{}, err
-	}
-	if err := requireWritableNote(in.Path); err != nil {
 		return nil, editNoteOutput{}, err
 	}
 	n, err := v.Edit(in.Path, in.Find, in.Replace, in.ReplaceAll)
@@ -141,11 +123,8 @@ type moveNoteInput struct {
 }
 
 func (s *Server) moveNote(_ context.Context, _ *mcp.CallToolRequest, in moveNoteInput) (*mcp.CallToolResult, okOutput, error) {
-	v, err := s.vault(in.Vault)
+	v, err := s.writableNote(in.Vault, in.Path)
 	if err != nil {
-		return nil, okOutput{}, err
-	}
-	if err := requireWritableNote(in.Path); err != nil {
 		return nil, okOutput{}, err
 	}
 	if err := requireWritableNote(in.NewPath); err != nil {
@@ -183,11 +162,8 @@ type restoreNoteOutput struct {
 }
 
 func (s *Server) restoreNote(_ context.Context, _ *mcp.CallToolRequest, in restoreNoteInput) (*mcp.CallToolResult, restoreNoteOutput, error) {
-	v, err := s.vault(in.Vault)
+	v, err := s.note(in.Vault, in.Path)
 	if err != nil {
-		return nil, restoreNoteOutput{}, err
-	}
-	if err := requireNote(in.Path); err != nil {
 		return nil, restoreNoteOutput{}, err
 	}
 	to, err := vault.RestoreDestination(in.Path, in.To)
@@ -205,11 +181,8 @@ func (s *Server) restoreNote(_ context.Context, _ *mcp.CallToolRequest, in resto
 }
 
 func (s *Server) deleteNote(_ context.Context, _ *mcp.CallToolRequest, in deleteNoteInput) (*mcp.CallToolResult, deleteNoteOutput, error) {
-	v, err := s.vault(in.Vault)
+	v, err := s.writableNote(in.Vault, in.Path)
 	if err != nil {
-		return nil, deleteNoteOutput{}, err
-	}
-	if err := requireWritableNote(in.Path); err != nil {
 		return nil, deleteNoteOutput{}, err
 	}
 	if !s.policy.AllowPermanentDelete && (in.Permanent || inTrash(in.Path)) {

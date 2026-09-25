@@ -108,7 +108,9 @@ Key invariants:
 - **Note tools work on notes only.** `requireNote` rejects anything without a
   `.md` extension and any path inside a hidden folder except the trash, which
   delete and restore need. The vault sandbox stops escapes but allows every
-  file inside the vault, so this policy lives in the handlers.
+  file inside the vault, so this policy lives in the handlers, in
+  `server/policy.go`. A handler gets its vault through `s.note` or
+  `s.writableNote`, which apply it, rather than calling `s.vault` alone.
 - **A single-vault server takes no vault name.** `Server.vault("")` resolves to
   the only vault, and errors naming them all when there are several.
 - **Path sandboxing lives in `internal/vault`**, not in tool handlers.

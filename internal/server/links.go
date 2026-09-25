@@ -25,11 +25,8 @@ type LinkList struct {
 }
 
 func (s *Server) getLinks(_ context.Context, _ *mcp.CallToolRequest, in noteRef) (*mcp.CallToolResult, *LinkList, error) {
-	v, err := s.vault(in.Vault)
+	v, err := s.note(in.Vault, in.Path)
 	if err != nil {
-		return nil, nil, err
-	}
-	if err := requireNote(in.Path); err != nil {
 		return nil, nil, err
 	}
 	n, err := parseNote(v, in.Path)
@@ -71,11 +68,8 @@ type BacklinkList struct {
 }
 
 func (s *Server) getBacklinks(_ context.Context, _ *mcp.CallToolRequest, in noteRef) (*mcp.CallToolResult, *BacklinkList, error) {
-	v, err := s.vault(in.Vault)
+	v, err := s.note(in.Vault, in.Path)
 	if err != nil {
-		return nil, nil, err
-	}
-	if err := requireNote(in.Path); err != nil {
 		return nil, nil, err
 	}
 	if _, err := v.ReadAll(in.Path); err != nil {

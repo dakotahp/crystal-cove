@@ -174,11 +174,8 @@ type Frontmatter struct {
 }
 
 func (s *Server) getFrontmatter(_ context.Context, _ *mcp.CallToolRequest, in noteRef) (*mcp.CallToolResult, *Frontmatter, error) {
-	v, err := s.vault(in.Vault)
+	v, err := s.note(in.Vault, in.Path)
 	if err != nil {
-		return nil, nil, err
-	}
-	if err := requireNote(in.Path); err != nil {
 		return nil, nil, err
 	}
 	n, err := parseNote(v, in.Path)
@@ -196,11 +193,8 @@ type updateFrontmatterInput struct {
 }
 
 func (s *Server) updateFrontmatter(_ context.Context, _ *mcp.CallToolRequest, in updateFrontmatterInput) (*mcp.CallToolResult, *Frontmatter, error) {
-	v, err := s.vault(in.Vault)
+	v, err := s.writableNote(in.Vault, in.Path)
 	if err != nil {
-		return nil, nil, err
-	}
-	if err := requireWritableNote(in.Path); err != nil {
 		return nil, nil, err
 	}
 	if len(in.Set) == 0 && len(in.Remove) == 0 {

@@ -62,3 +62,27 @@ func requireWritableNote(path string) error {
 	}
 	return nil
 }
+
+// note returns the named vault once path passes requireNote.
+func (s *Server) note(vaultName, path string) (*vault.Vault, error) {
+	v, err := s.vault(vaultName)
+	if err != nil {
+		return nil, err
+	}
+	if err := requireNote(path); err != nil {
+		return nil, err
+	}
+	return v, nil
+}
+
+// writableNote returns the named vault once path passes requireWritableNote.
+func (s *Server) writableNote(vaultName, path string) (*vault.Vault, error) {
+	v, err := s.vault(vaultName)
+	if err != nil {
+		return nil, err
+	}
+	if err := requireWritableNote(path); err != nil {
+		return nil, err
+	}
+	return v, nil
+}
