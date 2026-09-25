@@ -182,7 +182,8 @@ func (s *Server) addWriteTools(srv *mcp.Server) {
 
 	mcp.AddTool(srv, &mcp.Tool{
 		Name: "move_note",
-		Description: "Move or rename a note within a vault. Fails if the destination already exists. It also restores " +
+		Description: "Move or rename a note within a vault. Fails if the destination already exists. A new name breaks " +
+			"[[links]] to the note unless update_links is set, which rewrites them in every note. It also restores " +
 			"a deleted note: pass its path inside .trash, and leave new_path out to put it back at that path from the " +
 			"vault root. Use list_notes with dir \".trash\" to see deleted notes.",
 	}, s.moveNote)

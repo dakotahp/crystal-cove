@@ -143,14 +143,16 @@ func (s *Server) editNote(_ context.Context, _ *mcp.CallToolRequest, in editNote
 }
 
 type moveNoteInput struct {
-	Vault   string `json:"vault,omitempty" jsonschema:"name of the vault; optional when the server holds one vault"`
-	Path    string `json:"path" jsonschema:"current vault-relative path of the note, which may be inside .trash"`
-	NewPath string `json:"new_path,omitempty" jsonschema:"destination vault-relative path; for a note inside .trash it defaults to the note's path inside .trash, taken from the vault root"`
+	Vault       string `json:"vault,omitempty" jsonschema:"name of the vault; optional when the server holds one vault"`
+	Path        string `json:"path" jsonschema:"current vault-relative path of the note, which may be inside .trash"`
+	NewPath     string `json:"new_path,omitempty" jsonschema:"destination vault-relative path; for a note inside .trash it defaults to the note's path inside .trash, taken from the vault root"`
+	UpdateLinks bool   `json:"update_links,omitempty" jsonschema:"also rewrite the [[links]] to this note in every note, so they keep pointing at it after a rename"`
 }
 
 type moveNoteOutput struct {
-	OK      bool   `json:"ok"`
-	MovedTo string `json:"moved_to" jsonschema:"vault-relative path the note now has"`
+	OK             bool     `json:"ok"`
+	MovedTo        string   `json:"moved_to" jsonschema:"vault-relative path the note now has"`
+	LinksUpdatedIn []string `json:"links_updated_in,omitempty" jsonschema:"notes whose links were rewritten to the new path"`
 }
 
 func (s *Server) moveNote(_ context.Context, _ *mcp.CallToolRequest, in moveNoteInput) (*mcp.CallToolResult, moveNoteOutput, error) {
@@ -168,10 +170,11 @@ func (s *Server) moveNote(_ context.Context, _ *mcp.CallToolRequest, in moveNote
 	if err := requireWritableNote(to); err != nil {
 		return nil, moveNoteOutput{}, err
 	}
-	if err := v.Move(in.Path, to); err != nil {
+	changed, err := moveWithLinks(v, in.Path, to, in.UpdateLinks)
+	if err != nil {
 		return nil, moveNoteOutput{}, err
 	}
-	return nil, moveNoteOutput{OK: true, MovedTo: to}, nil
+	return nil, moveNoteOutput{OK: true, MovedTo: to, LinksUpdatedIn: changed}, nil
 }
 
 type deleteNoteInput struct {
