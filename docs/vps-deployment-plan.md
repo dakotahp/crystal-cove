@@ -4,7 +4,7 @@ Goal: reach the Obsidian vault from claude.ai on the web and on the iPhone,
 including CarPlay, with the Obsidian account keeping MFA on.
 
 Status when this was written: the stack runs on a laptop against the real
-vault. Sync reached `Fully synced`, `/readyz` returned 200, and MCP served its
+vault. Sync reached `Fully synced`, `/ready` returned 200, and MCP served its
 tools over an authenticated endpoint. DNS for the new host is set, and the
 Caddy block is copied on the server and waits for a port.
 
@@ -56,7 +56,7 @@ for now. A small single-user OAuth mode built into this server would remove
    exposes the MCP endpoint directly, with no TLS and no Caddy in front.
 5. **Point the copied Caddy block at that port** and reload Caddy.
 6. **Start it and watch the first sync.** Wait for `Fully synced` in the logs
-   and a 200 from `/readyz` before connecting anything.
+   and a 200 from `/ready` before connecting anything.
 7. **Add the connector in claude.ai** with the new host name, and set the
    write tools to "Always allow". A tool approval prompt may not render in
    CarPlay, so an approval-on-demand setup can fail while driving.

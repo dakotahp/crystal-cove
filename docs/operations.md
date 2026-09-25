@@ -4,10 +4,10 @@
 
 Both endpoints need no authentication.
 
-- `GET /livez` checks only that the HTTP process is up.
-- `GET /readyz` requires a fresh `Fully synced` heartbeat from every vault. `/healthz` is an older alias for it.
+- `GET /health` checks only that the HTTP process is up.
+- `GET /ready` requires a fresh `Fully synced` heartbeat from every vault.
 
-Point liveness probes at `/livez`, so a network blip that stalls sync does not restart the whole container.
+Point probes that restart the container at `/health`, so a network blip that stalls sync does not restart the whole container.
 
 ## Startup and sync recovery
 

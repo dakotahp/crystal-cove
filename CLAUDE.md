@@ -68,7 +68,7 @@ internal/oidcauth/     OIDC bearer-token validation for any compliant IdP:
                        fallback; tests run a real fake IdP over httptest
 internal/server/       MCP tool registration (official modelcontextprotocol/
                        go-sdk, typed handlers), HTTP handler with bearer auth
-                       middleware, process /livez, and sync-aware /readyz
+                       middleware, process /health, and sync-aware /ready
 ```
 
 Key invariants:
@@ -77,7 +77,7 @@ Key invariants:
   never start serving a partially configured vault set.
 - **Sync-aware readiness**: every vault must emit a recent `Fully synced`
   heartbeat. A silent continuous-sync child is restarted by the supervisor;
-  `/livez` must remain process-only so transient network failures do not
+  `/health` must remain process-only so transient network failures do not
   restart the whole container.
 - **Search reads a query as words unless it looks like a regex.** Two or more
   plain words mean "a note holding all of them, in any order"; any of the

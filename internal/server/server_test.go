@@ -231,7 +231,7 @@ func TestHealthEndpoints(t *testing.T) {
 	ts := httptest.NewServer(s.Handler(AuthConfig{StaticToken: "secret"}))
 	defer ts.Close()
 
-	for _, path := range []string{"/livez", "/readyz", "/healthz"} {
+	for _, path := range []string{"/health", "/ready"} {
 		res, err := http.Get(ts.URL + path)
 		if err != nil {
 			t.Fatal(err)
@@ -244,9 +244,8 @@ func TestHealthEndpoints(t *testing.T) {
 
 	ready = false
 	for path, want := range map[string]int{
-		"/livez":   http.StatusOK,
-		"/readyz":  http.StatusServiceUnavailable,
-		"/healthz": http.StatusServiceUnavailable,
+		"/health": http.StatusOK,
+		"/ready":  http.StatusServiceUnavailable,
 	} {
 		res, err := http.Get(ts.URL + path)
 		if err != nil {

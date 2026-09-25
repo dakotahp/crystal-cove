@@ -84,16 +84,15 @@ func TestRunServesUntilShutdown(t *testing.T) {
 		t.Fatal("server did not become ready")
 	}
 
-	res, err := http.Get(fmt.Sprintf("http://%s/livez", addr))
+	res, err := http.Get(fmt.Sprintf("http://%s/health", addr))
 	if err != nil {
 		t.Fatal(err)
 	}
 	res.Body.Close()
 	if res.StatusCode != http.StatusOK {
-		t.Errorf("livez status = %d", res.StatusCode)
+		t.Errorf("health status = %d", res.StatusCode)
 	}
-	waitForStatus(t, fmt.Sprintf("http://%s/readyz", addr), http.StatusOK)
-	waitForStatus(t, fmt.Sprintf("http://%s/healthz", addr), http.StatusOK)
+	waitForStatus(t, fmt.Sprintf("http://%s/ready", addr), http.StatusOK)
 
 	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("http://%s/", addr), strings.NewReader("{}"))
 	if err != nil {

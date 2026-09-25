@@ -123,7 +123,7 @@ MCP_AUTH_TOKEN=
 ```sh
 docker compose up -d
 docker compose logs -f          # wait for "Fully synced", then Ctrl-C
-curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8080/readyz   # 200
+curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8080/ready   # 200
 ```
 
 The first sync downloads the whole vault into a Docker volume, so a large vault takes a few minutes. Set `PORT` in `.env` if 8080 is already taken.
@@ -171,7 +171,7 @@ Keep an `MCP_AUTH_TOKEN` too if you also want to connect Claude Code or scripts 
 ```sh
 docker compose up -d
 docker compose logs -f          # wait for "Fully synced", then Ctrl-C
-curl -s -o /dev/null -w '%{http_code}\n' https://obsidian.example.com/readyz   # 200
+curl -s -o /dev/null -w '%{http_code}\n' https://obsidian.example.com/ready   # 200
 ```
 
 **5. Connect your assistant.**
