@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://obsidian.md/images/obsidian-logo-gradient.svg" alt="Obsidian logo" width="120">
+  <img src="docs/images/logo.svg" alt="Crystal Cove logo: a purple crystal rising from the sea between moonlit cliffs" width="160">
 </p>
 
 <h1 align="center">Crystal Cove</h1>

@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="512" height="512">
+<defs>
+<radialGradient id="skyGrad" cx="50%" cy="30%" r="75%"><stop offset="0" stop-color="#2a1f5c"/><stop offset="1" stop-color="#0b0820"/></radialGradient>
+<linearGradient id="seaGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1c2d5e"/><stop offset="1" stop-color="#0a1130"/></linearGradient>
+<radialGradient id="glowGrad"><stop offset="0" stop-color="#a78bfa" stop-opacity=".55"/><stop offset="1" stop-color="#a78bfa" stop-opacity="0"/></radialGradient>
+<radialGradient id="moonHalo"><stop offset=".45" stop-color="#f1f0d0" stop-opacity=".4"/><stop offset="1" stop-color="#f1f0d0" stop-opacity="0"/></radialGradient>
+<linearGradient id="beamFade" x1="1" y1="0" x2="0" y2="0"><stop offset="0" stop-color="#f6e7a1" stop-opacity=".3"/><stop offset="1" stop-color="#f6e7a1" stop-opacity="0"/></linearGradient>
+<clipPath id="badge"><circle cx="100" cy="100" r="92"/></clipPath>
+</defs>
+<g id="scene" clip-path="url(#badge)">
+<rect id="sky" width="200" height="200" fill="url(#skyGrad)"/>
+<g id="stars" fill="#fff" opacity=".8"><circle cx="40" cy="75" r="1.2"/><circle cx="72" cy="26" r="1"/><circle cx="120" cy="30" r="1.3"/><circle cx="150" cy="84" r=".9"/><circle cx="92" cy="20" r=".8"/></g>
+<path id="moon" d="M143.92 38.16 A14 14 0 1 0 159.36 56.17 A12 12 0 0 1 143.92 38.16Z" fill="#f6ecc9"/>
+<circle id="glow" cx="100" cy="98" r="50" fill="url(#glowGrad)"/>
+<rect id="sea" y="138" width="200" height="62" fill="url(#seaGrad)"/>
+<path id="cliff-left" d="M0 60 L22 58 L34 76 L50 84 L62 110 L72 124 L78 140 L0 140Z" fill="#05030d"/>
+<path id="cliff-right" d="M200 70 L178 66 L164 82 L150 90 L140 112 L128 126 L122 140 L200 140Z" fill="#05030d"/>
+
+<g id="crystal"><polygon points="100,52 78,92 100,100" fill="#ddd6fe"/><polygon points="100,52 122,92 100,100" fill="#a78bfa"/><polygon points="78,92 90,138 100,100" fill="#8b5cf6"/><polygon points="122,92 110,138 100,100" fill="#5b21b6"/><polygon points="90,138 110,138 100,100" fill="#6d28d9"/></g>
+<g id="reflection" transform="translate(0,276) scale(1,-1)" opacity=".22"><polygon points="100,52 78,92 100,100" fill="#ddd6fe"/><polygon points="100,52 122,92 100,100" fill="#a78bfa"/><polygon points="78,92 90,138 100,100" fill="#8b5cf6"/><polygon points="122,92 110,138 100,100" fill="#5b21b6"/></g>
+<g id="waves" stroke="#7c8ae0" fill="none" opacity=".5" stroke-width="1.5" stroke-linecap="round">
+<path d="M30 152 q8 -4 16 0 t16 0"/><path d="M130 160 q8 -4 16 0 t16 0"/><path d="M60 176 q8 -4 16 0 t16 0"/>
+</g>
+</g>
+<circle id="ring" cx="100" cy="100" r="92" fill="none" stroke="#c4b5fd" stroke-width="4"/>
+</svg>
