@@ -43,9 +43,9 @@ Owns issuing and checking built-in tokens. The rest of the server uses two thing
 | `/authorize` | POST | Password check, then redirect with a code |
 | `/token` | POST | `authorization_code` and `refresh_token` grants |
 
-Metadata advertises: `issuer` = `MCP_PUBLIC_URL`, the four endpoints under it, `response_types_supported: [code]`, `grant_types_supported: [authorization_code, refresh_token]`, `code_challenge_methods_supported: [S256]`, and `token_endpoint_auth_methods_supported: [none, client_secret_post, client_secret_basic]`.
+Metadata advertises: `issuer` = `MCP_PUBLIC_URL`, the four endpoints under it, `scopes_supported: [offline_access]`, `response_types_supported: [code]`, `grant_types_supported: [authorization_code, refresh_token]`, `code_challenge_methods_supported: [S256]`, `token_endpoint_auth_methods_supported: [none, client_secret_post, client_secret_basic]`, and `authorization_response_iss_parameter_supported: true`. Refresh tokens are issued whether or not a client asks for `offline_access`; the scope is advertised because some clients request refresh tokens only when it is listed. Every redirect from `/authorize` carries `iss` (RFC 9207), so a client can tell which server answered.
 
-Request and response types come from `github.com/modelcontextprotocol/go-sdk/oauthex` where it has them (`AuthServerMeta`, `ClientRegistrationMetadata`, `ClientRegistrationResponse`).
+Registration types come from `github.com/modelcontextprotocol/go-sdk/oauthex` (`ClientRegistrationMetadata`, `ClientRegistrationResponse`). The metadata uses a local struct, because `oauthex.AuthServerMeta` always writes `jwks_uri`, and this server has no signing keys.
 
 Suggested files: `store.go` (persistence and grant rules), `handlers.go` (HTTP), `page.go` (sign-in HTML), `limiter.go` (wrong-password lock).
 
@@ -113,7 +113,7 @@ Rules:
 ## Sign-in page
 
 - Plain server-rendered HTML with `html/template`, no JavaScript, inline styles.
-- Headers: `Content-Security-Policy: default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'`, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`, `Cache-Control: no-store`.
+- Headers: `Content-Security-Policy: default-src 'none'; style-src 'unsafe-inline'; form-action 'self' <redirect origin>; frame-ancestors 'none'`, where `<redirect origin>` is the scheme and host of the request's `redirect_uri`. Chrome applies `form-action` to the redirect that follows the form post, so `'self'` alone blocks the return to the client. `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`, `Cache-Control: no-store`.
 - The form posts the original authorization parameters back with the password. The server validates the parameters again on POST.
 - An unknown `client_id` or a `redirect_uri` that does not exactly match a registered one shows an error page and never redirects.
 - Other invalid parameters redirect to `redirect_uri` with the standard `error` and `state`.
