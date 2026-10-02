@@ -149,6 +149,14 @@ func TestSetupVaultsFailsFast(t *testing.T) {
 	}
 }
 
+func TestSetupVaultsMissingPasswordNamesSetting(t *testing.T) {
+	b, _ := newTestBootstrapper(t, "echo 'Fetching vault info...'; echo 'Password not provided.'; exit 2")
+	err := b.SetupVaults(context.Background())
+	if err == nil || !strings.Contains(err.Error(), "OBSIDIAN_VAULT_PASSWORD") {
+		t.Errorf("err = %v, want mention of OBSIDIAN_VAULT_PASSWORD", err)
+	}
+}
+
 func TestSetupVaultsMkdirFailure(t *testing.T) {
 	b, _ := newTestBootstrapper(t, "exit 0")
 	blocker := filepath.Join(b.cfg.VaultsDir, "Work")
