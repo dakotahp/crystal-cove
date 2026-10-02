@@ -378,6 +378,18 @@ func TestLoadOwnerPasswordValidation(t *testing.T) {
 			m["MCP_OWNER_PASSWORD"] = testOwnerPassword
 			m["MCP_PUBLIC_URL"] = "vault.example.com"
 		}, "MCP_PUBLIC_URL must be an http(s) URL"},
+		{"public url with a path", func(m map[string]string) {
+			m["MCP_OWNER_PASSWORD"] = testOwnerPassword
+			m["MCP_PUBLIC_URL"] = "https://vault.example.com/mcp"
+		}, "must be the bare origin"},
+		{"public url with a query", func(m map[string]string) {
+			m["MCP_OWNER_PASSWORD"] = testOwnerPassword
+			m["MCP_PUBLIC_URL"] = "https://vault.example.com?x=1"
+		}, "must be the bare origin"},
+		{"public url with a fragment", func(m map[string]string) {
+			m["MCP_OWNER_PASSWORD"] = testOwnerPassword
+			m["MCP_PUBLIC_URL"] = "https://vault.example.com#top"
+		}, "must be the bare origin"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -388,6 +400,15 @@ func TestLoadOwnerPasswordValidation(t *testing.T) {
 				t.Errorf("err = %v, want mention of %q", err, c.wantErr)
 			}
 		})
+	}
+}
+
+func TestLoadOwnerPasswordAllowsTrailingSlashOrigin(t *testing.T) {
+	m := validEnv()
+	m["MCP_OWNER_PASSWORD"] = testOwnerPassword
+	m["MCP_PUBLIC_URL"] = "https://vault.example.com/"
+	if _, err := Load(env(m), rand.Reader); err != nil {
+		t.Fatalf("Load: %v", err)
 	}
 }
 

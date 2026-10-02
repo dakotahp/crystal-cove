@@ -269,7 +269,17 @@ func checkOwnerPassword(cfg *Config) error {
 	if cfg.PublicURL == "" {
 		return errors.New("MCP_PUBLIC_URL must be set when MCP_OWNER_PASSWORD is: MCP clients sign in at that address")
 	}
-	return checkHTTPSURL("MCP_PUBLIC_URL", cfg.PublicURL)
+	if err := checkHTTPSURL("MCP_PUBLIC_URL", cfg.PublicURL); err != nil {
+		return err
+	}
+	u, err := url.Parse(cfg.PublicURL)
+	if err != nil {
+		return fmt.Errorf("MCP_PUBLIC_URL is not a valid URL: %w", err)
+	}
+	if (u.Path != "" && u.Path != "/") || u.RawQuery != "" || u.Fragment != "" || u.ForceQuery {
+		return errors.New("MCP_PUBLIC_URL must be the bare origin, like https://vault.example.com, when MCP_OWNER_PASSWORD is set: the sign-in is served at the root")
+	}
+	return nil
 }
 
 func isLoopback(host string) bool {
