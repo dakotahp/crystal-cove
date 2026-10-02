@@ -22,9 +22,12 @@ Every MCP request carries a bearer token. There is no unauthenticated mode and n
   provider's published keys, with issuer, audience and expiry checked, and optional required roles (`OAUTH_REQUIRED_ROLES`) to bind the endpoint to specific principals. Without required roles, any account the provider will issue a token to is accepted, so the server warns at startup when they are unset. The server advertises RFC 9728 protected-resource metadata so clients can find the authorization server themselves.
 - Both can run side by side.
 
-Only two endpoints are unauthenticated, and neither reads the vault:
+Two endpoints are always unauthenticated, and neither reads the vault:
 `/health` reports that the process is alive, and `/ready` reports whether
-every vault has a recent sync heartbeat.
+every vault has a recent sync heartbeat. With `MCP_OWNER_PASSWORD` set, the
+sign-in endpoints (`/.well-known/oauth-authorization-server`, `/register`,
+`/authorize` and `/token`) are also reachable without a token. They read no
+vault, and they issue a token only after the owner password.
 
 ### Built-in sign-in
 
@@ -74,7 +77,7 @@ Each call writes one log line tagged `audit=true`: the tool, the caller
 time taken, and the vault and paths it named. Note text, search queries
 and edit text are never logged, and long arguments are cut short. A
 presented token that is refused is logged too, with the remote address
-and the reason but never the token, so guessing leaves a trace. A token
+and the reason but never the token, so guessing leaves a trace. Behind a reverse proxy, the logged remote address is the proxy's address. A token
 used from somewhere unexpected shows up here, so review the log with
 `docker compose logs | grep audit=true`.
 
