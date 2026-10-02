@@ -8,7 +8,10 @@ import (
 	"testing"
 )
 
-const testToken = "0123456789abcdef0123456789abcdef"
+const (
+	testToken         = "0123456789abcdef0123456789abcdef"
+	testOwnerPassword = "correct-horse-battery"
+)
 
 func env(m map[string]string) Getenv {
 	return func(key string) string { return m[key] }
@@ -319,6 +322,84 @@ func TestLoadOAuthExplicit(t *testing.T) {
 	}
 }
 
+func TestLoadOwnerPassword(t *testing.T) {
+	m := validEnv()
+	delete(m, "MCP_AUTH_TOKEN")
+	m["MCP_OWNER_PASSWORD"] = testOwnerPassword
+	m["MCP_PUBLIC_URL"] = "https://vault.example.com/"
+	cfg, err := Load(env(m), rand.Reader)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if cfg.OwnerPassword != testOwnerPassword {
+		t.Errorf("OwnerPassword = %q", cfg.OwnerPassword)
+	}
+	if cfg.PublicURL != "https://vault.example.com" {
+		t.Errorf("PublicURL = %q, want the URL without its trailing slash", cfg.PublicURL)
+	}
+}
+
+func TestLoadAuthStoreDirFollowsHomeNotVaultsDir(t *testing.T) {
+	m := validEnv()
+	m["VAULTS_DIR"] = "/data/vaults"
+	cfg, err := Load(env(m), rand.Reader)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if cfg.AuthStoreDir != "/home/test/.crystal-cove" {
+		t.Errorf("AuthStoreDir = %q, want /home/test/.crystal-cove", cfg.AuthStoreDir)
+	}
+}
+
+func TestLoadOwnerPasswordValidation(t *testing.T) {
+	cases := []struct {
+		name    string
+		mutate  func(map[string]string)
+		wantErr string
+	}{
+		{"too short", func(m map[string]string) {
+			m["MCP_OWNER_PASSWORD"] = "short"
+			m["MCP_PUBLIC_URL"] = "https://vault.example.com"
+		}, "at least 16"},
+		{"without public url", func(m map[string]string) {
+			m["MCP_OWNER_PASSWORD"] = testOwnerPassword
+		}, "MCP_PUBLIC_URL must be set"},
+		{"with an issuer", func(m map[string]string) {
+			m["MCP_OWNER_PASSWORD"] = testOwnerPassword
+			m["MCP_PUBLIC_URL"] = "https://vault.example.com"
+			m["OAUTH_ISSUER"] = "https://idp.example.com"
+			m["OAUTH_AUDIENCE"] = "crystal-cove"
+		}, "cannot both be set"},
+		{"plain-http public url off loopback", func(m map[string]string) {
+			m["MCP_OWNER_PASSWORD"] = testOwnerPassword
+			m["MCP_PUBLIC_URL"] = "http://vault.example.com"
+		}, "MCP_PUBLIC_URL must use https"},
+		{"public url that is not a url", func(m map[string]string) {
+			m["MCP_OWNER_PASSWORD"] = testOwnerPassword
+			m["MCP_PUBLIC_URL"] = "vault.example.com"
+		}, "MCP_PUBLIC_URL must be an http(s) URL"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			m := validEnv()
+			c.mutate(m)
+			_, err := Load(env(m), rand.Reader)
+			if err == nil || !strings.Contains(err.Error(), c.wantErr) {
+				t.Errorf("err = %v, want mention of %q", err, c.wantErr)
+			}
+		})
+	}
+}
+
+func TestLoadOwnerPasswordAllowsPlainHTTPOnLoopback(t *testing.T) {
+	m := validEnv()
+	m["MCP_OWNER_PASSWORD"] = testOwnerPassword
+	m["MCP_PUBLIC_URL"] = "http://127.0.0.1:8080"
+	if _, err := Load(env(m), rand.Reader); err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+}
+
 func TestLoadOAuthValidation(t *testing.T) {
 	cases := []struct {
 		name    string
@@ -327,7 +408,7 @@ func TestLoadOAuthValidation(t *testing.T) {
 	}{
 		{"no auth at all", func(m map[string]string) {
 			delete(m, "MCP_AUTH_TOKEN")
-		}, "MCP_AUTH_TOKEN or OAUTH_ISSUER"},
+		}, "MCP_OWNER_PASSWORD"},
 		{"issuer without audience", func(m map[string]string) {
 			m["OAUTH_ISSUER"] = "https://idp.example.com"
 			m["MCP_PUBLIC_URL"] = "https://obsidian.example.com"
