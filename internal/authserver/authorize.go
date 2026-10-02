@@ -26,6 +26,8 @@ type authError struct {
 var authorizeFields = []string{"response_type", "client_id", "redirect_uri", "state",
 	"code_challenge", "code_challenge_method", "scope", "resource"}
 
+// Errors with redirect false come before the redirect URI is trusted and must
+// never redirect. Errors with redirect true come with a non-nil request.
 func (s *Server) parseAuthRequest(form url.Values) (*authRequest, *authError) {
 	c, ok := s.store.client(form.Get("client_id"))
 	if !ok {

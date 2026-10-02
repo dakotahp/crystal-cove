@@ -81,8 +81,7 @@ func (s *Server) Handler(authCfg AuthConfig) http.Handler {
 			ScopesSupported:        authCfg.OIDC.Scopes,
 			BearerMethodsSupported: []string{"header"},
 		}))
-	}
-	if b := authCfg.Builtin; b != nil {
+	} else if b := authCfg.Builtin; b != nil {
 		opts.ResourceMetadataURL = b.PublicURL + metadataPath
 		mux.Handle(metadataPath, auth.ProtectedResourceMetadataHandler(&oauthex.ProtectedResourceMetadata{
 			Resource:               b.PublicURL,
