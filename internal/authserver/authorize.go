@@ -111,20 +111,21 @@ func (s *Server) authorizeSubmit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	origin, data := s.pageFor(req, form)
-	if wait := s.limiter.wait(); wait > 0 {
+	sum := sha256.Sum256([]byte(form.Get("password")))
+	wait, ok := s.limiter.attempt(func() bool {
+		return subtle.ConstantTimeCompare(sum[:], s.passwordHash[:]) == 1
+	})
+	if wait > 0 {
 		data.Message = fmt.Sprintf("Too many wrong passwords. Try again in %s.", wait.Round(time.Second))
 		renderPage(w, http.StatusTooManyRequests, origin, data)
 		return
 	}
-	sum := sha256.Sum256([]byte(form.Get("password")))
-	if subtle.ConstantTimeCompare(sum[:], s.passwordHash[:]) != 1 {
-		s.limiter.fail()
+	if !ok {
 		s.audit.Warn("sign-in failed: wrong password", "client_id", req.client.ID, "remote_addr", r.RemoteAddr)
 		data.Message = "Wrong password."
 		renderPage(w, http.StatusUnauthorized, origin, data)
 		return
 	}
-	s.limiter.succeed()
 
 	code, err := newToken(s.rand)
 	if err != nil {

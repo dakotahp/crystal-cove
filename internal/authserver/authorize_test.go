@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -274,5 +275,33 @@ func TestSignInWithoutEntropy(t *testing.T) {
 	form.Set("password", testPassword)
 	if rec := postForm(s, "/authorize", form); rec.Code != http.StatusInternalServerError {
 		t.Errorf("status = %d", rec.Code)
+	}
+}
+
+func TestConcurrentWrongPasswordsStopAtTheLock(t *testing.T) {
+	s, _ := newTestAuthServer(t)
+	id := registerPublicClient(t, s)
+	_, challenge := pkcePair(t)
+	form := authorizeForm(id, challenge)
+	form.Set("password", "wrong-password-guess")
+
+	const n = 20
+	codes := make(chan int, n)
+	var wg sync.WaitGroup
+	for range n {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			codes <- postForm(s, "/authorize", form).Code
+		}()
+	}
+	wg.Wait()
+	close(codes)
+	counts := map[int]int{}
+	for c := range codes {
+		counts[c]++
+	}
+	if counts[http.StatusUnauthorized] != 5 || counts[http.StatusTooManyRequests] != n-5 {
+		t.Errorf("status counts = %v, want 5 x 401 and %d x 429", counts, n-5)
 	}
 }

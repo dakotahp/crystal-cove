@@ -21,26 +21,21 @@ type limiter struct {
 	lockedUntil time.Time
 }
 
-func (l *limiter) wait() time.Duration {
+func (l *limiter) attempt(check func() bool) (wait time.Duration, ok bool) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	return max(l.lockedUntil.Sub(l.now()), 0)
-}
-
-func (l *limiter) fail() {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	l.failures++
-	if l.failures < freeAttempts {
-		return
+	if wait := l.lockedUntil.Sub(l.now()); wait > 0 {
+		return wait, false
 	}
-	shift := min(l.failures-freeAttempts, 6)
-	l.lockedUntil = l.now().Add(min(firstLock<<shift, maxLock))
-}
-
-func (l *limiter) succeed() {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	l.failures = 0
-	l.lockedUntil = time.Time{}
+	if check() {
+		l.failures = 0
+		l.lockedUntil = time.Time{}
+		return 0, true
+	}
+	l.failures++
+	if l.failures >= freeAttempts {
+		shift := min(l.failures-freeAttempts, 6)
+		l.lockedUntil = l.now().Add(min(firstLock<<shift, maxLock))
+	}
+	return 0, false
 }
