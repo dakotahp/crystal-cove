@@ -9,10 +9,11 @@ Crystal Cove reads all of its settings from environment variables. With Docker C
 | `OBSIDIAN_AUTH_TOKEN` | no | An existing `obsidian-headless` session token, used instead of email and password. Required for accounts with MFA enabled. |
 | `OBSIDIAN_VAULTS` | yes | Comma-separated remote vault names, each optionally `Name:encryption-password`. |
 | `OBSIDIAN_VAULT_PASSWORD` | no | End-to-end encryption password applied to vaults that don't carry their own. |
-| `MCP_AUTH_TOKEN` | yes* | Static bearer token (API key) clients may present. At least 32 characters (`openssl rand -hex 32`); the server refuses to start with a shorter one. Optional when `OAUTH_ISSUER` is set; at least one of the two is required. |
+| `MCP_AUTH_TOKEN` | yes* | Static bearer token (API key) clients may present. At least 32 characters (`openssl rand -hex 32`); the server refuses to start with a shorter one. Optional when `OAUTH_ISSUER` or `MCP_OWNER_PASSWORD` is set; at least one of the three is required. |
+| `MCP_OWNER_PASSWORD` | no | Turns on the built-in OAuth sign-in, see [OAuth](oauth.md). At least 16 characters. Requires `MCP_PUBLIC_URL`; cannot be combined with `OAUTH_ISSUER`. Changing it signs every app out. |
 | `OAUTH_ISSUER` | no | OpenID Connect issuer URL. Setting it delegates auth to that provider, see [OAuth](oauth.md). Must be `https`, except on a loopback host. |
 | `OAUTH_AUDIENCE` | with `OAUTH_ISSUER` | Audience tokens must carry in `aud` (or `azp`, the authorized-party fallback used by e.g. Keycloak client tokens). |
-| `MCP_PUBLIC_URL` | with `OAUTH_ISSUER` | This server's canonical public URL, used as the protected-resource identifier. |
+| `MCP_PUBLIC_URL` | with `OAUTH_ISSUER` or `MCP_OWNER_PASSWORD` | This server's canonical public URL: the protected-resource identifier, and the built-in sign-in's issuer. Must be `https`, except on a loopback host. |
 | `OAUTH_INTERNAL_ISSUER` | no | Alternative base URL for fetching discovery/JWKS (e.g. cluster-internal). The discovery document must still report `OAUTH_ISSUER` as its issuer. |
 | `OAUTH_SCOPES` | no | Comma-separated scopes advertised as `scopes_supported`. Default `openid,profile,email`. |
 | `OAUTH_REQUIRED_ROLES` | no | Comma-separated roles the token must **all** carry (Keycloak `realm_access`/`resource_access`, or a flat `roles` claim), in addition to a valid audience. Empty (default) = audience-only, and the server logs a warning at startup. Recommended: without it, anyone who can get a token for the audience from your provider, which with open sign-up means anyone, can use every tool. |

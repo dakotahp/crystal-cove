@@ -26,6 +26,10 @@ Only two endpoints are unauthenticated, and neither reads the vault:
 `/health` reports that the process is alive, and `/ready` reports whether
 every vault has a recent sync heartbeat.
 
+### Built-in sign-in
+
+With `MCP_OWNER_PASSWORD`, the server issues its own OAuth tokens. Tokens are 32 random bytes, and only their SHA-256 hashes are stored, in `auth.json` beside the vaults with mode 0600. Authorization codes last 60 seconds and work once. A second use revokes the sign-in it created, but only when the request also passes the client and PKCE checks, so a guess with a wrong verifier burns nothing. Access tokens last one hour and live only in memory. Refresh tokens rotate on every use. A reused one revokes its sign-in at once, even if the disk write fails. Every sign-in ends after 90 days. PKCE S256 is required, and redirect URIs must match a registered https (or loopback http) address exactly. The sign-in page cannot be framed. After five wrong passwords it locks for one minute, doubling up to one hour. Attempts are counted atomically, so parallel guesses cannot get past the lock. The lock is one counter for the whole server, so during an attack it also locks out the owner until it expires. Changing the password deletes every sign-in at the next start.
+
 ### TLS is the operator's job, and it is required
 
 The container speaks plain HTTP on port 8080. Credentials travel in a

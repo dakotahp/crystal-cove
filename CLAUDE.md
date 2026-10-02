@@ -18,11 +18,12 @@ An internet-hostable MCP server for Obsidian vaults. One Docker container:
 Deliberate MVP boundaries (do not "fix" these without being asked):
 
 - Text/markdown only; no charts, canvases, or attachments handling.
-- Auth is a static bearer token (`MCP_AUTH_TOKEN`), an OIDC provider
-  (`OAUTH_ISSUER` + `OAUTH_AUDIENCE` + `MCP_PUBLIC_URL`), or both. OIDC is
-  provider-agnostic: discovery + JWKS only, validated in
-  `internal/oidcauth`; the server advertises RFC 9728 protected-resource
-  metadata so MCP clients can bootstrap the OAuth flow.
+- Auth is a static bearer token (`MCP_AUTH_TOKEN`), plus either the built-in
+  owner-password sign-in (`MCP_OWNER_PASSWORD` + `MCP_PUBLIC_URL`,
+  `internal/authserver`) or an OIDC provider (`OAUTH_ISSUER` +
+  `OAUTH_AUDIENCE` + `MCP_PUBLIC_URL`, validated in `internal/oidcauth`),
+  never both. The server advertises RFC 9728 protected-resource metadata so
+  MCP clients can bootstrap the OAuth flow.
 - Obsidian account auth is either `OBSIDIAN_EMAIL` + `OBSIDIAN_PASSWORD`, or
   `OBSIDIAN_AUTH_TOKEN` (an existing `ob` session token). Accounts with MFA
   must use the token: `ob login` would prompt for a code that nothing can
@@ -69,6 +70,10 @@ internal/oidcauth/     OIDC bearer-token validation for any compliant IdP:
                        discovery (with internal-issuer override), JWKS via
                        go-oidc, audience check with Keycloak-style azp
                        fallback; tests run a real fake IdP over httptest
+internal/authserver/   built-in OAuth server for one owner: RFC 8414
+                       metadata, dynamic registration, a password sign-in
+                       page, PKCE, rotating refresh tokens with reuse
+                       detection; clients and grants in ~/.crystal-cove
 internal/server/       MCP tool registration (official modelcontextprotocol/
                        go-sdk, typed handlers), HTTP handler with bearer auth
                        middleware, process /health, and sync-aware /ready
