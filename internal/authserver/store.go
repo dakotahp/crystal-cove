@@ -126,6 +126,23 @@ func (s *store) saveLocked() error {
 	return nil
 }
 
+func (s *store) deepCopyData() storeData {
+	cp := s.data
+	cp.Clients = make([]*client, len(s.data.Clients))
+	for i, c := range s.data.Clients {
+		cc := *c
+		cc.RedirectURIs = slices.Clone(c.RedirectURIs)
+		cp.Clients[i] = &cc
+	}
+	cp.Grants = make([]*grant, len(s.data.Grants))
+	for i, g := range s.data.Grants {
+		gg := *g
+		gg.UsedHashes = slices.Clone(g.UsedHashes)
+		cp.Grants[i] = &gg
+	}
+	return cp
+}
+
 func (s *store) expired(g *grant) bool {
 	return s.now().Sub(g.CreatedAt) > grantLifetime
 }
@@ -147,8 +164,13 @@ func (s *store) addClient(c *client) error {
 		}
 		s.data.Clients = slices.Delete(s.data.Clients, i, i+1)
 	}
+	saved := s.deepCopyData()
 	s.data.Clients = append(s.data.Clients, c)
-	return s.saveLocked()
+	if err := s.saveLocked(); err != nil {
+		s.data = saved
+		return err
+	}
+	return nil
 }
 
 func (s *store) client(id string) (*client, bool) {
@@ -166,8 +188,13 @@ func (s *store) client(id string) (*client, bool) {
 func (s *store) createGrant(g *grant) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	saved := s.deepCopyData()
 	s.data.Grants = append(s.data.Grants, g)
-	return s.saveLocked()
+	if err := s.saveLocked(); err != nil {
+		s.data = saved
+		return err
+	}
+	return nil
 }
 
 func (s *store) hasGrant(id string) bool {
@@ -180,11 +207,16 @@ func (s *store) revokeGrant(id string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	before := len(s.data.Grants)
+	saved := s.deepCopyData()
 	s.data.Grants = slices.DeleteFunc(s.data.Grants, func(g *grant) bool { return g.ID == id })
 	if len(s.data.Grants) == before {
 		return nil
 	}
-	return s.saveLocked()
+	if err := s.saveLocked(); err != nil {
+		s.data = saved
+		return err
+	}
+	return nil
 }
 
 // rotate replaces the refresh token oldHash of clientID's grant with
@@ -196,17 +228,32 @@ func (s *store) rotate(clientID, oldHash, newHash string) (grant, error) {
 	for i, g := range s.data.Grants {
 		switch {
 		case slices.Contains(g.UsedHashes, oldHash):
+			saved := s.deepCopyData()
 			s.data.Grants = slices.Delete(s.data.Grants, i, i+1)
-			return *g, errors.Join(errRefreshReused, s.saveLocked())
+			saveErr := s.saveLocked()
+			if saveErr != nil {
+				s.data = saved
+			}
+			return *g, errors.Join(errRefreshReused, saveErr)
 		case g.RefreshHash != oldHash || g.ClientID != clientID:
 			continue
 		case s.expired(g):
+			saved := s.deepCopyData()
 			s.data.Grants = slices.Delete(s.data.Grants, i, i+1)
-			return *g, errors.Join(errGrantExpired, s.saveLocked())
+			saveErr := s.saveLocked()
+			if saveErr != nil {
+				s.data = saved
+			}
+			return *g, errors.Join(errGrantExpired, saveErr)
 		}
+		saved := s.deepCopyData()
 		g.UsedHashes = append(g.UsedHashes, oldHash)
 		g.RefreshHash = newHash
-		return *g, s.saveLocked()
+		if err := s.saveLocked(); err != nil {
+			s.data = saved
+			return *g, err
+		}
+		return *g, nil
 	}
 	return grant{}, errUnknownRefresh
 }

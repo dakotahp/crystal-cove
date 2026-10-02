@@ -316,3 +316,42 @@ func TestStoreReportsWriteFailure(t *testing.T) {
 		t.Error("addClient succeeded in a read-only folder")
 	}
 }
+
+func TestRotateRestoresStateOnWriteFailure(t *testing.T) {
+	dir, clock := t.TempDir(), newTestClock()
+	st := openTestStore(t, dir, "owner-password-1", clock)
+	if err := st.createGrant(&grant{ID: "g1", ClientID: "c1", CreatedAt: clock.now(), RefreshHash: "r1"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(dir, 0o500); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(dir, 0o700) })
+	if _, err := st.rotate("c1", "r1", "r2"); err == nil {
+		t.Error("rotate succeeded in a read-only folder")
+	}
+	if err := os.Chmod(dir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := st.rotate("c1", "r1", "r3"); err != nil {
+		t.Errorf("rotate with original token after restore: %v", err)
+	}
+}
+
+func TestAddClientRestoresStateOnWriteFailure(t *testing.T) {
+	dir, clock := t.TempDir(), newTestClock()
+	st := openTestStore(t, dir, "owner-password-1", clock)
+	if err := os.Chmod(dir, 0o500); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(dir, 0o700) })
+	if err := st.addClient(&client{ID: "c1", AuthMethod: "none"}); err == nil {
+		t.Error("addClient succeeded in a read-only folder")
+	}
+	if err := os.Chmod(dir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := st.client("c1"); ok {
+		t.Error("client was restored after failed addClient")
+	}
+}
