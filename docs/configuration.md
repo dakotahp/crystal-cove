@@ -18,7 +18,8 @@ Crystal Cove reads all of its settings from environment variables. With Docker C
 | `OAUTH_REQUIRED_ROLES` | no | Comma-separated roles the token must **all** carry (Keycloak `realm_access`/`resource_access`, or a flat `roles` claim), in addition to a valid audience. Empty (default) = audience-only, and the server logs a warning at startup. Recommended: without it, anyone who can get a token for the audience from your provider, which with open sign-up means anyone, can use every tool. |
 | `OBSIDIAN_DEVICE_NAME` | no | Device name shown in sync version history. Defaults to `CrystalCove-` plus 8 random hex characters; set it explicitly so restarts reuse one device identity. |
 | `VAULTS_DIR` | no | Where vaults are synced locally. Defaults to `~/vaults`. |
-| `PORT` | no | With Docker Compose, the host port to publish (default `8080`). Without Compose, the port the server listens on. |
+| `HOST_PORT` | no | Docker Compose only: the host port to publish (default `8080`). The container always listens on 8080. |
+| `PORT` | no | Without Compose, the port the server listens on (default `8080`). With Compose, the container always uses 8080, and `PORT` in `.env` still works as the host port when `HOST_PORT` is not set. |
 | `BIND_ADDRESS` | no | Docker Compose only: the host address to publish on. Defaults to `127.0.0.1`, so only this machine can reach the plain-HTTP port. `0.0.0.0` exposes it to every network the host is on. |
 | `MCP_READ_ONLY` | no | `true` leaves out every tool that changes a note, so clients can only read and search. Default `false`. |
 | `MCP_ALLOW_PERMANENT_DELETE` | no | `true` lets `delete_note` remove notes outright, including notes already in `.trash`. Default `false`: deletes only move notes to `.trash`. |

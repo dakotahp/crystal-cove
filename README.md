@@ -71,51 +71,57 @@ Both keep the vault in sync through native Obsidian Sync, so a note written by a
 
 ## Installation
 
-Any usage of this project requires Docker and an [Obsidian Sync](https://obsidian.md/sync) subscription. Multi-factor authentication and an end-to-end encryption password for your vault are supported.
+Any usage of this project requires Docker and an [Obsidian Sync](https://obsidian.md/sync) subscription. You don't need to clone this repository: the published image and one compose file are enough. Multi-factor authentication and end-to-end encrypted vaults are supported.
 
-Regardless of where you run the service (locally or remotely), the first step is configuring authentication. Clone this repository, then create a `.env` file next to `docker-compose.yml` with the following values or copy the [example file](.env.example):
+**1. Download the compose file** into a new folder:
 
 ```sh
-# You ONLY need option A OR B, not both. Comment out one or the other with # in front to disable the respective one.
+mkdir crystal-cove && cd crystal-cove
+curl -O https://raw.githubusercontent.com/dakotahp/crystal-cove/master/docker-compose.yml
+```
 
-## Option A: when your Obsidian Sync account does NOT have MFA
-OBSIDIAN_EMAIL=you@example.com
-OBSIDIAN_PASSWORD=your-account-password
+**2. Log in to Obsidian Sync.** The image contains Obsidian's official headless client, so you don't need Node or anything else installed. This prompts for your email, password, and MFA code if you have one, then prints a session token:
 
-## Option B: when your Obsidian Sync account DOES have MFA
+```sh
+docker run --rm -it ghcr.io/dakotahp/crystal-cove:latest \
+  sh -c 'ob login && cat ~/.config/obsidian-headless/auth_token'
+```
+
+Run this on the machine where the container will run. Each login is its own Obsidian Sync device, and a new login does not sign out your other devices. If the token ever stops working, repeat this step.
+
+**3. Find your vault's name** as Obsidian Sync spells it:
+
+```sh
+docker run --rm -e OBSIDIAN_AUTH_TOKEN=<token from step 2> \
+  ghcr.io/dakotahp/crystal-cove:latest ob sync-list-remote
+```
+
+The list also shows an ID for each vault. You only need the name.
+
+**4. Create a `.env` file** next to `docker-compose.yml`. Setup involves three different secrets, so each one is labelled with what it unlocks:
+
+```sh
+# Unlocks your Obsidian account: the token from step 2.
 OBSIDIAN_AUTH_TOKEN=
 
-# Set to the name of your vault that Obsidian Sync knows
-OBSIDIAN_VAULTS=Default
+# The vault name from step 3.
+OBSIDIAN_VAULTS=Personal
 
-# Only if the vault has an end-to-end encryption password
+# Unlocks an end-to-end encrypted vault. Not your account password.
 #OBSIDIAN_VAULT_PASSWORD=
-```
 
-Option A with email and password is self-explanatory. If your account has MFA (multi-factor authentication) enabled, use option B. Log in once on *any* machine with the official headless client and answer the MFA prompt, then copy the token it saved:
-
-```sh
-npx -y obsidian-headless login
-cat ~/.obsidian-headless/auth_token          # macOS
-cat ~/.config/obsidian-headless/auth_token   # Linux
-```
-
-The container then skips logging in and uses that session. Repeat the step if the token ever stops working.
-
-Not sure of the vault's name? `OBSIDIAN_AUTH_TOKEN=... npx -y obsidian-headless sync-list-remote --json` lists your vaults as Obsidian Sync spells them.
-
-Now follow the section for where you run it.
-
-### Local
-
-**1. Add a token for your agents** to `.env`. Agents send it with every request, so other programs on your computer cannot use the server.
-
-```sh
-# Paste the output of: openssl rand -hex 32
+# Unlocks this server: the password your AI clients send.
+# Make one with: openssl rand -hex 32
 MCP_AUTH_TOKEN=
 ```
 
-**2. Start it and wait for the first sync:**
+**Is your vault end-to-end encrypted?** If you chose an encryption password when you set up Obsidian Sync for it, yes. Then set `OBSIDIAN_VAULT_PASSWORD`, or the container stops with "Password not provided".
+
+The [example file](.env.example) lists every option, including logging in with email and password instead of a token. Now follow the section for where you run it.
+
+### Local
+
+**1. Start it and wait for the first sync:**
 
 ```sh
 docker compose up -d
@@ -123,9 +129,9 @@ docker compose logs -f          # wait for "Fully synced", then Ctrl-C
 curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8080/ready   # 200
 ```
 
-The first sync downloads the whole vault into a Docker volume, so a large vault takes a few minutes. Set `PORT` in `.env` if 8080 is already taken.
+The first sync downloads the whole vault into a Docker volume, so a large vault takes a few minutes. If port 8080 is already taken, set `HOST_PORT` in `.env` to another port, and use that port in the URLs here.
 
-**3. Point an agent at it.** For Claude Code:
+**2. Point an agent at it.** For Claude Code:
 
 ```sh
 claude mcp add --scope user --transport http obsidian http://127.0.0.1:8080/ \
@@ -144,9 +150,9 @@ Other MCP clients take the same URL and `Authorization` header over "Streamable 
 
 Do this when you want your vault from a phone, from claude.ai in a browser, or from agents that run while your computer is off.
 
-**1. Pick a host** that can run a container and be reached over HTTPS. TLS is required, because tokens travel in a header. A reverse proxy (Caddy, Traefik, nginx), a platform ingress, or a [Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/) all work. Point it at `127.0.0.1:8080`, where the container speaks plain HTTP. Do not set `BIND_ADDRESS=0.0.0.0`: that exposes the endpoint directly, without TLS.
+**1. Pick a host** that can run a container and be reached over HTTPS. TLS is required, because tokens travel in a header. A reverse proxy (Caddy, Traefik, nginx), a platform ingress, or a [Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/) all work. Point it at `127.0.0.1:8080`, where the container speaks plain HTTP, or at the port you set with `HOST_PORT`. Do not set `BIND_ADDRESS=0.0.0.0`: that exposes the endpoint directly, without TLS.
 
-**2. Give the server its own sync login.** Run the `npx -y obsidian-headless login` step above on the server, so it has a token of its own. A new login does not sign out your other devices. Also name the device, so Obsidian Sync version history shows which edits came from the server:
+**2. Name the device** in `.env`, so Obsidian Sync version history shows which edits came from the server:
 
 ```sh
 OBSIDIAN_DEVICE_NAME=crystal-cove
@@ -161,19 +167,28 @@ MCP_PUBLIC_URL=https://obsidian.example.com
 OAUTH_REQUIRED_ROLES=vault-owner
 ```
 
-Keep an `MCP_AUTH_TOKEN` too if you also want to connect Claude Code or scripts with a plain token.
+Keep an `MCP_AUTH_TOKEN` too if you also want to connect Claude Code or scripts with a plain token. With a shim, `MCP_AUTH_TOKEN` must be the token the shim hands out.
 
-**4. Start it and wait for the first sync:**
+**4. Start it and wait for the first sync.** Check readiness on the server itself:
 
 ```sh
 docker compose up -d
 docker compose logs -f          # wait for "Fully synced", then Ctrl-C
-curl -s -o /dev/null -w '%{http_code}\n' https://obsidian.example.com/ready   # 200
+curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8080/ready   # 200
 ```
+
+Then check the public URL. `/ready` needs no token, but a proxy that checks the token itself answers 401 without one, so send it either way:
+
+```sh
+curl -s -o /dev/null -w '%{http_code}\n' \
+  -H "Authorization: Bearer $MCP_AUTH_TOKEN" https://obsidian.example.com/ready   # 200
+```
+
+A 502 here means the proxy cannot reach the container: check that it points at the same port as `HOST_PORT`.
 
 **5. Connect your assistant.**
 
-- **claude.ai / Claude Desktop / Claude mobile:** add a custom connector with URL `https://obsidian.example.com/`. It finds the OAuth flow and signs you in.
+- **claude.ai / Claude Desktop / Claude mobile:** add a custom connector with URL `https://obsidian.example.com/`. It finds the OAuth flow and signs you in. With a shim that uses a fixed client, enter its client ID and secret under Advanced settings.
 - **ChatGPT:** add an MCP connector (Settings → Connectors) with the same URL.
 - **Claude Code:** the same `claude mcp add` command as the local setup, with your server's URL.
 

@@ -7,6 +7,12 @@ Both endpoints need no authentication.
 - `GET /health` checks only that the HTTP process is up.
 - `GET /ready` requires a fresh `Fully synced` heartbeat from every vault.
 
+A reverse proxy that checks the bearer token itself answers 401 to these paths when the request has no token. Probe them on the host (`http://127.0.0.1:8080/ready`), or send the token through the proxy.
+
+## Logs
+
+The sync client prints `Fully synced` every 30 seconds. The server shows that line only after other sync activity, such as a download, so the logs record each time sync caught up without repeating it. The heartbeat still counts toward `/ready` every time. To find the server's own startup lines, filter the logs: `docker compose logs | grep level=`.
+
 Point probes that restart the container at `/health`, so a network blip that stalls sync does not restart the whole container.
 
 ## Startup and sync recovery

@@ -1,20 +1,19 @@
 services:
   crystal-cove:
-    build: .
     image: ghcr.io/dakotahp/crystal-cove:latest
     restart: unless-stopped
     env_file:
       - path: .env
         required: false
     environment:
-      # The container always listens on 8080; PORT in .env only selects the
-      # published host port below.
+      # The port inside the container. Leave it at 8080: to change the port
+      # on the host, set HOST_PORT in .env instead.
       PORT: 8080
     ports:
       # Loopback by default: the container speaks plain HTTP, so only a
       # reverse proxy or tunnel on this host should reach it. Set
       # BIND_ADDRESS=0.0.0.0 only on a trusted network.
-      - "${BIND_ADDRESS:-127.0.0.1}:${PORT:-8080}:8080"
+      - "${BIND_ADDRESS:-127.0.0.1}:${HOST_PORT:-${PORT:-8080}}:8080"
     # Only the vaults volume is writable. The sync client writes nothing
     # outside its home folder; /tmp is a small in-memory safety net.
     read_only: true
