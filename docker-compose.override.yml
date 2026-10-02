@@ -1,0 +1,6 @@
+# Compose loads this file automatically in a clone of the repository, so
+# `docker compose up --build` runs the local source instead of the
+# published image. Installs that download only docker-compose.yml skip it.
+services:
+  crystal-cove:
+    build: .

@@ -8,7 +8,10 @@ Suggestions and proposals are welcome. Create an issue and @ mention me to notif
 go test ./...                       # requires ripgrep on PATH for integration tests
 go test ./... -coverprofile=coverage.out && go tool cover -func=coverage.out
 docker build -t crystal-cove .
+docker compose up -d --build        # runs your local source
 ```
+
+`docker-compose.yml` pulls the published image, because people install by downloading only that file. In a clone, Compose also loads `docker-compose.override.yml`, which builds the image from your local source instead.
 
 The table of contents at the top of this README is generated. After you add or rename a heading, run `node scripts/generate-toc.js` (Node 18 or newer) and commit the result.
 

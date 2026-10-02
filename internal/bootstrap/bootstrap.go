@@ -120,6 +120,11 @@ func (b *Bootstrapper) SetupVaults(ctx context.Context) error {
 			args = append(args, "--password", v.Password)
 		}
 		if err := b.runOb(ctx, args, []string{"--password"}); err != nil {
+			if strings.Contains(err.Error(), "Password not provided") {
+				return fmt.Errorf("ob sync-setup failed for vault %q: the vault is end-to-end encrypted; "+
+					"set OBSIDIAN_VAULT_PASSWORD, or give this vault its own password as %s:password in OBSIDIAN_VAULTS: %w",
+					v.Name, v.Name, err)
+			}
 			return fmt.Errorf("ob sync-setup failed for vault %q: %w", v.Name, err)
 		}
 	}
@@ -166,6 +171,7 @@ func (b *Bootstrapper) runContinuousSync(ctx context.Context, v config.Vault) er
 	cmd := exec.CommandContext(childCtx, b.binary, "sync", "--continuous", "--path", b.VaultPath(v)) // #nosec G204 -- fixed binary, arguments passed without a shell
 	cmd.Env = obEnv()
 	output := b.observedSyncOutput(v.Name)
+	defer output.flush()
 	cmd.Stdout = output
 	cmd.Stderr = output
 	b.syncStarted(v.Name)
