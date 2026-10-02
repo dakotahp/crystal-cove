@@ -73,7 +73,20 @@ func (s *Server) register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.audit.Info("client registered", "client_id", id, "client_name", meta.ClientName)
-	writeJSON(w, http.StatusCreated, &resp)
+	body, err := json.Marshal(&resp)
+	if err != nil {
+		s.serverError(w, err)
+		return
+	}
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(body, &fields); err != nil {
+		s.serverError(w, err)
+		return
+	}
+	if resp.ClientSecret != "" {
+		fields["client_secret_expires_at"] = json.RawMessage("0")
+	}
+	writeJSON(w, http.StatusCreated, fields)
 }
 
 func checkRedirectURI(raw string) error {

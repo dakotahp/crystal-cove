@@ -38,6 +38,9 @@ func TestRegisterPublicClient(t *testing.T) {
 	if id == "" || out["client_secret"] != nil {
 		t.Fatalf("response = %v, want a client_id and no secret", out)
 	}
+	if _, present := out["client_secret_expires_at"]; present {
+		t.Errorf("response = %v, want no client_secret_expires_at without a secret", out)
+	}
 	c, ok := s.store.client(id)
 	if !ok || c.Name != "Claude" || c.AuthMethod != "none" {
 		t.Errorf("stored client = %+v", c)
@@ -53,6 +56,9 @@ func TestRegisterDefaultsToSecretBasic(t *testing.T) {
 	secret, _ := out["client_secret"].(string)
 	if out["token_endpoint_auth_method"] != "client_secret_basic" || secret == "" {
 		t.Fatalf("response = %v, want client_secret_basic with a secret", out)
+	}
+	if v, present := out["client_secret_expires_at"]; !present || v != float64(0) {
+		t.Errorf("client_secret_expires_at = %v (present %v), want 0", v, present)
 	}
 	c, _ := s.store.client(out["client_id"].(string))
 	if c.SecretHash != hashToken(secret) {
