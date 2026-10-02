@@ -355,3 +355,29 @@ func TestAddClientRestoresStateOnWriteFailure(t *testing.T) {
 		t.Error("client was restored after failed addClient")
 	}
 }
+
+func TestAddClientRestoresEvictionOnWriteFailure(t *testing.T) {
+	dir, clock := t.TempDir(), newTestClock()
+	st := openTestStore(t, dir, "owner-password-1", clock)
+	for i := range maxClients {
+		if err := st.addClient(&client{ID: fmt.Sprintf("c%d", i), AuthMethod: "none"}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.Chmod(dir, 0o500); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(dir, 0o700) })
+	if err := st.addClient(&client{ID: "new", AuthMethod: "none"}); err == nil {
+		t.Error("addClient succeeded in a read-only folder")
+	}
+	if err := os.Chmod(dir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := st.client("c0"); !ok {
+		t.Error("evicted client c0 was not restored")
+	}
+	if _, ok := st.client("new"); ok {
+		t.Error("new client was added after failed save")
+	}
+}

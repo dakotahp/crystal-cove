@@ -154,6 +154,7 @@ func (s *store) pruneLocked() {
 func (s *store) addClient(c *client) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	saved := s.deepCopyData()
 	s.pruneLocked()
 	if len(s.data.Clients) >= maxClients {
 		i := slices.IndexFunc(s.data.Clients, func(c *client) bool {
@@ -164,7 +165,6 @@ func (s *store) addClient(c *client) error {
 		}
 		s.data.Clients = slices.Delete(s.data.Clients, i, i+1)
 	}
-	saved := s.deepCopyData()
 	s.data.Clients = append(s.data.Clients, c)
 	if err := s.saveLocked(); err != nil {
 		s.data = saved
@@ -233,8 +233,9 @@ func (s *store) rotate(clientID, oldHash, newHash string) (grant, error) {
 			saveErr := s.saveLocked()
 			if saveErr != nil {
 				s.data = saved
+				return grant{}, errors.Join(errRefreshReused, saveErr)
 			}
-			return *g, errors.Join(errRefreshReused, saveErr)
+			return *g, errRefreshReused
 		case g.RefreshHash != oldHash || g.ClientID != clientID:
 			continue
 		case s.expired(g):
@@ -243,15 +244,16 @@ func (s *store) rotate(clientID, oldHash, newHash string) (grant, error) {
 			saveErr := s.saveLocked()
 			if saveErr != nil {
 				s.data = saved
+				return grant{}, errors.Join(errGrantExpired, saveErr)
 			}
-			return *g, errors.Join(errGrantExpired, saveErr)
+			return *g, errGrantExpired
 		}
 		saved := s.deepCopyData()
 		g.UsedHashes = append(g.UsedHashes, oldHash)
 		g.RefreshHash = newHash
 		if err := s.saveLocked(); err != nil {
 			s.data = saved
-			return *g, err
+			return grant{}, err
 		}
 		return *g, nil
 	}
