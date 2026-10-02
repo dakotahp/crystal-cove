@@ -52,6 +52,7 @@ type pendingCode struct {
 	challenge   string
 	expires     time.Time
 	grantID     string
+	reused      bool
 }
 
 type accessToken struct {

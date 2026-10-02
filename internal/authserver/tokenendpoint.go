@@ -74,44 +74,79 @@ func (s *Server) exchangeCode(w http.ResponseWriter, r *http.Request, c *client)
 
 	s.mu.Lock()
 	pc, ok := s.codes[hashToken(form.Get("code"))]
-	var reusedGrant string
+	var snapshot pendingCode
 	if ok {
-		reusedGrant = pc.grantID
-		if reusedGrant == "" {
-			pc.grantID = grantID
-		}
+		snapshot = *pc
 	}
 	s.mu.Unlock()
 
 	switch {
-	case reusedGrant != "":
-		if err := s.store.revokeGrant(reusedGrant); err != nil {
+	case !ok || !s.now().Before(snapshot.expires):
+		oauthError(w, http.StatusBadRequest, "invalid_grant", "unknown or expired authorization code")
+		return
+	case snapshot.clientID != c.ID:
+		oauthError(w, http.StatusBadRequest, "invalid_grant", "the authorization code was issued to another client")
+		return
+	case form.Get("redirect_uri") != "" && form.Get("redirect_uri") != snapshot.redirectURI:
+		oauthError(w, http.StatusBadRequest, "invalid_grant", "redirect_uri does not match the authorization request")
+		return
+	case !verifyPKCE(form.Get("code_verifier"), snapshot.challenge):
+		oauthError(w, http.StatusBadRequest, "invalid_grant", "code_verifier does not match code_challenge")
+		return
+	}
+
+	if prior, claimed := s.claimCode(pc, grantID); !claimed {
+		if err := s.store.revokeGrant(prior); err != nil {
 			s.serverError(w, err)
 			return
 		}
 		s.audit.Warn("authorization code used twice: sign-in revoked", "client_id", c.ID)
 		oauthError(w, http.StatusBadRequest, "invalid_grant", "the authorization code was already used")
 		return
-	case !ok || !s.now().Before(pc.expires):
-		oauthError(w, http.StatusBadRequest, "invalid_grant", "unknown or expired authorization code")
-		return
-	case pc.clientID != c.ID:
-		oauthError(w, http.StatusBadRequest, "invalid_grant", "the authorization code was issued to another client")
-		return
-	case form.Get("redirect_uri") != "" && form.Get("redirect_uri") != pc.redirectURI:
-		oauthError(w, http.StatusBadRequest, "invalid_grant", "redirect_uri does not match the authorization request")
-		return
-	case !verifyPKCE(form.Get("code_verifier"), pc.challenge):
-		oauthError(w, http.StatusBadRequest, "invalid_grant", "code_verifier does not match code_challenge")
-		return
 	}
 
 	g := &grant{ID: grantID, ClientID: c.ID, CreatedAt: s.now(), RefreshHash: hashToken(refresh)}
 	if err := s.store.createGrant(g); err != nil {
+		s.releaseCode(pc)
 		s.serverError(w, err)
 		return
 	}
+	if s.codeReused(pc) {
+		if err := s.store.revokeGrant(grantID); err != nil {
+			s.serverError(w, err)
+			return
+		}
+		s.audit.Warn("authorization code used twice: sign-in revoked", "client_id", c.ID)
+		oauthError(w, http.StatusBadRequest, "invalid_grant", "the authorization code was already used")
+		return
+	}
 	s.issue(w, grantID, access, refresh)
+}
+
+// claimCode runs after the request passed every check, so a second claim is
+// real reuse: it marks the code so the first request revokes its own grant
+// when it finds the mark after creating it.
+func (s *Server) claimCode(pc *pendingCode, grantID string) (prior string, claimed bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if pc.grantID != "" {
+		pc.reused = true
+		return pc.grantID, false
+	}
+	pc.grantID = grantID
+	return "", true
+}
+
+func (s *Server) releaseCode(pc *pendingCode) {
+	s.mu.Lock()
+	pc.grantID = ""
+	s.mu.Unlock()
+}
+
+func (s *Server) codeReused(pc *pendingCode) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return pc.reused
 }
 
 func (s *Server) refresh(w http.ResponseWriter, r *http.Request, c *client) {
@@ -124,10 +159,12 @@ func (s *Server) refresh(w http.ResponseWriter, r *http.Request, c *client) {
 	g, err := s.store.rotate(c.ID, hashToken(r.PostForm.Get("refresh_token")), hashToken(refresh))
 	switch {
 	case errors.Is(err, errRefreshReused):
+		s.logSaveFailure(err, errRefreshReused, c.ID)
 		s.audit.Warn("refresh token used twice: sign-in revoked", "client_id", c.ID)
 		oauthError(w, http.StatusBadRequest, "invalid_grant", "the refresh token was already used; sign in again")
 		return
 	case errors.Is(err, errGrantExpired):
+		s.logSaveFailure(err, errGrantExpired, c.ID)
 		s.audit.Info("sign-in expired", "client_id", c.ID)
 		oauthError(w, http.StatusBadRequest, "invalid_grant", "the sign-in expired; sign in again")
 		return
@@ -140,6 +177,18 @@ func (s *Server) refresh(w http.ResponseWriter, r *http.Request, c *client) {
 	}
 	s.audit.Info("token refreshed", "client_id", c.ID)
 	s.issue(w, g.ID, access, refresh)
+}
+
+func (s *Server) logSaveFailure(err, sentinel error, clientID string) {
+	joined, ok := err.(interface{ Unwrap() []error })
+	if !ok {
+		return
+	}
+	for _, e := range joined.Unwrap() {
+		if e != sentinel {
+			s.audit.Error("auth store save failed; sign-in revoked in memory only", "client_id", clientID, "error", e.Error())
+		}
+	}
 }
 
 func (s *Server) issue(w http.ResponseWriter, grantID, access, refresh string) {

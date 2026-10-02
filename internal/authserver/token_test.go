@@ -1,12 +1,15 @@
 package authserver
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"encoding/json"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"strings"
 	"testing"
 )
@@ -279,4 +282,89 @@ func FuzzTokenEndpoint(f *testing.F) {
 			t.Fatalf("body %q: status %d, want 400 or 401", body, rec.Code)
 		}
 	})
+}
+
+func TestFailedExchangeLeavesTheCodeUsable(t *testing.T) {
+	s, _ := newTestAuthServer(t)
+	id := registerPublicClient(t, s)
+	verifier, challenge := pkcePair(t)
+	code := signIn(t, s, id, challenge)
+	bad := exchangeForm(id, code, strings.Repeat("a", 43))
+	if status, _ := postToken(t, s, bad); status != http.StatusBadRequest {
+		t.Fatalf("wrong verifier: %d", status)
+	}
+	if status, out := postToken(t, s, exchangeForm(id, code, verifier)); status != http.StatusOK {
+		t.Errorf("valid exchange after a failed one: %d %+v", status, out)
+	}
+}
+
+func TestCodeReuseWithoutThePKCEVerifierDoesNotRevoke(t *testing.T) {
+	s, _ := newTestAuthServer(t)
+	id := registerPublicClient(t, s)
+	other := registerPublicClient(t, s)
+	verifier, challenge := pkcePair(t)
+	code := signIn(t, s, id, challenge)
+	_, first := postToken(t, s, exchangeForm(id, code, verifier))
+	postToken(t, s, exchangeForm(id, code, strings.Repeat("a", 43)))
+	postToken(t, s, exchangeForm(other, code, verifier))
+	if _, err := s.Verify(context.Background(), first.AccessToken); err != nil {
+		t.Errorf("a leaked code without the verifier revoked the sign-in: %v", err)
+	}
+}
+
+func TestCodeClaimedTwiceIsMarkedReused(t *testing.T) {
+	s, _ := newTestAuthServer(t)
+	id := registerPublicClient(t, s)
+	_, challenge := pkcePair(t)
+	signIn(t, s, id, challenge)
+	var pc *pendingCode
+	for _, p := range s.codes {
+		pc = p
+	}
+	if _, claimed := s.claimCode(pc, "g1"); !claimed {
+		t.Fatal("first claim failed")
+	}
+	if s.codeReused(pc) {
+		t.Fatal("code marked reused after one claim")
+	}
+	if prior, claimed := s.claimCode(pc, "g2"); claimed || prior != "g1" {
+		t.Fatalf("second claim = %q, %v", prior, claimed)
+	}
+	if !s.codeReused(pc) {
+		t.Error("the first request cannot learn that the code was reused")
+	}
+	s.releaseCode(pc)
+	if _, claimed := s.claimCode(pc, "g3"); !claimed {
+		t.Error("released code cannot be claimed")
+	}
+}
+
+func TestReuseFailsClosedWhenTheSaveFails(t *testing.T) {
+	dir, clock := t.TempDir(), newTestClock()
+	var logs bytes.Buffer
+	s, err := New(Options{PublicURL: testPublicURL, Password: testPassword, StoreDir: dir, Now: clock.now,
+		Audit: slog.New(slog.NewTextHandler(&logs, nil))})
+	if err != nil {
+		t.Fatal(err)
+	}
+	id, first := connect(t, s)
+	_, second := postToken(t, s, refreshForm(id, first.RefreshToken))
+	if err := os.Chmod(dir, 0o500); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(dir, 0o700) })
+
+	status, out := postToken(t, s, refreshForm(id, first.RefreshToken))
+	if status != http.StatusBadRequest || out.Error != "invalid_grant" {
+		t.Fatalf("reuse with a read-only store: %d %+v", status, out)
+	}
+	if _, err := s.Verify(context.Background(), second.AccessToken); err == nil {
+		t.Error("access token still works after reuse with a failed save")
+	}
+	if status, _ := postToken(t, s, refreshForm(id, second.RefreshToken)); status != http.StatusBadRequest {
+		t.Error("current refresh token still works after reuse with a failed save")
+	}
+	if !strings.Contains(logs.String(), "auth store save failed") {
+		t.Errorf("save error not logged: %s", logs.String())
+	}
 }

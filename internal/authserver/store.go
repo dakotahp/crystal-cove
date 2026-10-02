@@ -221,30 +221,25 @@ func (s *store) revokeGrant(id string) error {
 
 // rotate replaces the refresh token oldHash of clientID's grant with
 // newHash. A token that was already rotated away revokes its grant, and a
-// grant past its lifetime is deleted.
+// grant past its lifetime is deleted. Both deletions stay in memory when the
+// save fails: failing open would leave a revoked sign-in usable.
 func (s *store) rotate(clientID, oldHash, newHash string) (grant, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	for i, g := range s.data.Grants {
 		switch {
 		case slices.Contains(g.UsedHashes, oldHash):
-			saved := s.deepCopyData()
 			s.data.Grants = slices.Delete(s.data.Grants, i, i+1)
-			saveErr := s.saveLocked()
-			if saveErr != nil {
-				s.data = saved
-				return grant{}, errors.Join(errRefreshReused, saveErr)
+			if saveErr := s.saveLocked(); saveErr != nil {
+				return *g, errors.Join(errRefreshReused, saveErr)
 			}
 			return *g, errRefreshReused
 		case g.RefreshHash != oldHash || g.ClientID != clientID:
 			continue
 		case s.expired(g):
-			saved := s.deepCopyData()
 			s.data.Grants = slices.Delete(s.data.Grants, i, i+1)
-			saveErr := s.saveLocked()
-			if saveErr != nil {
-				s.data = saved
-				return grant{}, errors.Join(errGrantExpired, saveErr)
+			if saveErr := s.saveLocked(); saveErr != nil {
+				return *g, errors.Join(errGrantExpired, saveErr)
 			}
 			return *g, errGrantExpired
 		}
