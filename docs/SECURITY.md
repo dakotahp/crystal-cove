@@ -20,18 +20,21 @@ Every MCP request carries a bearer token. There is no unauthenticated mode and n
   wrong token takes the same time to reject as a right one and cannot be guessed byte by byte. The server refuses to start with a token shorter than 32 characters, so a placeholder or a short word never guards a live vault.
 - **OpenID Connect** (`OAUTH_ISSUER`): tokens are validated against the
   provider's published keys, with issuer, audience and expiry checked, and optional required roles (`OAUTH_REQUIRED_ROLES`) to bind the endpoint to specific principals. Without required roles, any account the provider will issue a token to is accepted, so the server warns at startup when they are unset. The server advertises RFC 9728 protected-resource metadata so clients can find the authorization server themselves.
-- Both can run side by side.
+- **Built-in sign-in** (`MCP_OWNER_PASSWORD`): the server issues its own OAuth tokens after the owner password, see below.
+- The static token works beside either OAuth method. The two OAuth methods exclude each other: the server refuses to start with both.
 
 Two endpoints are always unauthenticated, and neither reads the vault:
 `/health` reports that the process is alive, and `/ready` reports whether
-every vault has a recent sync heartbeat. With `MCP_OWNER_PASSWORD` set, the
+every vault has a recent sync heartbeat. With OIDC or `MCP_OWNER_PASSWORD`
+set, `/.well-known/oauth-protected-resource` is also open. It only names the
+sign-in server. With `MCP_OWNER_PASSWORD` set, the
 sign-in endpoints (`/.well-known/oauth-authorization-server`, `/register`,
 `/authorize` and `/token`) are also reachable without a token. They read no
 vault, and they issue a token only after the owner password.
 
 ### Built-in sign-in
 
-With `MCP_OWNER_PASSWORD`, the server issues its own OAuth tokens. Tokens are 32 random bytes, and only their SHA-256 hashes are stored, in `auth.json` beside the vaults with mode 0600. Authorization codes last 60 seconds and work once. A second use revokes the sign-in it created, but only when the request also passes the client and PKCE checks, so a guess with a wrong verifier burns nothing. Access tokens last one hour and live only in memory. Refresh tokens rotate on every use. A reused one revokes its sign-in at once, even if the disk write fails. Every sign-in ends after 90 days. PKCE S256 is required, and redirect URIs must match a registered https (or loopback http) address exactly. The sign-in page cannot be framed. After five wrong passwords it locks for one minute, doubling up to one hour. Attempts are counted atomically, so parallel guesses cannot get past the lock. The lock is one counter for the whole server, so during an attack it also locks out the owner until it expires. Changing the password deletes every sign-in at the next start.
+With `MCP_OWNER_PASSWORD`, the server issues its own OAuth tokens. Tokens are 32 random bytes, and only their SHA-256 hashes are stored, in `auth.json` beside the vaults with mode 0600. Authorization codes last 60 seconds and work once. A second use revokes the sign-in it created, but only when the request also passes the client and PKCE checks, so a guess with a wrong verifier burns nothing. Access tokens last one hour and live only in memory. Refresh tokens rotate on every use. A reused one revokes its sign-in at once. If the disk write fails, the revocation holds only until the next restart. Every sign-in ends after 90 days. PKCE S256 is required, and redirect URIs must match a registered https (or loopback http) address exactly. The sign-in page cannot be framed. After five wrong passwords it locks for one minute, doubling up to one hour. Attempts are counted atomically, so parallel guesses cannot get past the lock. The lock is one counter for the whole server, so during an attack it also locks out the owner until it expires. Changing the password deletes every sign-in at the next start.
 
 ### TLS is the operator's job, and it is required
 
