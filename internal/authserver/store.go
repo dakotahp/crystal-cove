@@ -81,7 +81,7 @@ func openStore(dir, password string, now func() time.Time, rnd io.Reader) (st *s
 		return nil, false, fmt.Errorf("reading auth store %q: %w", st.path, err)
 	default:
 		if err := json.Unmarshal(raw, &st.data); err != nil {
-			return nil, false, fmt.Errorf("parsing auth store %q: %w", st.path, err)
+			return nil, false, fmt.Errorf("parsing auth store %q: %w: delete the file to start over, and every app signs in again", st.path, err)
 		}
 	}
 	key, err := hex.DecodeString(st.data.FingerprintKey)
@@ -114,6 +114,10 @@ func (s *store) saveLocked() error {
 	}
 	defer func() { _ = os.Remove(tmp.Name()) }()
 	if _, err := tmp.Write(raw); err != nil {
+		_ = tmp.Close()
+		return fmt.Errorf("writing auth store: %w", err)
+	}
+	if err := tmp.Sync(); err != nil {
 		_ = tmp.Close()
 		return fmt.Errorf("writing auth store: %w", err)
 	}
