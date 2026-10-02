@@ -91,3 +91,56 @@ func TestSuperviseVaultRestartsRunningProcessWithStaleHeartbeat(t *testing.T) {
 		t.Fatalf("sync invocations = %d, want at least 2; calls: %v", got, calls)
 	}
 }
+
+func TestSyncOutputShowsRepeatedHeartbeatOnce(t *testing.T) {
+	now := time.Date(2026, 8, 22, 12, 0, 0, 0, time.UTC)
+	b := New(&config.Config{Vaults: []config.Vault{{Name: "Notes"}}}, slog.Default())
+	b.now = func() time.Time { return now }
+	var output bytes.Buffer
+	b.syncOutput = &output
+	b.syncStarted("Notes")
+
+	w := b.observedSyncOutput("Notes")
+	if _, err := w.Write([]byte("Fully synced\nFully synced\nDownloaded a.md\nFully synced\n")); err != nil {
+		t.Fatal(err)
+	}
+	now = now.Add(syncReadyMaxAge)
+	if _, err := w.Write([]byte("Fully synced\n")); err != nil {
+		t.Fatal(err)
+	}
+	now = now.Add(time.Second)
+	if !b.SyncReady() {
+		t.Error("SyncReady = false: a heartbeat left out of the output was not recorded")
+	}
+	if got, want := output.String(), "Fully synced\nDownloaded a.md\nFully synced\n"; got != want {
+		t.Errorf("forwarded output = %q, want %q", got, want)
+	}
+}
+
+func TestSyncOutputFlushForwardsUnfinishedLine(t *testing.T) {
+	b := New(&config.Config{Vaults: []config.Vault{{Name: "Notes"}}}, slog.Default())
+	var output bytes.Buffer
+	b.syncOutput = &output
+
+	w := b.observedSyncOutput("Notes")
+	if _, err := w.Write([]byte("Error: connection lost")); err != nil {
+		t.Fatal(err)
+	}
+	w.flush()
+	if got := output.String(); got != "Error: connection lost\n" {
+		t.Errorf("forwarded output = %q", got)
+	}
+}
+
+type failingWriter struct{}
+
+func (failingWriter) Write([]byte) (int, error) { return 0, io.ErrClosedPipe }
+
+func TestSyncOutputReportsForwardError(t *testing.T) {
+	b := New(&config.Config{Vaults: []config.Vault{{Name: "Notes"}}}, slog.Default())
+	b.syncOutput = failingWriter{}
+
+	if _, err := b.observedSyncOutput("Notes").Write([]byte("Downloaded a.md\n")); err == nil {
+		t.Error("Write succeeded although the output failed")
+	}
+}

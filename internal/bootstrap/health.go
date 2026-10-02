@@ -2,7 +2,6 @@ package bootstrap
 
 import (
 	"bytes"
-	"io"
 	"sync"
 	"time"
 )
@@ -81,38 +80,65 @@ func (b *Bootstrapper) syncStale(vault string, maxAge time.Duration) bool {
 	return b.now().Sub(last) > maxAge
 }
 
-// observedSyncWriter forwards ob output unchanged while recognizing complete
-// heartbeat lines even when writes split a line across multiple chunks.
+// observedSyncWriter forwards ob output line by line while recognizing
+// heartbeat lines, even when writes split a line across multiple chunks.
+// ob prints "Fully synced" every 30 seconds, so a heartbeat is forwarded
+// only when the line before it was something else.
 type observedSyncWriter struct {
 	b     *Bootstrapper
 	vault string
 
-	mu      sync.Mutex
-	pending []byte
+	mu         sync.Mutex
+	pending    []byte
+	lastSynced bool
 }
 
-func (b *Bootstrapper) observedSyncOutput(vault string) io.Writer {
+func (b *Bootstrapper) observedSyncOutput(vault string) *observedSyncWriter {
 	return &observedSyncWriter{b: b, vault: vault}
 }
 
 func (w *observedSyncWriter) Write(p []byte) (int, error) {
-	w.b.outputMu.Lock()
-	n, err := w.b.syncOutput.Write(p)
-	w.b.outputMu.Unlock()
-
 	w.mu.Lock()
 	defer w.mu.Unlock()
-	w.pending = append(w.pending, p[:n]...)
+	w.pending = append(w.pending, p...)
 	for {
 		newline := bytes.IndexByte(w.pending, '\n')
 		if newline < 0 {
 			break
 		}
-		line := bytes.TrimSuffix(w.pending[:newline], []byte{'\r'})
-		if bytes.Equal(line, []byte("Fully synced")) {
-			w.b.syncHeartbeat(w.vault)
-		}
+		line := w.pending[:newline+1]
 		w.pending = w.pending[newline+1:]
+		if err := w.forward(line); err != nil {
+			return len(p), err
+		}
 	}
-	return n, err
+	return len(p), nil
+}
+
+// flush forwards a final line that ob left without a newline.
+func (w *observedSyncWriter) flush() {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if len(w.pending) == 0 {
+		return
+	}
+	_ = w.forward(append(w.pending, '\n'))
+	w.pending = nil
+}
+
+func (w *observedSyncWriter) forward(line []byte) error {
+	text := bytes.TrimSuffix(bytes.TrimSuffix(line, []byte{'\n'}), []byte{'\r'})
+	synced := bytes.Equal(text, []byte("Fully synced"))
+	if synced {
+		w.b.syncHeartbeat(w.vault)
+	}
+	repeat := synced && w.lastSynced
+	w.lastSynced = synced
+	if repeat {
+		return nil
+	}
+	w.b.outputMu.Lock()
+	defer w.b.outputMu.Unlock()
+	_, err := w.b.syncOutput.Write(line)
+	return err
 }
