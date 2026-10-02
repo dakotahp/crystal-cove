@@ -381,3 +381,64 @@ func TestAddClientRestoresEvictionOnWriteFailure(t *testing.T) {
 		t.Error("new client was added after failed save")
 	}
 }
+
+func readOnly(t *testing.T, dir string) {
+	t.Helper()
+	if err := os.Chmod(dir, 0o500); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(dir, 0o700) })
+}
+
+func TestOpenStoreReportsSaveFailureOnExistingStore(t *testing.T) {
+	dir, clock := t.TempDir(), newTestClock()
+	openTestStore(t, dir, "owner-password-1", clock)
+	readOnly(t, dir)
+	if _, _, err := openStore(dir, "owner-password-1", clock.now, rand.Reader); err == nil {
+		t.Error("opened a store whose folder cannot be written")
+	}
+}
+
+func TestCreateGrantRestoresStateOnWriteFailure(t *testing.T) {
+	dir, clock := t.TempDir(), newTestClock()
+	st := openTestStore(t, dir, "owner-password-1", clock)
+	readOnly(t, dir)
+	if err := st.createGrant(&grant{ID: "g1", ClientID: "c1", CreatedAt: clock.now(), RefreshHash: "r1"}); err == nil {
+		t.Error("createGrant succeeded in a read-only folder")
+	}
+	if st.hasGrant("g1") {
+		t.Error("grant stayed in memory after a failed save")
+	}
+}
+
+func TestRevokeGrantRestoresStateOnWriteFailure(t *testing.T) {
+	dir, clock := t.TempDir(), newTestClock()
+	st := openTestStore(t, dir, "owner-password-1", clock)
+	if err := st.createGrant(&grant{ID: "g1", ClientID: "c1", CreatedAt: clock.now(), RefreshHash: "r1"}); err != nil {
+		t.Fatal(err)
+	}
+	readOnly(t, dir)
+	if err := st.revokeGrant("g1"); err == nil {
+		t.Error("revokeGrant succeeded in a read-only folder")
+	}
+	if !st.hasGrant("g1") {
+		t.Error("grant was dropped after a failed save")
+	}
+}
+
+func TestRotateExpiredGrantReportsSaveFailure(t *testing.T) {
+	dir, clock := t.TempDir(), newTestClock()
+	st := openTestStore(t, dir, "owner-password-1", clock)
+	if err := st.createGrant(&grant{ID: "g1", ClientID: "c1", CreatedAt: clock.now(), RefreshHash: "r1"}); err != nil {
+		t.Fatal(err)
+	}
+	clock.advance(grantLifetime + time.Second)
+	readOnly(t, dir)
+	_, err := st.rotate("c1", "r1", "r2")
+	if !errors.Is(err, errGrantExpired) || err == errGrantExpired {
+		t.Errorf("err = %v, want errGrantExpired joined with the save error", err)
+	}
+	if st.hasGrant("g1") {
+		t.Error("expired grant stayed usable after a failed save")
+	}
+}

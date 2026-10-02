@@ -368,3 +368,105 @@ func TestReuseFailsClosedWhenTheSaveFails(t *testing.T) {
 		t.Errorf("save error not logged: %s", logs.String())
 	}
 }
+
+func TestCodeExchangeWithoutEntropy(t *testing.T) {
+	s, _ := newTestAuthServer(t)
+	id := registerPublicClient(t, s)
+	verifier, challenge := pkcePair(t)
+	code := signIn(t, s, id, challenge)
+	s.rand = failingReader{}
+	if status, out := postToken(t, s, exchangeForm(id, code, verifier)); status != http.StatusInternalServerError || out.Error != "server_error" {
+		t.Errorf("exchange: %d %+v", status, out)
+	}
+	s.rand = rand.Reader
+	if status, _ := postToken(t, s, exchangeForm(id, code, verifier)); status != http.StatusOK {
+		t.Error("a failed exchange used up the code")
+	}
+}
+
+func TestCodeExchangeReportsStoreWriteFailure(t *testing.T) {
+	dir, clock := t.TempDir(), newTestClock()
+	s, err := New(Options{PublicURL: testPublicURL, Password: testPassword, StoreDir: dir, Now: clock.now})
+	if err != nil {
+		t.Fatal(err)
+	}
+	id := registerPublicClient(t, s)
+	verifier, challenge := pkcePair(t)
+	code := signIn(t, s, id, challenge)
+	readOnly(t, dir)
+	if status, out := postToken(t, s, exchangeForm(id, code, verifier)); status != http.StatusInternalServerError || out.Error != "server_error" {
+		t.Fatalf("exchange: %d %+v", status, out)
+	}
+	if err := os.Chmod(dir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if status, out := postToken(t, s, exchangeForm(id, code, verifier)); status != http.StatusOK {
+		t.Errorf("code stayed claimed after a failed save: %d %+v", status, out)
+	}
+}
+
+func TestCodeMarkedReusedRevokesItsOwnGrant(t *testing.T) {
+	s, _ := newTestAuthServer(t)
+	id := registerPublicClient(t, s)
+	verifier, challenge := pkcePair(t)
+	code := signIn(t, s, id, challenge)
+	for _, pc := range s.codes {
+		pc.reused = true
+	}
+	if status, out := postToken(t, s, exchangeForm(id, code, verifier)); status != http.StatusBadRequest || out.Error != "invalid_grant" {
+		t.Fatalf("exchange: %d %+v", status, out)
+	}
+	if len(s.store.data.Grants) != 0 {
+		t.Error("the grant of a reused code survived")
+	}
+}
+
+func TestCodeReuseReportsStoreWriteFailure(t *testing.T) {
+	dir, clock := t.TempDir(), newTestClock()
+	s, err := New(Options{PublicURL: testPublicURL, Password: testPassword, StoreDir: dir, Now: clock.now})
+	if err != nil {
+		t.Fatal(err)
+	}
+	id := registerPublicClient(t, s)
+	verifier, challenge := pkcePair(t)
+	code := signIn(t, s, id, challenge)
+	if status, _ := postToken(t, s, exchangeForm(id, code, verifier)); status != http.StatusOK {
+		t.Fatal("first exchange failed")
+	}
+	readOnly(t, dir)
+	if status, out := postToken(t, s, exchangeForm(id, code, verifier)); status != http.StatusInternalServerError || out.Error != "server_error" {
+		t.Errorf("reuse with a read-only store: %d %+v", status, out)
+	}
+}
+
+func TestRefreshReportsStoreWriteFailure(t *testing.T) {
+	dir, clock := t.TempDir(), newTestClock()
+	s, err := New(Options{PublicURL: testPublicURL, Password: testPassword, StoreDir: dir, Now: clock.now})
+	if err != nil {
+		t.Fatal(err)
+	}
+	id, tokens := connect(t, s)
+	readOnly(t, dir)
+	if status, out := postToken(t, s, refreshForm(id, tokens.RefreshToken)); status != http.StatusInternalServerError || out.Error != "server_error" {
+		t.Errorf("refresh: %d %+v", status, out)
+	}
+}
+
+func TestExpiredRefreshFailsClosedWhenTheSaveFails(t *testing.T) {
+	dir, clock := t.TempDir(), newTestClock()
+	var logs bytes.Buffer
+	s, err := New(Options{PublicURL: testPublicURL, Password: testPassword, StoreDir: dir, Now: clock.now,
+		Audit: slog.New(slog.NewTextHandler(&logs, nil))})
+	if err != nil {
+		t.Fatal(err)
+	}
+	id, tokens := connect(t, s)
+	clock.advance(grantLifetime + 1)
+	readOnly(t, dir)
+	if status, out := postToken(t, s, refreshForm(id, tokens.RefreshToken)); status != http.StatusBadRequest || out.Error != "invalid_grant" {
+		t.Fatalf("refresh: %d %+v", status, out)
+	}
+	if !strings.Contains(logs.String(), "auth store save failed") {
+		t.Errorf("save error not logged: %s", logs.String())
+	}
+}

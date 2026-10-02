@@ -2,7 +2,9 @@ package authserver
 
 import (
 	"bytes"
+	"crypto/rand"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -144,5 +146,40 @@ func TestRegisterResponseParsesWithSDK(t *testing.T) {
 	}
 	if resp.ClientID == "" || resp.ClientIDIssuedAt.IsZero() || resp.ClientName != "Claude" {
 		t.Errorf("SDK view of the response = %+v", resp)
+	}
+}
+
+type limitedReader struct{ left int }
+
+func (r *limitedReader) Read(p []byte) (int, error) {
+	if r.left == 0 {
+		return 0, errors.New("no entropy")
+	}
+	r.left--
+	return rand.Reader.Read(p)
+}
+
+func TestRegisterWithoutEntropyForTheSecret(t *testing.T) {
+	s, _ := newTestAuthServer(t)
+	s.rand = &limitedReader{left: 1}
+	code, out := register(t, s, map[string]any{"redirect_uris": []string{"https://claude.ai/cb"}})
+	if code != http.StatusInternalServerError || out["error"] != "server_error" {
+		t.Errorf("status = %d, body = %v", code, out)
+	}
+	if len(s.store.data.Clients) != 0 {
+		t.Error("a half-made client was stored")
+	}
+}
+
+func TestRegisterReportsStoreWriteFailure(t *testing.T) {
+	dir, clock := t.TempDir(), newTestClock()
+	s, err := New(Options{PublicURL: testPublicURL, Password: testPassword, StoreDir: dir, Now: clock.now})
+	if err != nil {
+		t.Fatal(err)
+	}
+	readOnly(t, dir)
+	code, out := register(t, s, map[string]any{"redirect_uris": []string{"https://claude.ai/cb"}})
+	if code != http.StatusInternalServerError || out["error"] != "server_error" {
+		t.Errorf("status = %d, body = %v", code, out)
 	}
 }
