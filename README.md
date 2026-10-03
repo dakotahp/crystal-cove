@@ -19,7 +19,7 @@ Cloud Obsidian Vault, ready for Claude and ChatGPT, in one container. Native syn
 - [Which setup do you need?](#which-setup-do-you-need)
 - [Installation](#installation)
   - [On your computer](#on-your-computer)
-  - [On a server](#on-a-server)
+  - [On a cloud server](#on-a-cloud-server)
 - [What agents can do](#what-agents-can-do)
 - [More docs](#more-docs)
 
