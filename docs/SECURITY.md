@@ -23,9 +23,10 @@ Every MCP request carries a bearer token. There is no unauthenticated mode and n
 - **Built-in sign-in** (`MCP_OWNER_PASSWORD`): the server issues its own OAuth tokens after the owner password, see below.
 - The static token works beside either OAuth method. The two OAuth methods exclude each other: the server refuses to start with both.
 
-Two endpoints are always unauthenticated, and neither reads the vault:
-`/health` reports that the process is alive, and `/ready` reports whether
-every vault has a recent sync heartbeat. With OIDC or `MCP_OWNER_PASSWORD`
+Four endpoints are always unauthenticated, and none reads the vault:
+`/health` reports that the process is alive, `/ready` reports whether
+every vault has a recent sync heartbeat, and `/favicon.ico` and
+`/favicon.svg` return the logo built into the image. With OIDC or `MCP_OWNER_PASSWORD`
 set, `/.well-known/oauth-protected-resource` is also open. It only names the
 sign-in server. With `MCP_OWNER_PASSWORD` set, the
 sign-in endpoints (`/.well-known/oauth-authorization-server`, `/register`,

@@ -22,6 +22,7 @@ var signInPage = template.Must(template.New("signin").Parse(`<!doctype html>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
 <title>Sign in to Crystal Cove</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <style>
 :root{--bg:#eeecf7;--glow:rgba(139,92,246,.22);--ink:#1d1838;--muted:#5d5878;--line:#cfc9e6;--field:#fff;--accent:#5b21b6;--accent-hover:#4c1d95;--accent-ink:#fff;--alert:#9f1d3a;--alert-bg:#fae8ed;--ring:#8b5cf6}
 @media (prefers-color-scheme:dark){:root{--bg:#0d0a22;--glow:rgba(167,139,250,.2);--ink:#ece9f8;--muted:#a7a2c6;--line:#342d5e;--field:#161233;--accent:#a78bfa;--accent-hover:#c4b5fd;--accent-ink:#160d36;--alert:#ffb0c0;--alert-bg:#2d1233;--ring:#c4b5fd}}
@@ -120,7 +121,7 @@ func renderPage(w http.ResponseWriter, status int, returnOrigin string, data pag
 	}
 	h := w.Header()
 	h.Set("Content-Type", "text/html; charset=utf-8")
-	h.Set("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; form-action "+formAction+"; frame-ancestors 'none'")
+	h.Set("Content-Security-Policy", "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; form-action "+formAction+"; frame-ancestors 'none'")
 	h.Set("X-Frame-Options", "DENY")
 	h.Set("Referrer-Policy", "no-referrer")
 	h.Set("Cache-Control", "no-store")
