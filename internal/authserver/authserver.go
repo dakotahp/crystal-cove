@@ -37,6 +37,7 @@ type Server struct {
 	passwordHash [sha256.Size]byte
 	store        *store
 	limiter      *limiter
+	registration *rateLimit
 	audit        *slog.Logger
 	now          func() time.Time
 	rand         io.Reader
@@ -85,6 +86,7 @@ func New(opts Options) (*Server, error) {
 		passwordHash: sha256.Sum256([]byte(opts.Password)),
 		store:        st,
 		limiter:      &limiter{now: now},
+		registration: &rateLimit{now: now, limit: registrationLimit, window: registrationWindow},
 		audit:        audit,
 		now:          now,
 		rand:         rnd,

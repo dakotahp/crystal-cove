@@ -4,9 +4,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"net/http"
 	"net/url"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/modelcontextprotocol/go-sdk/oauthex"
@@ -44,6 +46,13 @@ func (s *Server) register(w http.ResponseWriter, r *http.Request) {
 				"grant_types may contain only authorization_code and refresh_token")
 			return
 		}
+	}
+
+	if wait, ok := s.registration.allow(); !ok {
+		w.Header().Set("Retry-After", strconv.Itoa(int(math.Ceil(wait.Seconds()))))
+		s.audit.Warn("client registration refused: rate limit", "remote_addr", r.RemoteAddr)
+		oauthError(w, http.StatusTooManyRequests, "temporarily_unavailable", "too many registrations; try again later")
+		return
 	}
 
 	id, err := newToken(s.rand)

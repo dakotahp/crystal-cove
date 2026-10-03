@@ -183,3 +183,41 @@ func TestRegisterReportsStoreWriteFailure(t *testing.T) {
 		t.Errorf("status = %d, body = %v", code, out)
 	}
 }
+
+func TestRegisterIsRateLimited(t *testing.T) {
+	s, clock := newTestAuthServer(t)
+	meta := map[string]any{"redirect_uris": []string{"https://claude.ai/cb"}, "token_endpoint_auth_method": "none"}
+	for i := range registrationLimit {
+		if code, out := register(t, s, meta); code != http.StatusCreated {
+			t.Fatalf("registration %d: %d %v", i+1, code, out)
+		}
+	}
+
+	body, _ := json.Marshal(meta)
+	rec := serve(s.Handler(), http.MethodPost, "/register", bytes.NewReader(body), nil)
+	if rec.Code != http.StatusTooManyRequests || !strings.Contains(rec.Body.String(), "temporarily_unavailable") {
+		t.Fatalf("over the limit: %d %s", rec.Code, rec.Body)
+	}
+	if got := rec.Header().Get("Retry-After"); got != "60" {
+		t.Errorf("Retry-After = %q, want 60", got)
+	}
+	if n := len(s.store.data.Clients); n != registrationLimit {
+		t.Errorf("clients = %d after a refused registration, want %d", n, registrationLimit)
+	}
+
+	clock.advance(registrationWindow)
+	if code, out := register(t, s, meta); code != http.StatusCreated {
+		t.Errorf("after the window: %d %v", code, out)
+	}
+}
+
+func TestInvalidRegistrationsUseNoSlot(t *testing.T) {
+	s, _ := newTestAuthServer(t)
+	for range registrationLimit + 5 {
+		register(t, s, map[string]any{"redirect_uris": []string{"http://evil.example.com/cb"}})
+	}
+	meta := map[string]any{"redirect_uris": []string{"https://claude.ai/cb"}, "token_endpoint_auth_method": "none"}
+	if code, out := register(t, s, meta); code != http.StatusCreated {
+		t.Errorf("valid registration after invalid ones: %d %v", code, out)
+	}
+}
