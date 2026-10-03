@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.10.0](https://github.com/dakotahp/crystal-cove/compare/v0.9.0...v0.10.0) (2026-10-02)
+
+
+### Features
+
+* install from the published image without cloning ([d0a9f8e](https://github.com/dakotahp/crystal-cove/commit/d0a9f8e3e83728b246683fa56244d1f423bd3da8))
+
+
+### Bug Fixes
+
+* log a repeated "Fully synced" line once ([0b2094c](https://github.com/dakotahp/crystal-cove/commit/0b2094c30cbae317a77654d508460e1ca1f234df))
+* name OBSIDIAN_VAULT_PASSWORD when an encrypted vault has no password ([022a811](https://github.com/dakotahp/crystal-cove/commit/022a811dcecee3c708915694b45179f896519689))
+
 ## [0.9.0](https://github.com/dakotahp/crystal-cove/compare/v0.8.0...v0.9.0) (2026-09-25)
 
 
