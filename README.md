@@ -4,7 +4,7 @@
 
 # Crystal Cove
 
-Your Obsidian vault, ready for Claude and ChatGPT, in one container. Sync, note tools, and sign-in are all built in, so there is nothing else to set up.
+Cloud Obsidian Vault, ready for Claude and ChatGPT, in one container. Native sync, note tools, and sign-in are all built in, so there is nothing else to set up. (Works locally on your laptop, too.)
 
 <div>
 <a href="https://github.com/dakotahp/crystal-cove/actions/workflows/ci.yml"><img src="https://github.com/dakotahp/crystal-cove/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
@@ -27,18 +27,18 @@ Your Obsidian vault, ready for Claude and ChatGPT, in one container. Sync, note 
 
 ## What's in the box
 
-One image holds every part an assistant needs to work in your vault:
+One container holds every part an assistant needs to work in your vault:
 
-- **Obsidian Sync.** Obsidian's official [headless client](https://help.obsidian.md/install/headless) keeps the vault in sync. You do not install Node, the desktop app, or a plugin.
+- **Obsidian Sync.** Obsidian's official [headless client](https://help.obsidian.md/install/headless) keeps the vault in sync. No need for the desktop app or CLI.
 - **An MCP server.** Tools that read, search, and edit notes the way Obsidian sees them, over the [Model Context Protocol](https://modelcontextprotocol.io).
-- **Sign-in.** A built-in sign-in page for claude.ai, the Claude mobile app, and ChatGPT. You type one password. You do not run an identity provider or copy client IDs.
-- **Safe defaults.** A read-only container, soft deletes to the vault's `.trash`, and a readiness check that waits for sync.
+- **Sign-in.** A built-in sign-in page for claude.ai, the Claude mobile app, and ChatGPT.
+- **Secure by design.** A read-only container, soft deletes to the vault's `.trash`, and a readiness check that waits for sync.
 
-You bring only:
+You only need only:
 
-- Docker
-- An [Obsidian Sync](https://obsidian.md/sync) subscription
-- For use from a phone or claude.ai: an HTTPS address that points at the container
+- An [Obsidian Sync](https://obsidian.md/sync) subscription.
+- Docker.
+- For use from a phone or claude.ai: A virtual private server with HTTPS URL, if you want to make your vault accessible to cloud agents.
 
 ## The Why
 
@@ -46,7 +46,7 @@ You bring only:
   <img src="docs/images/trifecta.png" alt="Three overlapping circles: native sync, reach from anywhere, and tools that understand notes. Only the center, where all three meet, is the full setup. Native sync plus reach alone means primitive searching. Native sync plus note tools alone means laptop only, no mobile. Reach plus note tools alone means reinventing the wheel." width="100%">
 </p>
 
-Obsidian has no first-party way to give an agent your vault from a cloud server. Its CLI needs the desktop app to be running.
+Obsidian has no first-party way to give an agent your vault from a cloud server. Its CLI needs the desktop app to be running and has many idiosyncrasies.
 
 An assistant needs three things at once to work well in a vault, and most other projects give two:
 
@@ -64,19 +64,17 @@ Crystal Cove packs all three into one container. That means:
 
 The same container works in two places, and agents see the same tools in both:
 
-|                  | **On your computer**                                         | **On a server**                                              |
-| ---------------- | ------------------------------------------------------------ | ------------------------------------------------------------ |
-| Connects         | Claude Code, Cursor, and other MCP clients on that computer  | claude.ai, the Claude mobile app, ChatGPT, and coding agents anywhere |
-| Address          | `http://127.0.0.1:8080/`                                     | `https://obsidian.example.com/`                              |
-| Sign-in          | A token you generate                                         | The built-in sign-in page and your password                  |
-| You need         | Docker                                                       | Docker, a domain name, and HTTPS (a reverse proxy or tunnel) |
-| Good for         | Daily agent work, in place of a plugin or the Obsidian CLI   | Your vault from a phone, and agents that run while your computer is off |
-
-Both use Obsidian Sync, so an agent's edit reaches your phone and desktop like any other edit. This is true even when the Obsidian desktop app runs on the same computer.
+|          | **On your computer**                                         | **On a server**                                              |
+| -------- | ------------------------------------------------------------ | ------------------------------------------------------------ |
+| Connects | Claude Code, Cursor, and other MCP clients on that computer  | claude.ai, the Claude mobile app, ChatGPT, and coding agents anywhere |
+| Address  | `http://127.0.0.1:8080/`                                     | `https://obsidian.example.com/`                              |
+| Sign-in  | A token you generate                                         | The built-in sign-in page and your password                  |
+| You need | Docker                                                       | Docker, a domain name, and HTTPS (a reverse proxy or tunnel) |
+| Good for | Daily agent work where you don't need remote access, in place of a plugin or the Obsidian CLI | Your vault from a phone, and agents that run while your computer is off |
 
 ## Installation
 
-You do not need to clone this repository. The published image and one compose file are enough. Accounts with multi-factor authentication and end-to-end encrypted vaults both work.
+To use Crystal Cove, you copy the docker-compose file to where you will run it, sign into Obsidian Sync, and hook it up to your agents. Accounts with multi-factor authentication and end-to-end encrypted vaults both work.
 
 **1. Download the compose file** into a new folder:
 
@@ -85,7 +83,7 @@ mkdir crystal-cove && cd crystal-cove
 curl -O https://raw.githubusercontent.com/dakotahp/crystal-cove/master/docker-compose.yml
 ```
 
-**2. Log in to Obsidian Sync.** The image already contains Obsidian's sync client. This command asks for your email, password, and MFA code if you have one, then prints a session token:
+**2. Log in to Obsidian Sync.** The native Obsidian Sync command asks for your email, password, and MFA code if you have one, then prints a session token:
 
 ```sh
 docker run --rm -it ghcr.io/dakotahp/crystal-cove:latest \
@@ -126,6 +124,8 @@ The [example file](.env.example) lists every option. Now follow the section for 
 
 ### On your computer
 
+Use this method if you only want to use this on one computer, it is easy to install locally to avoid going through the Obsidian CLI and Desktop app, whether you have both on the computer or not.
+
 **1. Start it and wait for the first sync:**
 
 ```sh
@@ -149,11 +149,9 @@ Other MCP clients take the same URL and `Authorization` header over "Streamable 
 
 **Stopping:** `docker compose stop` keeps the synced copy for next time. `docker compose down -v` also deletes it, so the next start syncs from the beginning.
 
-**On a work computer:** the container keeps a full copy of the vault on that machine. It stays a registered Obsidian Sync device until you remove it.
+### On a cloud server
 
-### On a server
-
-Do this to use your vault from a phone, from claude.ai in a browser, or from agents that run while your computer is off. Sign-in is built in: you add a password and an address, and the apps do the rest.
+Use this method if you wish to use your vault from a phone, from claude.ai in a browser, or from agents that run while your computer is off. It makes your vault truly available form anywhere, securely. Sign-in is built in. You only need to create a password and a domain with TLS/SSL, and the apps do the rest.
 
 **1. Turn on sign-in.** Add to `.env`:
 
@@ -161,14 +159,14 @@ Do this to use your vault from a phone, from claude.ai in a browser, or from age
 # The address your apps will use. HTTPS, with no path.
 MCP_PUBLIC_URL=https://obsidian.example.com
 
-# The password you type when you connect an app. At least 16 characters.
+# The password you will login with when you connect your AI service. Minimum of 16 characters required.
 MCP_OWNER_PASSWORD=
 
 # The name Obsidian Sync version history shows for edits from the server.
 OBSIDIAN_DEVICE_NAME=crystal-cove
 ```
 
-**2. Give it an HTTPS address.** This is the only part the container does not do. It speaks plain HTTP on `127.0.0.1:8080`, and tokens travel in a header, so put HTTPS in front of it. Send every path to the container. For [Caddy](https://caddyserver.com), which gets the certificate for you, that is all it needs:
+**2. Give it an HTTPS address.** This is the only part the container does give you. It speaks plain HTTP on `127.0.0.1:8080`, and tokens travel in a header, so put an HTTPS proxy in front of it. [Caddy](https://caddyserver.com) is easy and recommended, and handles the HTTPS the certificate for you. The only Caddy configuration you'll need is:
 
 ```
 obsidian.example.com {
@@ -176,7 +174,7 @@ obsidian.example.com {
 }
 ```
 
-Traefik, nginx, a platform ingress, or a [Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/) also work. Point them at the port in `HOST_PORT` if you changed it. Do not set `BIND_ADDRESS=0.0.0.0`: that exposes the server without HTTPS.
+Traefik, nginx, a platform ingress, or a [Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/) also work. Point them at the port in `HOST_PORT` if you changed it. **Do not** set `BIND_ADDRESS=0.0.0.0`: that exposes the server without HTTPS.
 
 **3. Start it and wait for the first sync:**
 
@@ -190,13 +188,11 @@ A 502 means the proxy cannot reach the container. Make sure it points at the sam
 
 **4. Connect your assistant.**
 
-- **claude.ai / Claude Desktop / Claude mobile:** add a custom connector with the URL `https://obsidian.example.com/`. Leave the client ID and secret empty. A Crystal Cove page opens. Enter your owner password, and you return to Claude connected.
+- **claude.ai / Claude Desktop / Claude mobile:** add a custom connector with your URL like `https://obsidian.example.com/`. Leave the client ID and secret empty. A Crystal Cove sign-in page will open and enter your owner password from step 1, and you should return to Claude connected.
 - **ChatGPT:** add an MCP connector (Settings → Connectors) with the same URL, and sign in the same way.
 - **Claude Code:** use the same `claude mcp add` command as on your computer, with your server's URL.
 
-If you use it hands-free, for example in a car, set the write tools to "Always allow". You may not be able to answer an approval prompt there.
-
-**Before you trust it:** agents can create, edit, move, and delete notes. Deletes only move notes to the vault's `.trash`, but start with a test vault until you trust your setup. Run one container per set of vaults: two sync processes on one vault conflict. [docs/operations.md](docs/operations.md) covers health checks and how the server recovers from sync failures.
+Adjust tool permissions as you see fit. If you intend to use it hands-free, for example in a car, set may need to set all write tools to "Always allow".
 
 Already run an identity provider such as Keycloak or Auth0? Crystal Cove can use it in place of the built-in sign-in. See [docs/oauth.md](docs/oauth.md).
 
@@ -208,9 +204,9 @@ Agents get tools that work with notes, not raw files:
 - **Find:** `search_notes` (by name and content, ranked), `find_notes` (by tags and frontmatter), `list_tags`, `get_links`, `get_backlinks`
 - **Write:** `create_note`, `append_note`, `edit_note`, `edit_section`, `update_frontmatter`, `move_note` (also restores from the trash), `delete_note`
 
-Deletes are soft: notes move to the vault's `.trash` and stay recoverable. Set `MCP_READ_ONLY=true` to give agents only the read and find tools. See [docs/tools.md](docs/tools.md) for every tool's details.
+Note deletes are soft by moving the file to the vault's `.trash` so it will be recoverable. Set `MCP_READ_ONLY=true` to give agents only the read and find tools. See [docs/tools.md](docs/tools.md) for every tool's details.
 
-You can also give agents guidance about your vault, like an AGENTS.md file. Put it in a note called `mcp-instructions.md` at the vault root. See [docs/vault-instructions.md](docs/vault-instructions.md).
+You can also give agents guidance about your vault, like an AGENTS.md file. Put it in a note called `mcp-instructions.md` at the vault root. See [docs/vault-instructions.md](docs/vault-instructions.md). The advantage of this is to describe your vault if you have [a particular organization structure](https://www.buildingasecondbrain.com/para) or have certain concepts so the agent's context goes beyond folders with notes.
 
 ## More docs
 
@@ -220,7 +216,7 @@ You can also give agents guidance about your vault, like an AGENTS.md file. Put 
 - [Vault instructions](docs/vault-instructions.md): guidance for agents
 - [Operations](docs/operations.md): health checks, recovery, and running without Compose
 - [Contributing](docs/CONTRIBUTING.md): developing this project
-- [Security](docs/SECURITY.md): how the server protects your vault
+- [Security](docs/SECURITY.md): Crystal Cove takes security is extremely seriously because the remote installation method exposes your vault to the open internet by design.
 
 ---
 
