@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.12.0](https://github.com/dakotahp/crystal-cove/compare/v0.11.0...v0.12.0) (2026-10-03)
+
+
+### Features
+
+* serve the logo as a favicon ([829dafa](https://github.com/dakotahp/crystal-cove/commit/829dafa77a0f0a750f27fcccc191a6411d1cf799))
+* serve the logo as a favicon ([#36](https://github.com/dakotahp/crystal-cove/issues/36)) ([b9b0877](https://github.com/dakotahp/crystal-cove/commit/b9b08775cf61d2c2337a72eeb1848ab1cf42153c))
+
 ## [0.11.0](https://github.com/dakotahp/crystal-cove/compare/v0.10.0...v0.11.0) (2026-10-03)
 
 
