@@ -240,7 +240,7 @@ func TestWrongPasswordIsLoggedAndLocksTheForm(t *testing.T) {
 
 	form.Set("password", testPassword)
 	rec := postForm(s, "/authorize", form)
-	if rec.Code != http.StatusTooManyRequests || !strings.Contains(rec.Body.String(), "Try again in 1m0s") {
+	if rec.Code != http.StatusTooManyRequests || !strings.Contains(rec.Body.String(), "Try again in 1 minute.") {
 		t.Fatalf("locked form: status = %d, body = %s", rec.Code, rec.Body)
 	}
 	clock.advance(time.Minute)
@@ -307,5 +307,20 @@ func TestConcurrentWrongPasswordsStopAtTheLock(t *testing.T) {
 	}
 	if counts[http.StatusUnauthorized] != 5 || counts[http.StatusTooManyRequests] != n-5 {
 		t.Errorf("status counts = %v, want 5 x 401 and %d x 429", counts, n-5)
+	}
+}
+
+func TestFormatWait(t *testing.T) {
+	for d, want := range map[time.Duration]string{
+		time.Second:                       "1 second",
+		30 * time.Second:                  "30 seconds",
+		59*time.Second + time.Millisecond: "1 minute",
+		time.Minute:                       "1 minute",
+		time.Minute + time.Second:         "2 minutes",
+		8 * time.Minute:                   "8 minutes",
+	} {
+		if got := formatWait(d); got != want {
+			t.Errorf("formatWait(%v) = %q, want %q", d, got, want)
+		}
 	}
 }

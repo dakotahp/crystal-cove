@@ -4,11 +4,9 @@ import (
 	"crypto/sha256"
 	"crypto/subtle"
 	"errors"
-	"fmt"
 	"net/http"
 	"net/url"
 	"slices"
-	"time"
 )
 
 type authRequest struct {
@@ -103,7 +101,7 @@ func (s *Server) authorizeSubmit(w http.ResponseWriter, r *http.Request) {
 		return subtle.ConstantTimeCompare(sum[:], s.passwordHash[:]) == 1
 	})
 	if wait > 0 {
-		data.Message = fmt.Sprintf("Too many wrong passwords. Try again in %s.", wait.Round(time.Second))
+		data.Message = "Too many wrong passwords. Try again in " + formatWait(wait) + "."
 		renderPage(w, http.StatusTooManyRequests, origin, data)
 		return
 	}
