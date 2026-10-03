@@ -53,7 +53,7 @@ type AuthConfig struct {
 }
 
 // Handler returns the HTTP handler: process health at /health, sync-aware
-// readiness at /ready, RFC 9728 protected-resource metadata and, with the
+// readiness at /ready, the logo as a favicon, RFC 9728 protected-resource metadata and, with the
 // built-in sign-in, its authorization endpoints, and the bearer-protected MCP endpoint everywhere else.
 func (s *Server) Handler(authCfg AuthConfig) http.Handler {
 	mcpHandler := mcp.NewStreamableHTTPHandler(func(*http.Request) *mcp.Server {
@@ -72,6 +72,8 @@ func (s *Server) Handler(authCfg AuthConfig) http.Handler {
 		w.WriteHeader(http.StatusOK)
 		fmt.Fprintln(w, "ok")
 	})
+	mux.HandleFunc("GET /favicon.ico", serveIcon("image/x-icon", faviconICO))
+	mux.HandleFunc("GET /favicon.svg", serveIcon("image/svg+xml", logoSVG))
 	opts := &auth.RequireBearerTokenOptions{}
 	if authCfg.OIDC != nil {
 		opts.ResourceMetadataURL = authCfg.OIDC.PublicURL + metadataPath

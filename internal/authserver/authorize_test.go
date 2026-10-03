@@ -82,14 +82,15 @@ func TestAuthorizePageShowsClientAndReturnHost(t *testing.T) {
 		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body)
 	}
 	body := rec.Body.String()
-	for _, want := range []string{"<strong>Claude</strong> wants access", "<strong>claude.ai</strong>", `name="code_challenge"`, `type="password"`} {
+	for _, want := range []string{"<strong>Claude</strong> wants access", "<strong>claude.ai</strong>", `name="code_challenge"`, `type="password"`, `<link rel="icon" href="/favicon.svg" type="image/svg+xml">`} {
 		if !strings.Contains(body, want) {
 			t.Errorf("page lacks %q", want)
 		}
 	}
 	h := rec.Header()
 	if csp := h.Get("Content-Security-Policy"); !strings.Contains(csp, "form-action 'self' https://claude.ai;") ||
-		!strings.Contains(csp, "frame-ancestors 'none'") || !strings.Contains(csp, "default-src 'none'") {
+		!strings.Contains(csp, "frame-ancestors 'none'") || !strings.Contains(csp, "default-src 'none'") ||
+		!strings.Contains(csp, "img-src 'self'") {
 		t.Errorf("Content-Security-Policy = %q", csp)
 	}
 	for k, v := range map[string]string{"X-Frame-Options": "DENY", "Referrer-Policy": "no-referrer", "Cache-Control": "no-store"} {
