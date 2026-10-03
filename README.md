@@ -226,5 +226,7 @@ You can also give agents guidance about your vault, like an AGENTS.md file. Put 
 
 ---
 
+Started as a fork of [Obsidian-Hosted-Mcp](https://github.com/andyjmorgan/Obsidian-Hosted-Mcp) by Andrew Morgan.
+
 *Obsidian is a trademark of Dynalist Inc. This project is not affiliated
 with or endorsed by Obsidian; it simply drives the official headless sync client.*
