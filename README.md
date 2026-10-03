@@ -158,16 +158,23 @@ Do this when you want your vault from a phone, from claude.ai in a browser, or f
 OBSIDIAN_DEVICE_NAME=crystal-cove
 ```
 
-**3. Set up OAuth.** claude.ai and the Claude mobile app cannot send a fixed token, so they need an OAuth sign-in. Either point Crystal Cove at an identity provider you run, or put a small OAuth shim in front of it. [docs/oauth.md](docs/oauth.md) explains both. With an identity provider, add:
+**3. Turn on sign-in.** claude.ai and the Claude mobile app sign in with OAuth, and Crystal Cove has it built in. Add to `.env`:
 
 ```sh
-OAUTH_ISSUER=https://auth.example.com/realms/myrealm
-OAUTH_AUDIENCE=crystal-cove
 MCP_PUBLIC_URL=https://obsidian.example.com
-OAUTH_REQUIRED_ROLES=vault-owner
+# The password you type when you connect an app. At least 16 characters.
+MCP_OWNER_PASSWORD=
 ```
 
-Keep an `MCP_AUTH_TOKEN` too if you also want to connect Claude Code or scripts with a plain token. With a shim, `MCP_AUTH_TOKEN` must be the token the shim hands out.
+Your proxy sends every path to the container, with no token check of its own. For Caddy, that is all it needs:
+
+```
+obsidian.example.com {
+	reverse_proxy localhost:8080
+}
+```
+
+Keep an `MCP_AUTH_TOKEN` too if you also want to connect Claude Code or scripts with a plain token. To use an identity provider you already run instead, see [docs/oauth.md](docs/oauth.md).
 
 **4. Start it and wait for the first sync.** Check readiness on the server itself:
 
@@ -177,18 +184,17 @@ docker compose logs -f          # wait for "Fully synced", then Ctrl-C
 curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8080/ready   # 200
 ```
 
-Then check the public URL. `/ready` needs no token, but a proxy that checks the token itself answers 401 without one, so send it either way:
+Then check the public URL:
 
 ```sh
-curl -s -o /dev/null -w '%{http_code}\n' \
-  -H "Authorization: Bearer $MCP_AUTH_TOKEN" https://obsidian.example.com/ready   # 200
+curl -s -o /dev/null -w '%{http_code}\n' https://obsidian.example.com/ready   # 200
 ```
 
 A 502 here means the proxy cannot reach the container: check that it points at the same port as `HOST_PORT`.
 
 **5. Connect your assistant.**
 
-- **claude.ai / Claude Desktop / Claude mobile:** add a custom connector with URL `https://obsidian.example.com/`. It finds the OAuth flow and signs you in. With a shim that uses a fixed client, enter its client ID and secret under Advanced settings.
+- **claude.ai / Claude Desktop / Claude mobile:** add a custom connector with URL `https://obsidian.example.com/`. Leave the client ID and secret empty. A Crystal Cove page opens: enter your owner password, and you return to Claude connected.
 - **ChatGPT:** add an MCP connector (Settings → Connectors) with the same URL.
 - **Claude Code:** the same `claude mcp add` command as the local setup, with your server's URL.
 

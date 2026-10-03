@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net"
@@ -265,5 +266,72 @@ func TestRunOIDCConfigFailure(t *testing.T) {
 	err := run(context.Background(), getenv(env), io.Discard, nil)
 	if err == nil || !strings.Contains(err.Error(), "configuring OIDC auth") {
 		t.Errorf("err = %v, want OIDC config failure", err)
+	}
+}
+
+func builtinEnv(t *testing.T) map[string]string {
+	t.Helper()
+	env := testEnv(t)
+	env["HOME"] = t.TempDir()
+	env["MCP_OWNER_PASSWORD"] = "correct-horse-battery-staple"
+	env["MCP_PUBLIC_URL"] = "http://127.0.0.1:8080"
+	return env
+}
+
+func TestRunWithBuiltinSignIn(t *testing.T) {
+	installFakeOb(t, `case "$1" in sync) echo "Fully synced"; exec sleep 60;; *) exit 0;; esac`)
+	env := builtinEnv(t)
+	logs := &lockedBuffer{}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	addrCh := make(chan string, 1)
+	errCh := make(chan error, 1)
+	go func() { errCh <- run(ctx, getenv(env), logs, func(addr string) { addrCh <- addr }) }()
+
+	var addr string
+	select {
+	case addr = <-addrCh:
+	case err := <-errCh:
+		t.Fatalf("run exited early: %v", err)
+	case <-time.After(10 * time.Second):
+		t.Fatal("server did not become ready")
+	}
+
+	res, err := http.Get(fmt.Sprintf("http://%s/.well-known/oauth-authorization-server", addr))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer res.Body.Close()
+	var meta struct {
+		Issuer string `json:"issuer"`
+	}
+	if err := json.NewDecoder(res.Body).Decode(&meta); err != nil {
+		t.Fatal(err)
+	}
+	if meta.Issuer != "http://127.0.0.1:8080" {
+		t.Errorf("issuer = %q", meta.Issuer)
+	}
+	if _, err := os.Stat(filepath.Join(env["HOME"], ".crystal-cove", "auth.json")); err != nil {
+		t.Errorf("auth store not created: %v", err)
+	}
+	if out := logs.String(); !strings.Contains(out, "built-in sign-in enabled") || strings.Contains(out, "correct-horse-battery-staple") {
+		t.Errorf("logs = %q, want the sign-in announced without the password", out)
+	}
+}
+
+func TestRunFailsWhenAuthStoreIsCorrupt(t *testing.T) {
+	installFakeOb(t, `case "$1" in sync) echo "Fully synced"; exec sleep 60;; *) exit 0;; esac`)
+	env := builtinEnv(t)
+	dir := filepath.Join(env["HOME"], ".crystal-cove")
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "auth.json"), []byte("not json"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	err := run(context.Background(), getenv(env), io.Discard, nil)
+	if err == nil || !strings.Contains(err.Error(), "starting the built-in sign-in") {
+		t.Errorf("err = %v", err)
 	}
 }

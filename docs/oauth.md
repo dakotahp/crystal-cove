@@ -1,23 +1,35 @@
 # OAuth
 
-You need OAuth to use Crystal Cove from claude.ai in a browser or from the Claude mobile app. Claude Code and most local MCP clients work with the static `MCP_AUTH_TOKEN` alone.
+You need OAuth to use Crystal Cove from claude.ai in a browser, from the Claude mobile app, or from ChatGPT. Claude Code and most local MCP clients work with the static `MCP_AUTH_TOKEN` alone.
 
-## Why claude.ai needs it
+## Built-in sign-in
 
-On a personal plan, a claude.ai custom connector has no field for a fixed token. Sending one as a request header is a beta limited to some organizations, so a personal account needs OAuth. See Anthropic's [connector authentication docs](https://claude.com/docs/connectors/building/authentication) for the current state.
+Set two values:
 
-There are two ways to give it OAuth:
+```sh
+MCP_PUBLIC_URL=https://obsidian.example.com
+MCP_OWNER_PASSWORD=<at least 16 characters>
+```
 
-- **Point `OAUTH_ISSUER` at an identity provider** you already run, such as Keycloak, Auth0 or Entra ID. This is the supported path, described below.
-- **Put a small OAuth shim in front of it**, at the same host name, that serves discovery, `/authorize` and `/oauth/token`, and hands back one fixed token that you also set as `MCP_AUTH_TOKEN`. That is far less machinery than a full identity provider for a single user, and the server needs no changes: it just sees a bearer token. Your reverse proxy routes the OAuth paths to the shim and everything else to the container.
+Crystal Cove then is its own OAuth server. An app registers itself, opens a Crystal Cove page where you enter the owner password, and goes back connected. You paste no client ID or secret.
+
+- **Staying connected:** an app gets an access token for one hour and renews it by itself. One sign-in lasts at most 90 days, then you sign in again.
+- **Disconnecting every app:** change `MCP_OWNER_PASSWORD` and restart the container.
+- **A stolen renewal token:** when an old one is used again, that app's sign-in ends at once.
+- **Wrong passwords:** after five, the page locks for a minute, and the lock doubles with each further miss, up to an hour.
+- **Storage:** `/home/obsidian/.crystal-cove/auth.json`, beside the vaults and never inside one, so Obsidian Sync never carries it. It holds only hashes of tokens and secrets.
+
+The page shows which app asks and which site you return to. If either looks wrong, do not enter the password.
 
 ## Using an identity provider
 
-Setting `OAUTH_ISSUER` turns the server into an OAuth 2.0 protected resource. It works with any OIDC-compliant provider (Keycloak, Auth0, Entra ID, Okta, ...):
+If you already run Keycloak, Auth0, Entra ID, or another OIDC provider, Crystal Cove can accept its tokens instead. Use this or the built-in sign-in, not both.
+
+Setting `OAUTH_ISSUER` turns the server into an OAuth 2.0 protected resource:
 
 - Bearer JWTs from the issuer are validated: signature via JWKS, issuer, lifetime, and audience, with the `azp` fallback Keycloak uses for client tokens.
-- RFC 9728 protected-resource metadata is served at `/.well-known/oauth-protected-resource`, and 401 responses carry a `resource_metadata` challenge. MCP clients like claude.ai and ChatGPT use it to find your authorization server and run the flow themselves, including dynamic client registration if your provider allows it.
-- The static `MCP_AUTH_TOKEN` keeps working alongside, which is handy for scripts and smoke tests.
+- RFC 9728 protected-resource metadata is served at `/.well-known/oauth-protected-resource`, and 401 responses carry a `resource_metadata` challenge. MCP clients use it to find your provider and run the flow themselves, including dynamic client registration if your provider allows it.
+- The static `MCP_AUTH_TOKEN` keeps working alongside.
 
 Minimal example:
 

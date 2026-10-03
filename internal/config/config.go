@@ -22,6 +22,11 @@ const DefaultPort = 8080
 // rather than served. openssl rand -hex 16 produces exactly this length.
 const MinAuthTokenLength = 32
 
+// MinOwnerPasswordLength is the shortest MCP_OWNER_PASSWORD accepted. The
+// sign-in page faces the internet; the wrong-password lock slows guessing,
+// but only a long password makes it hopeless.
+const MinOwnerPasswordLength = 16
+
 // deviceNamePrefix prefixes the generated device name when
 // OBSIDIAN_DEVICE_NAME is not set.
 const deviceNamePrefix = "CrystalCove-"
@@ -84,8 +89,15 @@ type Config struct {
 	// OpenID Connect provider.
 	OAuth *OAuth
 	// PublicURL is this server's canonical external URL, used as the
-	// protected-resource identifier in OAuth metadata. Required with OAuth.
+	// protected-resource identifier in OAuth metadata and as the built-in
+	// sign-in's issuer. Required with OAuth or OwnerPassword.
 	PublicURL string
+	// OwnerPassword turns on the built-in OAuth sign-in. The owner types it
+	// on the sign-in page when an MCP client connects.
+	OwnerPassword string
+	// AuthStoreDir holds the built-in sign-in's registered clients and
+	// grants. It sits beside the vaults, never inside one.
+	AuthStoreDir string
 	// Port is the HTTP listen port.
 	Port int
 	// ReadOnly leaves out every tool that changes a note.
@@ -121,8 +133,15 @@ func Load(getenv Getenv, randSource io.Reader) (*Config, error) {
 	}
 	cfg.OAuth = oauth
 	cfg.PublicURL = publicURL
-	if cfg.AuthToken == "" && cfg.OAuth == nil {
-		return nil, errors.New("MCP_AUTH_TOKEN or OAUTH_ISSUER must be set: the MCP endpoint is bearer-token protected")
+	if cfg.PublicURL == "" {
+		cfg.PublicURL = strings.TrimSuffix(strings.TrimSpace(getenv("MCP_PUBLIC_URL")), "/")
+	}
+	cfg.OwnerPassword = getenv("MCP_OWNER_PASSWORD")
+	if err := checkOwnerPassword(cfg); err != nil {
+		return nil, err
+	}
+	if cfg.AuthToken == "" && cfg.OAuth == nil && cfg.OwnerPassword == "" {
+		return nil, errors.New("MCP_AUTH_TOKEN, OAUTH_ISSUER, or MCP_OWNER_PASSWORD must be set: the MCP endpoint is bearer-token protected")
 	}
 	if cfg.AuthToken != "" && len(cfg.AuthToken) < MinAuthTokenLength {
 		return nil, fmt.Errorf("MCP_AUTH_TOKEN must be at least %d characters, got %d: generate one with openssl rand -hex 32",
@@ -144,14 +163,15 @@ func Load(getenv Getenv, randSource io.Reader) (*Config, error) {
 		cfg.DeviceName = name
 	}
 
+	home := getenv("HOME")
+	if home == "" {
+		home = "/"
+	}
 	cfg.VaultsDir = getenv("VAULTS_DIR")
 	if cfg.VaultsDir == "" {
-		home := getenv("HOME")
-		if home == "" {
-			home = "/"
-		}
 		cfg.VaultsDir = filepath.Join(home, "vaults")
 	}
+	cfg.AuthStoreDir = filepath.Join(home, ".crystal-cove")
 
 	if cfg.ReadOnly, err = parseBool(getenv, "MCP_READ_ONLY"); err != nil {
 		return nil, err
@@ -185,7 +205,7 @@ func parseOAuth(getenv Getenv) (*OAuth, string, error) {
 		}
 		return nil, "", nil
 	}
-	if err := checkIssuerURL(issuer); err != nil {
+	if err := checkHTTPSURL("OAUTH_ISSUER", issuer); err != nil {
 		return nil, "", err
 	}
 	o := &OAuth{
@@ -219,16 +239,45 @@ func parseOAuth(getenv Getenv) (*OAuth, string, error) {
 	return o, publicURL, nil
 }
 
-// checkIssuerURL requires an https issuer. MCP clients are sent to it to
-// sign in, so plain http is allowed only on a loopback host, where a local
-// identity provider commonly runs without TLS.
-func checkIssuerURL(issuer string) error {
-	u, err := url.Parse(issuer)
+// checkHTTPSURL requires an https URL. MCP clients are sent to it to sign
+// in, so plain http is allowed only on a loopback host, where a local
+// server commonly runs without TLS.
+func checkHTTPSURL(name, raw string) error {
+	u, err := url.Parse(raw)
 	if err != nil || u.Host == "" || (u.Scheme != "https" && u.Scheme != "http") {
-		return fmt.Errorf("OAUTH_ISSUER must be an http(s) URL, got %q", issuer)
+		return fmt.Errorf("%s must be an http(s) URL, got %q", name, raw)
 	}
 	if u.Scheme == "http" && !isLoopback(u.Hostname()) {
-		return fmt.Errorf("OAUTH_ISSUER must use https, got %q: plain http is allowed only on a loopback host", issuer)
+		return fmt.Errorf("%s must use https, got %q: plain http is allowed only on a loopback host", name, raw)
+	}
+	return nil
+}
+
+// checkOwnerPassword validates the built-in sign-in settings. Only one
+// place to sign in is advertised, so it excludes an external provider.
+func checkOwnerPassword(cfg *Config) error {
+	if cfg.OwnerPassword == "" {
+		return nil
+	}
+	if len(cfg.OwnerPassword) < MinOwnerPasswordLength {
+		return fmt.Errorf("MCP_OWNER_PASSWORD must be at least %d characters, got %d",
+			MinOwnerPasswordLength, len(cfg.OwnerPassword))
+	}
+	if cfg.OAuth != nil {
+		return errors.New("MCP_OWNER_PASSWORD and OAUTH_ISSUER cannot both be set: use the built-in sign-in or an external identity provider")
+	}
+	if cfg.PublicURL == "" {
+		return errors.New("MCP_PUBLIC_URL must be set when MCP_OWNER_PASSWORD is: MCP clients sign in at that address")
+	}
+	if err := checkHTTPSURL("MCP_PUBLIC_URL", cfg.PublicURL); err != nil {
+		return err
+	}
+	u, err := url.Parse(cfg.PublicURL)
+	if err != nil {
+		return fmt.Errorf("MCP_PUBLIC_URL is not a valid URL: %w", err)
+	}
+	if (u.Path != "" && u.Path != "/") || u.RawQuery != "" || u.Fragment != "" || u.ForceQuery {
+		return errors.New("MCP_PUBLIC_URL must be the bare origin, like https://vault.example.com, when MCP_OWNER_PASSWORD is set: the sign-in is served at the root")
 	}
 	return nil
 }

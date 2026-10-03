@@ -13,7 +13,7 @@ import (
 )
 
 // metadataPath is where RFC 9728 protected-resource metadata is served
-// when OIDC delegation is enabled.
+// when OIDC or the built-in sign-in is enabled.
 const metadataPath = "/.well-known/oauth-protected-resource"
 
 // OIDCAuth enables delegating bearer-token validation to a third-party
@@ -30,16 +30,31 @@ type OIDCAuth struct {
 	PublicURL string
 }
 
+// BuiltinAuth enables the built-in owner-password sign-in, served by this
+// server at PublicURL.
+type BuiltinAuth struct {
+	// Handler serves the authorization server's endpoints.
+	Handler http.Handler
+	// Verify validates an access token the built-in sign-in issued.
+	Verify func(ctx context.Context, token string) (*auth.TokenInfo, error)
+	// PublicURL is both the protected resource and its authorization server.
+	PublicURL string
+}
+
+var builtinPaths = []string{"/.well-known/oauth-authorization-server", "/register", "/authorize", "/token"}
+
 // AuthConfig selects how MCP requests are authenticated: a static bearer
-// token (API key), a third-party OIDC provider, or both side by side.
+// token (API key), plus either a third-party OIDC provider or the built-in
+// sign-in.
 type AuthConfig struct {
 	StaticToken string
 	OIDC        *OIDCAuth
+	Builtin     *BuiltinAuth
 }
 
 // Handler returns the HTTP handler: process health at /health, sync-aware
-// readiness at /ready, RFC 9728 protected-resource metadata when OIDC is
-// enabled, and the bearer-protected MCP endpoint everywhere else.
+// readiness at /ready, RFC 9728 protected-resource metadata and, with the
+// built-in sign-in, its authorization endpoints, and the bearer-protected MCP endpoint everywhere else.
 func (s *Server) Handler(authCfg AuthConfig) http.Handler {
 	mcpHandler := mcp.NewStreamableHTTPHandler(func(*http.Request) *mcp.Server {
 		return s.MCPServer()
@@ -66,6 +81,16 @@ func (s *Server) Handler(authCfg AuthConfig) http.Handler {
 			ScopesSupported:        authCfg.OIDC.Scopes,
 			BearerMethodsSupported: []string{"header"},
 		}))
+	} else if b := authCfg.Builtin; b != nil {
+		opts.ResourceMetadataURL = b.PublicURL + metadataPath
+		mux.Handle(metadataPath, auth.ProtectedResourceMetadataHandler(&oauthex.ProtectedResourceMetadata{
+			Resource:               b.PublicURL,
+			AuthorizationServers:   []string{b.PublicURL},
+			BearerMethodsSupported: []string{"header"},
+		}))
+		for _, p := range builtinPaths {
+			mux.Handle(p, b.Handler)
+		}
 	}
 	mux.Handle("/", auth.RequireBearerToken(s.logRejections(verifyToken(authCfg)), opts)(mcpHandler))
 	return mux
@@ -87,7 +112,7 @@ func (s *Server) logRejections(verify auth.TokenVerifier) auth.TokenVerifier {
 }
 
 // verifyToken accepts the static token (constant-time compare) when one is
-// configured, then falls back to the OIDC verifier when one is configured.
+// configured, then falls back to the OIDC or built-in verifier, whichever is configured.
 func verifyToken(cfg AuthConfig) auth.TokenVerifier {
 	return func(ctx context.Context, token string, _ *http.Request) (*auth.TokenInfo, error) {
 		if cfg.StaticToken != "" &&
@@ -97,6 +122,9 @@ func verifyToken(cfg AuthConfig) auth.TokenVerifier {
 		}
 		if cfg.OIDC != nil {
 			return cfg.OIDC.Verify(ctx, token)
+		}
+		if cfg.Builtin != nil {
+			return cfg.Builtin.Verify(ctx, token)
 		}
 		return nil, fmt.Errorf("%w: unknown bearer token", auth.ErrInvalidToken)
 	}

@@ -17,6 +17,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/dakotahp/crystal-cove/internal/authserver"
 	"github.com/dakotahp/crystal-cove/internal/bootstrap"
 	"github.com/dakotahp/crystal-cove/internal/config"
 	"github.com/dakotahp/crystal-cove/internal/oidcauth"
@@ -81,6 +82,20 @@ func run(ctx context.Context, getenv config.Getenv, logOut io.Writer, onReady fu
 			Scopes:    cfg.OAuth.Scopes,
 			PublicURL: cfg.PublicURL,
 		}
+	}
+
+	if cfg.OwnerPassword != "" {
+		signIn, err := authserver.New(authserver.Options{
+			PublicURL: cfg.PublicURL,
+			Password:  cfg.OwnerPassword,
+			StoreDir:  cfg.AuthStoreDir,
+			Audit:     logger.With("audit", true),
+		})
+		if err != nil {
+			return fmt.Errorf("starting the built-in sign-in: %w", err)
+		}
+		authCfg.Builtin = &server.BuiltinAuth{Handler: signIn.Handler(), Verify: signIn.Verify, PublicURL: cfg.PublicURL}
+		logger.Info("built-in sign-in enabled", "public_url", cfg.PublicURL, "store", cfg.AuthStoreDir)
 	}
 
 	httpSrv := &http.Server{

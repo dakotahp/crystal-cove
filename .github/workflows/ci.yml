@@ -62,6 +62,7 @@ jobs:
           go test ./internal/vault/ -run '^$' -fuzz '^FuzzResolveStaysInsideTheVault$' -fuzztime 20s
           go test ./internal/vault/ -run '^$' -fuzz '^FuzzReadNeverLeavesTheVault$' -fuzztime 20s
           go test ./internal/server/ -run '^$' -fuzz '^FuzzWritableNotesAreVisibleNotes$' -fuzztime 20s
+          go test ./internal/authserver/ -run '^$' -fuzz '^FuzzTokenEndpoint$' -fuzztime 20s
 
   gosec:
     runs-on: ubuntu-latest
