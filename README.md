@@ -4,7 +4,7 @@
 
 # Crystal Cove
 
-Turn-key to run in a Docker container to work easily locally on your laptop or as a remote cloud connector like on claude.ai.
+Your Obsidian vault, ready for Claude and ChatGPT, in one container. Sync, note tools, and sign-in are all built in, so there is nothing else to set up.
 
 <div>
 <a href="https://github.com/dakotahp/crystal-cove/actions/workflows/ci.yml"><img src="https://github.com/dakotahp/crystal-cove/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
@@ -14,16 +14,31 @@ Turn-key to run in a Docker container to work easily locally on your laptop or a
 
 <!-- toc -->
 
+- [What's in the box](#whats-in-the-box)
 - [The Why](#the-why)
-- [Use Cases](#use-cases)
-  - [Which setup do you need?](#which-setup-do-you-need)
+- [Which setup do you need?](#which-setup-do-you-need)
 - [Installation](#installation)
-  - [Local](#local)
-  - [Remote](#remote)
+  - [On your computer](#on-your-computer)
+  - [On a server](#on-a-server)
 - [What agents can do](#what-agents-can-do)
 - [More docs](#more-docs)
 
 <!-- /toc -->
+
+## What's in the box
+
+One image holds every part an assistant needs to work in your vault:
+
+- **Obsidian Sync.** Obsidian's official [headless client](https://help.obsidian.md/install/headless) keeps the vault in sync. You do not install Node, the desktop app, or a plugin.
+- **An MCP server.** Tools that read, search, and edit notes the way Obsidian sees them, over the [Model Context Protocol](https://modelcontextprotocol.io).
+- **Sign-in.** A built-in sign-in page for claude.ai, the Claude mobile app, and ChatGPT. You type one password. You do not run an identity provider or copy client IDs.
+- **Safe defaults.** A read-only container, soft deletes to the vault's `.trash`, and a readiness check that waits for sync.
+
+You bring only:
+
+- Docker
+- An [Obsidian Sync](https://obsidian.md/sync) subscription
+- For use from a phone or claude.ai: an HTTPS address that points at the container
 
 ## The Why
 
@@ -31,47 +46,37 @@ Turn-key to run in a Docker container to work easily locally on your laptop or a
   <img src="docs/images/trifecta.png" alt="Three overlapping circles: native sync, reach from anywhere, and tools that understand notes. Only the center, where all three meet, is the full setup. Native sync plus reach alone means primitive searching. Native sync plus note tools alone means laptop only, no mobile. Reach plus note tools alone means reinventing the wheel." width="100%">
 </p>
 
-Obsidian offers a CLI that requires the desktop app, or a headless sync service. But there is no first-party solution to give an agent access to your vault on a cloud server.
+Obsidian has no first-party way to give an agent your vault from a cloud server. Its CLI needs the desktop app to be running.
 
-Giving an AI assistant real access to an Obsidian vault needs three things at once, and most others provide only two of them.
+An assistant needs three things at once to work well in a vault, and most other projects give two:
 
-1. **Uses official sync engine.** Obsidian's own [headless client](https://help.obsidian.md/install/headless) is tried and true, so nothing here reimplements Obsidian Sync, and nothing depends on the desktop app being awake or on a socket into it.
-2. **Reach from anywhere.** It speaks the [Model Context Protocol](https://modelcontextprotocol.io) over HTTP with secure authentication, so a browser, a phone, or a cloud agent can use it securely.
-3. **Tools that understand notes.** An Obsidian vault is not simply a directory of markdown files, so a proper MCP layer provides tools that work with how Obsidian works. Not `read_file` and `list_directory` over a folder that waste tokens and make it difficult for agents to operate.
+1. **The official sync engine.** Nothing here reimplements Obsidian Sync, and nothing depends on a desktop app that is awake.
+2. **Reach from anywhere.** MCP over HTTPS with sign-in, so a browser, a phone, or a cloud agent can connect.
+3. **Tools that understand notes.** A vault is more than a folder of Markdown files. Tools that know about names, tags, links, and sections use fewer tokens than `read_file` and `list_directory`.
 
-Each component involves very different things so this project is a Docker container that runs them cohesively for stability and security.
+Crystal Cove packs all three into one container. That means:
 
-That means:
+- **Claude** (claude.ai, Claude Code, Claude Desktop) and **ChatGPT** can read, search, create, edit, and organize your notes.
+- Every write syncs to your Obsidian apps within seconds. A note you write on your phone is visible to your assistant.
+- It runs all the time wherever you host containers: a NAS, a VPS, Kubernetes, or a Raspberry Pi (images are amd64 and arm64).
 
-- **Claude** (claude.ai, Claude Code, Claude Desktop) and **ChatGPT**
-  (connectors / deep research) can read, search, create, edit, and organize your notes quickly and efficiently.
-- Every write syncs back to your Obsidian apps within seconds, and every note you jot down on your phone becomes visible to your assistant.
-- It runs 24/7 wherever you host containers: a NAS, a VPS, Kubernetes, or a Raspberry Pi (images are amd64 + arm64).
+## Which setup do you need?
 
-## Use Cases
+The same container works in two places, and agents see the same tools in both:
 
-The project serves two use cases effectively:
-
-1. Run locally on your laptop in lieu of using the Obsidian CLI with its idiosyncrasies.
-2. Run as a cloud connector on your own server to give Claude or ChatGPT access to your notes from anywhere on any device, including your phone on-the-go. No native apps required.
-
-### Which setup do you need?
-
-The same container covers two distinct uses, and the tools are the same to an agent either way. The only difference is that running this locally on a laptop or desktop does not involve more complex OAuth authentication or a domain name.
-
-|                  | **Locally**                                                  | **On a server**                                              |
+|                  | **On your computer**                                         | **On a server**                                              |
 | ---------------- | ------------------------------------------------------------ | ------------------------------------------------------------ |
-| Example usage    | Agents on that machine: Claude Code, Cursor, and other local MCP clients | claude.ai in a browser, the Claude mobile app, and coding agents like Claude Code and Codex. |
-| Example endpoint | `http://127.0.0.1:8080/`                                     | `https://obsidian.example.com/`                              |
-| Authorization    | A static bearer token you generate                           | OAuth is required because claude.ai cannot send a fixed token |
-| What you need    | Docker                                                       | A domain name, TLS, and a reverse proxy                      |
-| Good for         | Daily agent work on a laptop or work computer, in place of a plugin or the Obsidian CLI, with no desktop app running | Reaching your vault from a phone, and agents that run while your computer is off |
+| Connects         | Claude Code, Cursor, and other MCP clients on that computer  | claude.ai, the Claude mobile app, ChatGPT, and coding agents anywhere |
+| Address          | `http://127.0.0.1:8080/`                                     | `https://obsidian.example.com/`                              |
+| Sign-in          | A token you generate                                         | The built-in sign-in page and your password                  |
+| You need         | Docker                                                       | Docker, a domain name, and HTTPS (a reverse proxy or tunnel) |
+| Good for         | Daily agent work, in place of a plugin or the Obsidian CLI   | Your vault from a phone, and agents that run while your computer is off |
 
-Both keep the vault in sync through native Obsidian Sync, so a note written by an agent on one machine appears on your phone and your desktop like any other edit. Even if you also have the desktop app on the same computer running this service. Notes will sync up to Obsidian and then back down to your native apps.
+Both use Obsidian Sync, so an agent's edit reaches your phone and desktop like any other edit. This is true even when the Obsidian desktop app runs on the same computer.
 
 ## Installation
 
-Any usage of this project requires Docker and an [Obsidian Sync](https://obsidian.md/sync) subscription. You don't need to clone this repository: the published image and one compose file are enough. Multi-factor authentication and end-to-end encrypted vaults are supported.
+You do not need to clone this repository. The published image and one compose file are enough. Accounts with multi-factor authentication and end-to-end encrypted vaults both work.
 
 **1. Download the compose file** into a new folder:
 
@@ -80,14 +85,14 @@ mkdir crystal-cove && cd crystal-cove
 curl -O https://raw.githubusercontent.com/dakotahp/crystal-cove/master/docker-compose.yml
 ```
 
-**2. Log in to Obsidian Sync.** The image contains Obsidian's official headless client, so you don't need Node or anything else installed. This prompts for your email, password, and MFA code if you have one, then prints a session token:
+**2. Log in to Obsidian Sync.** The image already contains Obsidian's sync client. This command asks for your email, password, and MFA code if you have one, then prints a session token:
 
 ```sh
 docker run --rm -it ghcr.io/dakotahp/crystal-cove:latest \
   sh -c 'ob login && cat ~/.config/obsidian-headless/auth_token'
 ```
 
-Run this on the machine where the container will run. Each login is its own Obsidian Sync device, and a new login does not sign out your other devices. If the token ever stops working, repeat this step.
+Run it on the machine where the container will run. Each login is a separate Obsidian Sync device, and it does not sign out your other devices. If the token stops working, do this step again.
 
 **3. Find your vault's name** as Obsidian Sync spells it:
 
@@ -96,9 +101,9 @@ docker run --rm -e OBSIDIAN_AUTH_TOKEN=<token from step 2> \
   ghcr.io/dakotahp/crystal-cove:latest ob sync-list-remote
 ```
 
-The list also shows an ID for each vault. You only need the name.
+The list also shows an ID for each vault. You need only the name.
 
-**4. Create a `.env` file** next to `docker-compose.yml`. Setup involves three different secrets, so each one is labelled with what it unlocks:
+**4. Create a `.env` file** next to `docker-compose.yml`. There are three secrets, and each comment says what it unlocks:
 
 ```sh
 # Unlocks your Obsidian account: the token from step 2.
@@ -110,16 +115,16 @@ OBSIDIAN_VAULTS=Personal
 # Unlocks an end-to-end encrypted vault. Not your account password.
 #OBSIDIAN_VAULT_PASSWORD=
 
-# Unlocks this server: the password your AI clients send.
+# Unlocks this server for agents that send a token, such as Claude Code.
 # Make one with: openssl rand -hex 32
 MCP_AUTH_TOKEN=
 ```
 
-**Is your vault end-to-end encrypted?** If you chose an encryption password when you set up Obsidian Sync for it, yes. Then set `OBSIDIAN_VAULT_PASSWORD`, or the container stops with "Password not provided".
+**Is your vault end-to-end encrypted?** If you chose an encryption password when you set up Obsidian Sync for it, yes. Set `OBSIDIAN_VAULT_PASSWORD`, or the container stops with "Password not provided".
 
-The [example file](.env.example) lists every option, including logging in with email and password instead of a token. Now follow the section for where you run it.
+The [example file](.env.example) lists every option. Now follow the section for where you run it.
 
-### Local
+### On your computer
 
 **1. Start it and wait for the first sync:**
 
@@ -129,44 +134,41 @@ docker compose logs -f          # wait for "Fully synced", then Ctrl-C
 curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8080/ready   # 200
 ```
 
-The first sync downloads the whole vault into a Docker volume, so a large vault takes a few minutes. If port 8080 is already taken, set `HOST_PORT` in `.env` to another port, and use that port in the URLs here.
+The first sync downloads the whole vault into a Docker volume, so a large vault takes a few minutes. If port 8080 is in use, set `HOST_PORT` in `.env` to a different port and use that port in these URLs.
 
-**2. Point an agent at it.** For Claude Code:
+**2. Connect an agent.** For Claude Code:
 
 ```sh
 claude mcp add --scope user --transport http obsidian http://127.0.0.1:8080/ \
   --header "Authorization: Bearer $MCP_AUTH_TOKEN"
 ```
 
-`--scope user` makes the vault available in every folder. Avoid `--scope project`: it writes the token into a `.mcp.json` file that is meant to be committed. Then `claude mcp list` should show it connected.
+`--scope user` makes the vault available in every folder. Do not use `--scope project`: it writes the token into a `.mcp.json` file that is meant to be committed. Then `claude mcp list` shows it as connected.
 
 Other MCP clients take the same URL and `Authorization` header over "Streamable HTTP".
 
-**Stopping:** `docker compose stop` keeps the synced copy for next time. `docker compose down -v` also deletes it, so the next start re-syncs from scratch.
+**Stopping:** `docker compose stop` keeps the synced copy for next time. `docker compose down -v` also deletes it, so the next start syncs from the beginning.
 
-**On a work computer:** the container keeps a full copy of the vault on that machine, and it stays a registered Obsidian Sync device until you remove it.
+**On a work computer:** the container keeps a full copy of the vault on that machine. It stays a registered Obsidian Sync device until you remove it.
 
-### Remote
+### On a server
 
-Do this when you want your vault from a phone, from claude.ai in a browser, or from agents that run while your computer is off.
+Do this to use your vault from a phone, from claude.ai in a browser, or from agents that run while your computer is off. Sign-in is built in: you add a password and an address, and the apps do the rest.
 
-**1. Pick a host** that can run a container and be reached over HTTPS. TLS is required, because tokens travel in a header. A reverse proxy (Caddy, Traefik, nginx), a platform ingress, or a [Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/) all work. Point it at `127.0.0.1:8080`, where the container speaks plain HTTP, or at the port you set with `HOST_PORT`. Do not set `BIND_ADDRESS=0.0.0.0`: that exposes the endpoint directly, without TLS.
-
-**2. Name the device** in `.env`, so Obsidian Sync version history shows which edits came from the server:
+**1. Turn on sign-in.** Add to `.env`:
 
 ```sh
+# The address your apps will use. HTTPS, with no path.
+MCP_PUBLIC_URL=https://obsidian.example.com
+
+# The password you type when you connect an app. At least 16 characters.
+MCP_OWNER_PASSWORD=
+
+# The name Obsidian Sync version history shows for edits from the server.
 OBSIDIAN_DEVICE_NAME=crystal-cove
 ```
 
-**3. Turn on sign-in.** claude.ai and the Claude mobile app sign in with OAuth, and Crystal Cove has it built in. Add to `.env`:
-
-```sh
-MCP_PUBLIC_URL=https://obsidian.example.com
-# The password you type when you connect an app. At least 16 characters.
-MCP_OWNER_PASSWORD=
-```
-
-Your proxy sends every path to the container, with no token check of its own. For Caddy, that is all it needs:
+**2. Give it an HTTPS address.** This is the only part the container does not do. It speaks plain HTTP on `127.0.0.1:8080`, and tokens travel in a header, so put HTTPS in front of it. Send every path to the container. For [Caddy](https://caddyserver.com), which gets the certificate for you, that is all it needs:
 
 ```
 obsidian.example.com {
@@ -174,33 +176,29 @@ obsidian.example.com {
 }
 ```
 
-Keep an `MCP_AUTH_TOKEN` too if you also want to connect Claude Code or scripts with a plain token. To use an identity provider you already run instead, see [docs/oauth.md](docs/oauth.md).
+Traefik, nginx, a platform ingress, or a [Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/) also work. Point them at the port in `HOST_PORT` if you changed it. Do not set `BIND_ADDRESS=0.0.0.0`: that exposes the server without HTTPS.
 
-**4. Start it and wait for the first sync.** Check readiness on the server itself:
+**3. Start it and wait for the first sync:**
 
 ```sh
 docker compose up -d
 docker compose logs -f          # wait for "Fully synced", then Ctrl-C
-curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8080/ready   # 200
-```
-
-Then check the public URL:
-
-```sh
 curl -s -o /dev/null -w '%{http_code}\n' https://obsidian.example.com/ready   # 200
 ```
 
-A 502 here means the proxy cannot reach the container: check that it points at the same port as `HOST_PORT`.
+A 502 means the proxy cannot reach the container. Make sure it points at the same port as `HOST_PORT`.
 
-**5. Connect your assistant.**
+**4. Connect your assistant.**
 
-- **claude.ai / Claude Desktop / Claude mobile:** add a custom connector with URL `https://obsidian.example.com/`. Leave the client ID and secret empty. A Crystal Cove page opens: enter your owner password, and you return to Claude connected.
-- **ChatGPT:** add an MCP connector (Settings → Connectors) with the same URL.
-- **Claude Code:** the same `claude mcp add` command as the local setup, with your server's URL.
+- **claude.ai / Claude Desktop / Claude mobile:** add a custom connector with the URL `https://obsidian.example.com/`. Leave the client ID and secret empty. A Crystal Cove page opens. Enter your owner password, and you return to Claude connected.
+- **ChatGPT:** add an MCP connector (Settings → Connectors) with the same URL, and sign in the same way.
+- **Claude Code:** use the same `claude mcp add` command as on your computer, with your server's URL.
 
-If you plan to use it hands-free, for example in a car, set the write tools to "Always allow". A tool approval prompt may not be answerable there.
+If you use it hands-free, for example in a car, set the write tools to "Always allow". You may not be able to answer an approval prompt there.
 
-**Before you trust it:** the server can create, edit, move, and delete notes. Deletes only move notes to the vault's `.trash`, but start with a test vault until you trust your setup. Run one copy of the container per vault set: two sync processes on the same vault fight over it. [docs/operations.md](docs/operations.md) covers health checks and how the server recovers from sync failures.
+**Before you trust it:** agents can create, edit, move, and delete notes. Deletes only move notes to the vault's `.trash`, but start with a test vault until you trust your setup. Run one container per set of vaults: two sync processes on one vault conflict. [docs/operations.md](docs/operations.md) covers health checks and how the server recovers from sync failures.
+
+Already run an identity provider such as Keycloak or Auth0? Crystal Cove can use it in place of the built-in sign-in. See [docs/oauth.md](docs/oauth.md).
 
 ## What agents can do
 
