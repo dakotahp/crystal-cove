@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.11.0](https://github.com/dakotahp/crystal-cove/compare/v0.10.0...v0.11.0) (2026-10-03)
+
+
+### Features
+
+* style the built-in sign-in page ([0f83a55](https://github.com/dakotahp/crystal-cove/commit/0f83a55c9727c5bb7c31610c73a28ebede17161b))
+
+
+### Bug Fixes
+
+* limit client registration to 10 per minute ([b24ff4f](https://github.com/dakotahp/crystal-cove/commit/b24ff4f4508c6e27baa8591a0fc0314972848e5d))
+* show sign-in errors as a page instead of redirecting ([910d4c4](https://github.com/dakotahp/crystal-cove/commit/910d4c4e4e5c2cd611b3a0b83d7646da1dddb8fa))
+
 ## [0.10.0](https://github.com/dakotahp/crystal-cove/compare/v0.9.0...v0.10.0) (2026-10-02)
 
 
