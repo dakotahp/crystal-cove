@@ -143,7 +143,7 @@ func TestAuthorizeUntrustedRedirectShowsErrorPage(t *testing.T) {
 	}
 }
 
-func TestAuthorizeBadParametersRedirectWithError(t *testing.T) {
+func TestAuthorizeBadParametersShowAnErrorPage(t *testing.T) {
 	s, _ := newTestAuthServer(t)
 	id := registerPublicClient(t, s)
 	_, challenge := pkcePair(t)
@@ -151,20 +151,24 @@ func TestAuthorizeBadParametersRedirectWithError(t *testing.T) {
 		mutate func(url.Values)
 		want   string
 	}{
-		"response type":   {func(f url.Values) { f.Set("response_type", "token") }, "unsupported_response_type"},
-		"no challenge":    {func(f url.Values) { f.Del("code_challenge") }, "invalid_request"},
-		"plain challenge": {func(f url.Values) { f.Set("code_challenge_method", "plain") }, "invalid_request"},
-		"wrong resource":  {func(f url.Values) { f.Set("resource", "https://other.example.com") }, "invalid_target"},
+		"response type":   {func(f url.Values) { f.Set("response_type", "token") }, "response_type must be code"},
+		"no challenge":    {func(f url.Values) { f.Del("code_challenge") }, "code_challenge_method=S256 is required"},
+		"plain challenge": {func(f url.Values) { f.Set("code_challenge_method", "plain") }, "code_challenge_method=S256 is required"},
+		"wrong resource":  {func(f url.Values) { f.Set("resource", "https://other.example.com") }, "resource must be " + testPublicURL},
 	}
 	for name, c := range cases {
 		t.Run(name, func(t *testing.T) {
 			form := authorizeForm(id, challenge)
 			c.mutate(form)
-			rec := serve(s.Handler(), http.MethodGet, "/authorize?"+form.Encode(), nil, nil)
-			loc, _ := url.Parse(rec.Header().Get("Location"))
-			if rec.Code != http.StatusFound || loc.Query().Get("error") != c.want ||
-				loc.Query().Get("state") != "xyz" || loc.Query().Get("iss") != testPublicURL {
-				t.Errorf("status = %d, Location = %q; want a redirect with error=%s, state, and iss", rec.Code, loc, c.want)
+			get := serve(s.Handler(), http.MethodGet, "/authorize?"+form.Encode(), nil, nil)
+			form.Set("password", testPassword)
+			post := postForm(s, "/authorize", form)
+			for method, rec := range map[string]*httptest.ResponseRecorder{"GET": get, "POST": post} {
+				if rec.Code != http.StatusBadRequest || rec.Header().Get("Location") != "" ||
+					!strings.Contains(rec.Body.String(), c.want) {
+					t.Errorf("%s: status = %d, Location = %q; want a 400 page saying %q and no redirect",
+						method, rec.Code, rec.Header().Get("Location"), c.want)
+				}
 			}
 		})
 	}

@@ -3,6 +3,7 @@ package authserver
 import (
 	"crypto/sha256"
 	"crypto/subtle"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -17,47 +18,31 @@ type authRequest struct {
 	challenge   string
 }
 
-type authError struct {
-	code        string
-	description string
-	redirect    bool
-}
-
 var authorizeFields = []string{"response_type", "client_id", "redirect_uri", "state",
 	"code_challenge", "code_challenge_method", "scope", "resource"}
 
-// Errors with redirect false come before the redirect URI is trusted and must
-// never redirect. Errors with redirect true come with a non-nil request.
-func (s *Server) parseAuthRequest(form url.Values) (*authRequest, *authError) {
+func (s *Server) parseAuthRequest(form url.Values) (*authRequest, error) {
 	c, ok := s.store.client(form.Get("client_id"))
 	if !ok {
-		return nil, &authError{"invalid_client", "This app is not registered with this server. Connect it again.", false}
+		return nil, errors.New("This app is not registered with this server. Connect it again.")
 	}
 	redirectURI := form.Get("redirect_uri")
 	if redirectURI == "" && len(c.RedirectURIs) == 1 {
 		redirectURI = c.RedirectURIs[0]
 	}
 	if !slices.Contains(c.RedirectURIs, redirectURI) {
-		return nil, &authError{"invalid_request", "The return address does not match the app's registration.", false}
+		return nil, errors.New("The return address does not match the app's registration.")
 	}
 	req := &authRequest{client: c, redirectURI: redirectURI, state: form.Get("state"), challenge: form.Get("code_challenge")}
 	switch {
 	case form.Get("response_type") != "code":
-		return req, &authError{"unsupported_response_type", "response_type must be code", true}
+		return nil, errors.New("response_type must be code")
 	case req.challenge == "" || form.Get("code_challenge_method") != "S256":
-		return req, &authError{"invalid_request", "PKCE with code_challenge_method=S256 is required", true}
+		return nil, errors.New("PKCE with code_challenge_method=S256 is required")
 	case form.Get("resource") != "" && !s.matchesResource(form.Get("resource")):
-		return req, &authError{"invalid_target", "resource must be " + s.publicURL, true}
+		return nil, errors.New("resource must be " + s.publicURL)
 	}
 	return req, nil
-}
-
-func (s *Server) failAuthorize(w http.ResponseWriter, r *http.Request, req *authRequest, aerr *authError) {
-	if !aerr.redirect {
-		renderError(w, http.StatusBadRequest, aerr.description)
-		return
-	}
-	s.redirect(w, r, req, url.Values{"error": {aerr.code}, "error_description": {aerr.description}})
 }
 
 func (s *Server) redirect(w http.ResponseWriter, r *http.Request, req *authRequest, params url.Values) {
@@ -71,7 +56,7 @@ func (s *Server) redirect(w http.ResponseWriter, r *http.Request, req *authReque
 	}
 	q.Set("iss", s.publicURL)
 	u.RawQuery = q.Encode()
-	http.Redirect(w, r, u.String(), http.StatusFound)
+	http.Redirect(w, r, u.String(), http.StatusFound) // #nosec G710 -- only after the owner password, to an exactly registered redirect URI
 }
 
 func (s *Server) pageFor(req *authRequest, form url.Values) (string, pageData) {
@@ -91,9 +76,9 @@ func (s *Server) pageFor(req *authRequest, form url.Values) (string, pageData) {
 
 func (s *Server) authorizePage(w http.ResponseWriter, r *http.Request) {
 	form := r.URL.Query()
-	req, aerr := s.parseAuthRequest(form)
-	if aerr != nil {
-		s.failAuthorize(w, r, req, aerr)
+	req, err := s.parseAuthRequest(form)
+	if err != nil {
+		renderError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 	origin, data := s.pageFor(req, form)
@@ -107,9 +92,9 @@ func (s *Server) authorizeSubmit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	form := r.PostForm
-	req, aerr := s.parseAuthRequest(form)
-	if aerr != nil {
-		s.failAuthorize(w, r, req, aerr)
+	req, err := s.parseAuthRequest(form)
+	if err != nil {
+		renderError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 	origin, data := s.pageFor(req, form)
