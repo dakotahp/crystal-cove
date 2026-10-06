@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.1](https://github.com/dakotahp/crystal-cove/compare/v0.12.0...v0.12.1) (2026-10-06)
+
+
+### Bug Fixes
+
+* make tool errors and results easier for agents to act on ([3e8a100](https://github.com/dakotahp/crystal-cove/commit/3e8a1005ddef2b03ff85a0c5278e0bef790142ef))
+
 ## [0.12.0](https://github.com/dakotahp/crystal-cove/compare/v0.11.0...v0.12.0) (2026-10-03)
 
 
