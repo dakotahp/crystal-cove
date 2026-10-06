@@ -154,7 +154,8 @@ type moveNoteInput struct {
 type moveNoteOutput struct {
 	OK             bool     `json:"ok"`
 	MovedTo        string   `json:"moved_to" jsonschema:"vault-relative path the note now has"`
-	LinksUpdatedIn []string `json:"links_updated_in,omitempty" jsonschema:"notes whose links were rewritten to the new path"`
+	LinksUpdated   bool     `json:"links_updated" jsonschema:"whether links to the note were rewritten; false unless update_links was set, and false for a move into or out of .trash"`
+	LinksUpdatedIn []string `json:"links_updated_in" jsonschema:"notes whose links were rewritten to the new path"`
 }
 
 func (s *Server) moveNote(_ context.Context, _ *mcp.CallToolRequest, in moveNoteInput) (*mcp.CallToolResult, moveNoteOutput, error) {
@@ -172,11 +173,11 @@ func (s *Server) moveNote(_ context.Context, _ *mcp.CallToolRequest, in moveNote
 	if err := requireWritableNote(to); err != nil {
 		return nil, moveNoteOutput{}, err
 	}
-	changed, err := moveWithLinks(v, in.Path, to, in.UpdateLinks)
+	changed, updated, err := moveWithLinks(v, in.Path, to, in.UpdateLinks)
 	if err != nil {
 		return nil, moveNoteOutput{}, err
 	}
-	return nil, moveNoteOutput{OK: true, MovedTo: to, LinksUpdatedIn: changed}, nil
+	return nil, moveNoteOutput{OK: true, MovedTo: to, LinksUpdated: updated, LinksUpdatedIn: changed}, nil
 }
 
 type deleteNoteInput struct {

@@ -68,15 +68,16 @@ func (s *Server) MCPServer() *mcp.Server {
 		Version: Version,
 		Icons:   []mcp.Icon{serverIcon},
 	}, &mcp.ServerOptions{Instructions: s.Instructions()})
+	params := map[string]string{}
 
 	if len(s.vaults) > 1 {
-		mcp.AddTool(srv, &mcp.Tool{
+		addTool(srv, params, &mcp.Tool{
 			Name:        "list_vaults",
 			Description: "List the Obsidian vaults available on this server.",
 		}, s.listVaults)
 	}
 
-	mcp.AddTool(srv, &mcp.Tool{
+	addTool(srv, params, &mcp.Tool{
 		Name: "list_notes",
 		Description: "List notes and directories in a vault. Hidden folders such as .obsidian and .trash are excluded, " +
 			"but passing dir \".trash\" with recursive lists deleted notes, which keep their folders there. Other " +
@@ -85,20 +86,21 @@ func (s *Server) MCPServer() *mcp.Server {
 			"set to it, or narrow the listing with dir.",
 	}, s.listNotes)
 
-	mcp.AddTool(srv, &mcp.Tool{
+	addTool(srv, params, &mcp.Tool{
 		Name: "read_note",
 		Description: fmt.Sprintf("Read a note from a vault. Returns at most %d characters per call; "+
-			"when the response is truncated, call again with offset set to next_offset to continue reading. version "+
+			"when the response is truncated, call again with offset set to next_offset to continue reading. The page "+
+			"size is fixed: there is no limit parameter. version "+
 			"identifies the note's text; pass it to edit_note so the edit is refused if the note changed since, "+
 			"for example through sync from another device.", vault.ReadPageSize),
 	}, s.readNote)
 
-	mcp.AddTool(srv, &mcp.Tool{
+	addTool(srv, params, &mcp.Tool{
 		Name:        "get_section",
 		Description: "Read a Markdown heading section's body, including nested subsections but excluding its heading. heading_path is an exact case-sensitive suffix of the heading hierarchy (Markdown title text without heading markers); ambiguous matches fail. Only document-level headings count, not headings in code, quotes, lists, or YAML frontmatter. Returns at most 10240 characters; continue with next_offset. version identifies this section's text, for edit_section.",
 	}, s.getSection)
 
-	mcp.AddTool(srv, &mcp.Tool{
+	addTool(srv, params, &mcp.Tool{
 		Name: "search_notes",
 		Description: "Search a vault by note name and by content. A plain multi-word query finds notes holding every " +
 			"word, in any order; a query with regular-expression characters is read as a regex (ripgrep syntax), and mode " +
@@ -107,46 +109,49 @@ func (s *Server) MCPServer() *mcp.Server {
 			"case_sensitive is set. max_results counts notes, and each note returns at most 5 matching lines unless max_lines_per_note says otherwise; every note reports its own total_matches.",
 	}, s.searchNotes)
 
-	mcp.AddTool(srv, &mcp.Tool{
+	addTool(srv, params, &mcp.Tool{
 		Name: "recent_notes",
 		Description: "List the notes changed most recently, newest first, with their modified time. Pass since as an " +
 			"RFC 3339 timestamp to see only what changed after it. Use this to pick up where work left off, which a " +
 			"path-ordered listing cannot answer.",
 	}, s.recentNotes)
 
-	mcp.AddTool(srv, &mcp.Tool{
+	addTool(srv, params, &mcp.Tool{
 		Name: "list_tags",
 		Description: "List every tag used in a vault with the number of notes carrying it, most used first. Tags come " +
 			"from the frontmatter tags field and from inline hashtags. Use it to learn what a vault is about before searching.",
 	}, s.listTags)
 
-	mcp.AddTool(srv, &mcp.Tool{
+	addTool(srv, params, &mcp.Tool{
 		Name: "find_notes",
-		Description: "Find notes by metadata rather than text: by tags (a note must carry every tag given) and by a " +
-			"frontmatter field, with frontmatter_value optional so a key on its own finds every note carrying that field. " +
-			"Use search_notes for words in the text.",
+		Description: "Find notes by metadata rather than text. Give tags, frontmatter_key, or both: tags is a list, " +
+			"and a note must carry every tag in it; frontmatter_key names a frontmatter field the note must have, and " +
+			"frontmatter_value, when given, is the value that field must hold (a list field matches when any item does). " +
+			"Example: {\"tags\": [\"project\"], \"frontmatter_key\": \"status\", \"frontmatter_value\": \"active\"}. " +
+			"There is no query parameter: use search_notes for words in the text.",
 	}, s.findNotes)
 
-	mcp.AddTool(srv, &mcp.Tool{
+	addTool(srv, params, &mcp.Tool{
 		Name: "get_links",
 		Description: "List the wikilinks a note points at, each resolved to the note it names, or flagged unresolved " +
 			"when no such note exists yet. Headings, aliases and embeds are reported as written.",
 	}, s.getLinks)
 
-	mcp.AddTool(srv, &mcp.Tool{
+	addTool(srv, params, &mcp.Tool{
 		Name: "get_backlinks",
 		Description: "List the notes that link to a note, with the links they use. This is how notes relate to each " +
 			"other in Obsidian, so use it to find the context around a note rather than searching for its name.",
 	}, s.getBacklinks)
 
-	mcp.AddTool(srv, &mcp.Tool{
+	addTool(srv, params, &mcp.Tool{
 		Name:        "get_frontmatter",
 		Description: "Read one note's frontmatter fields and its tags, without its body.",
 	}, s.getFrontmatter)
 
 	if !s.policy.ReadOnly {
-		s.addWriteTools(srv)
+		s.addWriteTools(srv, params)
 	}
+	srv.AddReceivingMiddleware(argumentHints(params))
 	if s.audit != nil {
 		srv.AddReceivingMiddleware(auditMiddleware(s.audit))
 	}
@@ -155,8 +160,8 @@ func (s *Server) MCPServer() *mcp.Server {
 
 // addWriteTools registers every tool that changes a note. A read-only
 // server leaves them out, so clients never see them.
-func (s *Server) addWriteTools(srv *mcp.Server) {
-	mcp.AddTool(srv, &mcp.Tool{
+func (s *Server) addWriteTools(srv *mcp.Server, params map[string]string) {
+	addTool(srv, params, &mcp.Tool{
 		Name: "edit_section",
 		Description: "Change one Markdown heading section without quoting its text or rewriting the whole note; the " +
 			"heading and the rest of the note are kept. mode append adds lines after the section's own text, before " +
@@ -167,38 +172,40 @@ func (s *Server) addWriteTools(srv *mcp.Server) {
 			"exact case-sensitive suffix of the heading hierarchy; missing or ambiguous matches fail.",
 	}, s.editSection)
 
-	mcp.AddTool(srv, &mcp.Tool{
+	addTool(srv, params, &mcp.Tool{
 		Name: "update_frontmatter",
 		Description: "Add, replace or delete frontmatter fields on one note. Fields that are not mentioned keep their " +
 			"value and order, and the note's body is left untouched. Returns the note's fields after the change.",
 	}, s.updateFrontmatter)
 
-	mcp.AddTool(srv, &mcp.Tool{
+	addTool(srv, params, &mcp.Tool{
 		Name:        "create_note",
 		Description: "Create a new note. Parent directories are created automatically; fails if the note already exists.",
 	}, s.createNote)
 
-	mcp.AddTool(srv, &mcp.Tool{
+	addTool(srv, params, &mcp.Tool{
 		Name:        "append_note",
 		Description: "Append content to the end of a note, creating it if it does not exist. The content starts on a new line.",
 	}, s.appendNote)
 
-	mcp.AddTool(srv, &mcp.Tool{
+	addTool(srv, params, &mcp.Tool{
 		Name: "edit_note",
 		Description: "Edit a note by replacing an exact text snippet. The snippet must occur exactly once " +
 			"unless replace_all is set; include surrounding lines to make it unique. Pass the version read_note returned " +
 			"to refuse the edit if the note changed since; the result carries the new version for a following edit.",
 	}, s.editNote)
 
-	mcp.AddTool(srv, &mcp.Tool{
+	addTool(srv, params, &mcp.Tool{
 		Name: "move_note",
 		Description: "Move or rename a note within a vault. Fails if the destination already exists. A new name breaks " +
-			"[[links]] to the note unless update_links is set, which rewrites them in every note. It also restores " +
+			"[[links]] to the note unless update_links is set, which rewrites them in every note: a [[Name]] link " +
+			"stays a bare name unless another note shares the new name, and a [[folder/Name]] link gets the new path. " +
+			"links_updated in the result says whether links were rewritten. It also restores " +
 			"a deleted note: pass its path inside .trash, and leave new_path out to put it back where it was deleted " +
 			"from. Use list_notes with dir \".trash\" and recursive to see deleted notes.",
 	}, s.moveNote)
 
-	mcp.AddTool(srv, &mcp.Tool{
+	addTool(srv, params, &mcp.Tool{
 		Name:        "delete_note",
 		Description: s.deleteDescription(),
 	}, s.deleteNote)

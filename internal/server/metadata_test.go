@@ -226,3 +226,43 @@ func TestUpdateFrontmatterRejectsAnEmptyChange(t *testing.T) {
 		t.Error("updateFrontmatter accepted a call that changes nothing")
 	}
 }
+
+func TestFrontmatterDateSurvivesAReadAndWriteBack(t *testing.T) {
+	const doc = "---\ncreated: 2026-06-06\nstatus: active\n---\n\nbody\n"
+	s, v := metaServer(t, map[string]string{"a.md": doc})
+	ctx := context.Background()
+
+	_, got, err := s.getFrontmatter(ctx, &mcp.CallToolRequest{}, noteRef{Path: "a.md"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Frontmatter["created"] != "2026-06-06" {
+		t.Fatalf("created = %#v, want the date as written", got.Frontmatter["created"])
+	}
+
+	_, _, err = s.updateFrontmatter(ctx, &mcp.CallToolRequest{}, updateFrontmatterInput{
+		Path: "a.md",
+		Set:  map[string]any{"created": got.Frontmatter["created"]},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if after := readFile(t, v, "a.md"); after != doc {
+		t.Errorf("file = %q, want it unchanged %q", after, doc)
+	}
+}
+
+func TestFindNotesMatchesADateAsWritten(t *testing.T) {
+	s, _ := metaServer(t, map[string]string{
+		"a.md": "---\ncreated: 2026-06-06\n---\nbody\n",
+		"b.md": "---\ncreated: 2026-06-07\n---\nbody\n",
+	})
+
+	_, res, err := s.findNotes(context.Background(), &mcp.CallToolRequest{}, findNotesInput{Key: "created", Value: "2026-06-06"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(res.Notes) != 1 || res.Notes[0].Path != "a.md" {
+		t.Errorf("notes = %+v, want only a.md", res.Notes)
+	}
+}

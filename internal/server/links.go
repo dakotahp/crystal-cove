@@ -62,29 +62,28 @@ func updateLinks(v *vault.Vault, from, to string, before []string) ([]string, er
 }
 
 // moveWithLinks moves a note and, when asked, points the links to it at its
-// new path. A note moved into or out of the trash keeps its links as they
-// are: a deleted note is not a link target, and links to it resolve again by
-// name once it is back.
-func moveWithLinks(v *vault.Vault, from, to string, update bool) ([]string, error) {
+// new path, reporting whether it did. A note moved into or out of the trash
+// keeps its links as they are: a deleted note is not a link target, and
+// links to it resolve again by name once it is back.
+func moveWithLinks(v *vault.Vault, from, to string, update bool) (changed []string, updated bool, err error) {
 	update = update && !inTrash(from) && !inTrash(to)
 	var before []string
 	if update {
-		var err error
 		if before, err = v.Notes(); err != nil {
-			return nil, err
+			return nil, false, err
 		}
 	}
 	if err := v.Move(from, to); err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	if !update {
-		return nil, nil
+		return []string{}, false, nil
 	}
-	changed, err := updateLinks(v, from, to, before)
+	changed, err = updateLinks(v, from, to, before)
 	if err != nil {
-		return changed, fmt.Errorf("moved %q to %q, but updating links stopped after %d notes: %w", from, to, len(changed), err)
+		return changed, true, fmt.Errorf("moved %q to %q, but updating links stopped after %d notes: %w", from, to, len(changed), err)
 	}
-	return changed, nil
+	return changed, true, nil
 }
 
 // ResolvedLink is one wikilink and the note it points at.

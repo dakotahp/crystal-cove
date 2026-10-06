@@ -41,7 +41,12 @@ func Parse(data []byte) (*Note, error) {
 		n.HasFrontmatter = true
 		n.Body = body
 		if strings.TrimSpace(block) != "" {
-			if err := yaml.Unmarshal([]byte(block), &n.Frontmatter); err != nil {
+			var doc yaml.Node
+			if err := yaml.Unmarshal([]byte(block), &doc); err != nil {
+				return nil, fmt.Errorf("parsing frontmatter: %w", err)
+			}
+			datesAsText(&doc)
+			if err := doc.Decode(&n.Frontmatter); err != nil {
 				return nil, fmt.Errorf("parsing frontmatter: %w", err)
 			}
 			if n.Frontmatter == nil {
@@ -52,6 +57,22 @@ func Parse(data []byte) (*Note, error) {
 
 	n.Tags = collectTags(n.Frontmatter, n.Body)
 	return n, nil
+}
+
+// datesAsText keeps dates as the text the note holds. Decoded to time.Time
+// they would come back reformatted, and a client writing one back would
+// change the file.
+func datesAsText(node *yaml.Node) {
+	if isDate(node) {
+		node.Tag = "!!str"
+	}
+	for _, child := range node.Content {
+		datesAsText(child)
+	}
+}
+
+func isDate(node *yaml.Node) bool {
+	return node.Kind == yaml.ScalarNode && node.ShortTag() == "!!timestamp"
 }
 
 // splitFrontmatter returns the YAML block and the body that follows it. The
@@ -154,6 +175,9 @@ func UpdateFrontmatter(data []byte, set map[string]any, remove []string) ([]byte
 		var valueNode yaml.Node
 		if err := valueNode.Encode(value); err != nil {
 			return nil, fmt.Errorf("encoding %q: %w", key, err)
+		}
+		if s, ok := value.(string); ok && isDate(&yaml.Node{Kind: yaml.ScalarNode, Value: s}) {
+			valueNode = yaml.Node{Kind: yaml.ScalarNode, Tag: "!!timestamp", Value: s}
 		}
 		setKey(mapping, key, &valueNode)
 	}

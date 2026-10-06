@@ -40,7 +40,7 @@ func (v *Vault) update(rel string, missingOK bool, change func(old []byte) ([]by
 		old, err := root.ReadFile(clean)
 		missing := errors.Is(err, fs.ErrNotExist)
 		if err != nil && !(missing && missingOK) {
-			return nil, fmt.Errorf("reading %q: %w", rel, err)
+			return nil, v.noteError("reading", rel, err)
 		}
 		updated, err := change(old)
 		if err != nil {

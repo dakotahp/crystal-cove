@@ -6,25 +6,27 @@ Every tool takes a `vault` name. It is optional when the server holds a single v
 
 All paths are vault-relative and sandboxed: absolute paths and `..` escapes are rejected.
 
+A call on a note that does not exist fails with `not_found: no note at "<path>" in vault "<name>"`. A call with an unknown or missing argument fails with an error that lists the tool's parameters and which of them are required.
+
 | Tool | Description |
 | --- | --- |
 | `list_vaults` | Names of the vaults served. Offered only when the server holds more than one vault. |
 | `list_notes` | List files and folders in a vault, optionally recursive. Hidden folders (`.obsidian`, `.trash`) are excluded; pass `dir: ".trash"` with `recursive: true` to browse deleted notes. Other hidden folders cannot be listed. Pages at 200 entries (`limit` up to 1,000) with `offset`/`next_offset`, and reports the listing's `total`. |
-| `read_note` | Read a note, paged at 10,240 characters per call with `offset`/`next_offset` for longer notes. Returns the note's `version` (see [Edits and sync](#edits-and-sync)). |
+| `read_note` | Read a note, paged at 10,240 characters per call with `offset`/`next_offset` for longer notes. The page size is fixed; there is no `limit`. Returns the note's `version` (see [Edits and sync](#edits-and-sync)). |
 | `get_section` | Read a heading section's body (including subsections), with character paging. Returns the section's `version`. |
 | `edit_section` | Change one heading section: `append` lines after its own text, `prepend` them below the heading, or `replace` the whole body (which needs the section's `version`). |
 | `search_notes` | Searches note names and content, ranked. A plain multi-word query finds notes holding every word in any order; a query with regex characters stays a regex (`mode` forces either). Name matches rank first, flagged `title_match`, then match count. Only Markdown notes are searched. Supports glob filters, context lines and case sensitivity. `max_results` counts notes (default 50), and each note returns 5 matching lines unless `max_lines_per_note` says otherwise (`-1` for all); `total_matches` per note counts the rest. |
 | `recent_notes` | Notes changed most recently, newest first, with modified times. Takes `since` (RFC 3339) and `limit`. |
 | `list_tags` | Every tag in the vault with the number of notes carrying it, most used first. Reads frontmatter `tags` and inline hashtags. |
-| `find_notes` | Query by metadata instead of text: notes carrying all the given tags, and/or a frontmatter field, with the value optional so a key alone finds every note that has it. |
+| `find_notes` | Query by metadata instead of text: notes carrying all the given `tags`, and/or a field named by `frontmatter_key`, with `frontmatter_value` optional so a key alone finds every note that has it. There is no free-text `query`; that is `search_notes`. |
 | `get_links` | The wikilinks a note points at, each resolved to the note it names, or flagged unresolved when that note does not exist yet. Headings, aliases and embeds are kept. |
 | `get_backlinks` | The notes that link to a note, with the links they use. |
-| `get_frontmatter` | One note's frontmatter fields and tags, without its body. |
+| `get_frontmatter` | One note's frontmatter fields and tags, without its body. Dates come back as written (`2026-06-06`), so writing one back leaves the file unchanged. |
 | `update_frontmatter` | Add, replace or delete frontmatter fields. Untouched fields keep their value and order, and the body is unchanged. |
 | `create_note` | Create a new note; fails if it already exists. |
 | `append_note` | Append to a note, creating it if needed. The content starts on a new line. |
 | `edit_note` | Exact find/replace; the snippet must be unique unless `replace_all` is set. Takes an optional `version` and returns the new one. |
-| `move_note` | Move or rename a note. With `update_links: true`, rewrites the `[[links]]` to it in every note (headings, aliases and embeds kept, code left alone) and lists the notes it changed in `links_updated_in`. Also restores a deleted note: pass its path inside `.trash`, and leave `new_path` out to put it back where it was deleted from. |
+| `move_note` | Move or rename a note. With `update_links: true`, rewrites the `[[links]]` to it in every note (headings, aliases and embeds kept, code left alone) and lists the notes it changed in `links_updated_in`. A bare `[[Name]]` link stays bare unless another note shares the new name; a `[[folder/Name]]` link gets the new path. `links_updated` says whether links were rewritten at all. Also restores a deleted note: pass its path inside `.trash`, and leave `new_path` out to put it back where it was deleted from. |
 | `delete_note` | Move a note to the vault's `.trash`, keeping its folder (`Projects/Plan.md` goes to `.trash/Projects/Plan.md`) so `move_note` can put it back where it was. A note trashed by Obsidian itself, which keeps only the file name, goes back to the vault root. With `MCP_ALLOW_PERMANENT_DELETE=true`, `permanent: true` removes it outright. |
 
 With `MCP_READ_ONLY=true`, the server leaves out every tool that changes a note.

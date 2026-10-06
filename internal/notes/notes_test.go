@@ -41,6 +41,9 @@ func TestParseRejectsBrokenFrontmatter(t *testing.T) {
 	if _, err := Parse([]byte("---\ntags: [unclosed\n---\n\nbody\n")); err == nil {
 		t.Error("Parse accepted invalid YAML frontmatter")
 	}
+	if _, err := Parse([]byte("---\n- a\n- b\n---\n\nbody\n")); err == nil {
+		t.Error("Parse accepted frontmatter that is a list, not fields")
+	}
 }
 
 func TestTagsFromYAMLList(t *testing.T) {
@@ -144,5 +147,33 @@ func TestUpdateFrontmatterRemovingEveryKeyDropsTheBlock(t *testing.T) {
 	}
 	if string(got) != "\nbody\n" {
 		t.Errorf("got %q, want the frontmatter block gone", got)
+	}
+}
+
+func TestParseKeepsDatesAsWritten(t *testing.T) {
+	doc := "---\ncreated: 2026-06-06\nseen: 2026-06-06T10:30:00Z\ndates:\n  - 2026-01-02\n---\nbody\n"
+
+	n, err := Parse([]byte(doc))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n.Frontmatter["created"] != "2026-06-06" || n.Frontmatter["seen"] != "2026-06-06T10:30:00Z" {
+		t.Errorf("Frontmatter = %#v", n.Frontmatter)
+	}
+	if list, ok := n.Frontmatter["dates"].([]any); !ok || len(list) != 1 || list[0] != "2026-01-02" {
+		t.Errorf("dates = %#v", n.Frontmatter["dates"])
+	}
+}
+
+func TestUpdateFrontmatterWritesADateStringUnquoted(t *testing.T) {
+	doc := "---\ncreated: 2026-06-06\n---\nbody\n"
+
+	got, err := UpdateFrontmatter([]byte(doc), map[string]any{"created": "2026-06-06", "due": "2026-07-01", "code": "007"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "---\ncreated: 2026-06-06\ncode: \"007\"\ndue: 2026-07-01\n---\nbody\n"
+	if string(got) != want {
+		t.Errorf("got %q, want %q", got, want)
 	}
 }

@@ -69,7 +69,7 @@ func (v *Vault) ReadAll(rel string) ([]byte, error) {
 	defer root.Close()
 	data, err := root.ReadFile(clean)
 	if err != nil {
-		return nil, fmt.Errorf("reading %q: %w", rel, err)
+		return nil, v.noteError("reading", rel, err)
 	}
 	return data, nil
 }
