@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"slices"
@@ -79,6 +80,9 @@ func TestMoveNoteUpdatesLinksWhenAsked(t *testing.T) {
 	out := move(t, s, moveNoteInput{Path: "Areas/Old Name.md", NewPath: "Areas/New Name.md", UpdateLinks: true})
 
 	want := []string{"Areas/New Name.md", "Inbox/a.md", "Inbox/c.md"}
+	if !out.LinksUpdated {
+		t.Error("LinksUpdated = false")
+	}
 	if !slices.Equal(out.LinksUpdatedIn, want) {
 		t.Errorf("LinksUpdatedIn = %q, want %q", out.LinksUpdatedIn, want)
 	}
@@ -103,8 +107,12 @@ func TestMoveNoteLeavesLinksAloneByDefault(t *testing.T) {
 	})
 
 	out := move(t, s, moveNoteInput{Path: "Old.md", NewPath: "New.md"})
-	if len(out.LinksUpdatedIn) != 0 {
-		t.Errorf("LinksUpdatedIn = %q, want none", out.LinksUpdatedIn)
+	data, err := json.Marshal(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(data), `"links_updated":false,"links_updated_in":[]`) {
+		t.Errorf("result = %s, want it to say that no links were rewritten", data)
 	}
 	if got := readFile(t, v, "Inbox/a.md"); got != "[[Old]]\n" {
 		t.Errorf("a.md = %q, want it untouched", got)
@@ -146,11 +154,11 @@ func TestMoveNoteIntoOrOutOfTheTrashUpdatesNoLinks(t *testing.T) {
 	})
 
 	out := move(t, s, moveNoteInput{Path: "Plan.md", NewPath: ".trash/Plan.md", UpdateLinks: true})
-	if len(out.LinksUpdatedIn) != 0 || readFile(t, v, "Inbox/a.md") != "[[Plan]]\n" {
+	if out.LinksUpdated || len(out.LinksUpdatedIn) != 0 || readFile(t, v, "Inbox/a.md") != "[[Plan]]\n" {
 		t.Errorf("moving into the trash rewrote links: %q", out.LinksUpdatedIn)
 	}
 	out = move(t, s, moveNoteInput{Path: ".trash/Plan.md", NewPath: "Archive/Plan.md", UpdateLinks: true})
-	if len(out.LinksUpdatedIn) != 0 || readFile(t, v, "Inbox/a.md") != "[[Plan]]\n" {
+	if out.LinksUpdated || len(out.LinksUpdatedIn) != 0 || readFile(t, v, "Inbox/a.md") != "[[Plan]]\n" {
 		t.Errorf("moving out of the trash rewrote links: %q", out.LinksUpdatedIn)
 	}
 }

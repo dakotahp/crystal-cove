@@ -62,7 +62,7 @@ func TestSectionSelectionErrors(t *testing.T) {
 		{"note.md", []string{"Tasks"}, 0, "ambiguous"},
 		{"note.md", []string{"A", "Tasks"}, -1, "out of range"},
 		{"note.md", []string{"A", "Tasks"}, 100, "out of range"},
-		{"missing.md", []string{"A"}, 0, "reading"},
+		{"missing.md", []string{"A"}, 0, "not_found"},
 		{"../escape.md", []string{"A"}, 0, "escapes"},
 	} {
 		if _, err := v.GetSection(tc.path, tc.headings, tc.offset); err == nil || !strings.Contains(err.Error(), tc.want) {

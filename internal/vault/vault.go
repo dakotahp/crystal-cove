@@ -43,6 +43,29 @@ func (v *Vault) Name() string { return v.name }
 // Root returns the vault's root directory.
 func (v *Vault) Root() string { return v.root }
 
+// NotFoundError reports that no note exists at Path. Its text starts with
+// the fixed code not_found, so a client can tell it from other failures.
+type NotFoundError struct {
+	Vault string
+	Path  string
+}
+
+func (e *NotFoundError) Error() string {
+	return fmt.Sprintf("not_found: no note at %q in vault %q", e.Path, e.Vault)
+}
+
+// Is makes errors.Is(err, fs.ErrNotExist) hold, as it did for the OS error.
+func (e *NotFoundError) Is(target error) bool { return target == fs.ErrNotExist }
+
+// noteError wraps err from op on the note at rel, reporting a missing note
+// as a NotFoundError rather than the OS text, which names system calls.
+func (v *Vault) noteError(op, rel string, err error) error {
+	if errors.Is(err, fs.ErrNotExist) {
+		return &NotFoundError{Vault: v.name, Path: rel}
+	}
+	return fmt.Errorf("%s %q: %w", op, rel, err)
+}
+
 // Entry describes a file or directory inside the vault.
 type Entry struct {
 	// Path is the vault-relative path, using forward slashes.
@@ -284,7 +307,7 @@ func (v *Vault) Move(from, to string) error {
 	}
 	defer root.Close()
 	if _, err := root.Stat(src); err != nil {
-		return fmt.Errorf("moving %q: %w", from, err)
+		return v.noteError("moving", from, err)
 	}
 	if _, err := root.Lstat(dst); err == nil {
 		return fmt.Errorf("destination %q already exists", to)
@@ -310,7 +333,7 @@ func (v *Vault) Delete(rel string, permanent bool) (trashedTo string, err error)
 	}
 	defer root.Close()
 	if _, err := root.Stat(clean); err != nil {
-		return "", fmt.Errorf("deleting %q: %w", rel, err)
+		return "", v.noteError("deleting", rel, err)
 	}
 	if strings.HasPrefix(filepath.ToSlash(rel), TrashDir+"/") || rel == TrashDir {
 		permanent = true

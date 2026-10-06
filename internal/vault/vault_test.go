@@ -193,8 +193,10 @@ func TestReadCountsCharactersNotBytes(t *testing.T) {
 func TestReadErrors(t *testing.T) {
 	v := newTestVault(t)
 	mustWrite(t, v, "note.md", "abc")
-	if _, err := v.Read("missing.md", 0); err == nil {
-		t.Error("Read succeeded on missing note")
+	_, err := v.Read("missing.md", 0)
+	var notFound *NotFoundError
+	if !errors.As(err, &notFound) || notFound.Path != "missing.md" || !errors.Is(err, fs.ErrNotExist) {
+		t.Errorf("Read of a missing note: err = %v, want a NotFoundError that is fs.ErrNotExist", err)
 	}
 	if _, err := v.Read("note.md", -1); err == nil {
 		t.Error("Read accepted negative offset")
