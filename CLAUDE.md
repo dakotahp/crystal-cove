@@ -210,6 +210,14 @@ Conventions:
   rather than introducing mocking frameworks.
 - Run before committing:
   `gofmt -l . && go vet ./... && go test ./... -coverprofile=coverage.out && go tool cover -func=coverage.out | tail -1`
+- Inside the Claude Code sandbox, Go cannot write its default build cache
+  (`~/Library/Caches/go-build`), so builds fail with `operation not
+  permitted`. Point the cache at a writable temp directory:
+  `env GOCACHE=/private/tmp/claude/gocache go test ./...`. `go mod tidy`
+  also fails there, because it needs to download modules and write the
+  module cache; edit `go.mod` by hand or run it outside the sandbox. The
+  `cmd/crystal-cove` tests fail in the sandbox because it blocks their
+  local ports; CI runs them.
 
 ## Reference material (not committed)
 
