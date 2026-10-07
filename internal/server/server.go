@@ -105,7 +105,8 @@ func (s *Server) MCPServer() *mcp.Server {
 		Description: "Search a vault by note name and by content. A plain multi-word query finds notes holding every " +
 			"word, in any order; a query with regular-expression characters is read as a regex (ripgrep syntax), and mode " +
 			"forces either reading. Only Markdown notes are searched. Results are ranked: notes named after the query first, " +
-			"flagged title_match, then notes with more matching lines. Case-insensitive unless " +
+			"flagged title_match, then notes with more matching lines. A note whose name matches is a result even when " +
+			"no line in it matches; it reports total_matches 0. glob limits name matches as well as content matches. Case-insensitive unless " +
 			"case_sensitive is set. max_results counts notes, and each note returns at most 5 matching lines unless max_lines_per_note says otherwise; every note reports its own total_matches.",
 	}, s.searchNotes)
 

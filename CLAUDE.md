@@ -100,7 +100,9 @@ Key invariants:
   usually its subject, so a content-only search misses the note a person
   would have opened by name. `vault.MatchTitles` walks for name matches and
   the handler puts them first, flagged `title_match`; content search stays in
-  `internal/search`.
+  `internal/search`. A name match is a result even with no matching line.
+  The `glob` limits name matches too: `Searcher.Files` asks ripgrep which
+  files the glob selects, so both passes share ripgrep's glob rules.
 - **Metadata queries are separate from text search.** `find_notes` filters by
   tags and frontmatter; `search_notes` searches words. Scans read every note
   on demand: a vault of a few thousand notes is fast enough, so there is no
