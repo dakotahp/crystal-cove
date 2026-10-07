@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.12.2](https://github.com/dakotahp/crystal-cove/compare/v0.12.1...v0.12.2) (2026-10-07)
+
+
+### Bug Fixes
+
+* apply search_notes glob to title matches ([b326337](https://github.com/dakotahp/crystal-cove/commit/b326337ce3ea0725b771d18dfc42a5f228b7a09a))
+* say frontmatter tools list fields alphabetically ([#43](https://github.com/dakotahp/crystal-cove/issues/43)) ([ba431d2](https://github.com/dakotahp/crystal-cove/commit/ba431d23caeb61cbed0f56d4a2bbf5a4e2cf5e23))
+
 ## [0.12.1](https://github.com/dakotahp/crystal-cove/compare/v0.12.0...v0.12.1) (2026-10-06)
 
 
