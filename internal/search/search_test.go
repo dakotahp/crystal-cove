@@ -291,3 +291,43 @@ func TestSearchOversizedOutputLine(t *testing.T) {
 		t.Error("Search accepted a line beyond the scanner limit")
 	}
 }
+
+func TestFilesListsPathsFromRipgrep(t *testing.T) {
+	var gotArgs []string
+	s := New("rg", func(_ context.Context, _, _ string, args ...string) ([]byte, []byte, int, error) {
+		gotArgs = args
+		return []byte("./daily/a.md\n./daily/b c .md\n\n"), nil, 0, nil
+	})
+	files, err := s.Files(context.Background(), "/vault", "daily/**")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(files) != 2 || !files["daily/a.md"] || !files["daily/b c .md"] {
+		t.Errorf("files = %v", files)
+	}
+	if !slices.Contains(gotArgs, "--files") || !slices.Contains(gotArgs, "daily/**") {
+		t.Errorf("args = %v, want --files and the glob", gotArgs)
+	}
+}
+
+func TestFilesNoMatchesIsEmpty(t *testing.T) {
+	s := New("rg", fakeRun("", "", 1, nil))
+	files, err := s.Files(context.Background(), "/vault", "none/**")
+	if err != nil || len(files) != 0 {
+		t.Errorf("files = %v, err = %v", files, err)
+	}
+}
+
+func TestFilesRipgrepError(t *testing.T) {
+	s := New("rg", fakeRun("", "glob error", 2, nil))
+	if _, err := s.Files(context.Background(), "/vault", "["); err == nil || !strings.Contains(err.Error(), "glob error") {
+		t.Errorf("err = %v", err)
+	}
+}
+
+func TestFilesRunFailure(t *testing.T) {
+	s := New("rg", fakeRun("", "", 0, errors.New("binary not found")))
+	if _, err := s.Files(context.Background(), "/vault", "*.md"); err == nil {
+		t.Error("Files succeeded despite run failure")
+	}
+}

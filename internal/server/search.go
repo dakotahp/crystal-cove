@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"fmt"
+	"slices"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
@@ -15,7 +16,7 @@ type searchNotesInput struct {
 	Query           string `json:"query" jsonschema:"words to look for, or a regular expression in ripgrep syntax"`
 	Mode            string `json:"mode,omitempty" jsonschema:"how to read the query: words (every word, any order), regex, or auto (the default: regex when the query holds regex characters, words otherwise)"`
 	MaxLinesPerNote int    `json:"max_lines_per_note,omitempty" jsonschema:"lines to return per note (default 5); use -1 for every matching line"`
-	Glob            string `json:"glob,omitempty" jsonschema:"restrict the search to note paths matching this glob, e.g. daily/**"`
+	Glob            string `json:"glob,omitempty" jsonschema:"restrict the search, name matches included, to note paths matching this glob, e.g. daily/**"`
 	CaseSensitive   bool   `json:"case_sensitive,omitempty" jsonschema:"match case exactly instead of the default case-insensitive search"`
 	ContextLines    int    `json:"context_lines,omitempty" jsonschema:"lines of context to include around each match"`
 	MaxResults      int    `json:"max_results,omitempty" jsonschema:"maximum notes to return (default 50, max 500)"`
@@ -46,8 +47,7 @@ func (s *Server) searchNotes(ctx context.Context, _ *mcp.CallToolRequest, in sea
 	if limit <= 0 {
 		limit = search.DefaultMaxResults
 	}
-	words := search.QueryWords(opts)
-	titles, truncated, err := matchTitles(v, in.Query, words, in.CaseSensitive, limit)
+	titles, truncated, err := s.titlesInGlob(ctx, v, in, search.QueryWords(opts), limit)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -66,6 +66,27 @@ func searchMode(mode string) (search.Mode, error) {
 	default:
 		return "", fmt.Errorf("mode %q is not one of auto, words or regex", mode)
 	}
+}
+
+// titlesInGlob finds the notes named after the query that the glob, when
+// given, also selects, cutting them to limit only after the glob filter.
+func (s *Server) titlesInGlob(ctx context.Context, v *vault.Vault, in searchNotesInput, words []string, limit int) ([]string, bool, error) {
+	if in.Glob == "" {
+		return matchTitles(v, in.Query, words, in.CaseSensitive, limit)
+	}
+	titles, _, err := matchTitles(v, in.Query, words, in.CaseSensitive, 0)
+	if err != nil {
+		return nil, false, err
+	}
+	inGlob, err := s.searcher.Files(ctx, v.Root(), in.Glob)
+	if err != nil {
+		return nil, false, err
+	}
+	kept := slices.DeleteFunc(titles, func(p string) bool { return !inGlob[p] })
+	if len(kept) > limit {
+		return kept[:limit], true, nil
+	}
+	return kept, false, nil
 }
 
 // matchTitles finds notes by name the same way the content search read the

@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -88,5 +89,79 @@ func TestSearchWithoutTitleMatchIsUnchanged(t *testing.T) {
 	res := searchFor(t, s, "rear 60 psi")
 	if len(res.Files) != 1 || res.Files[0].TitleMatch {
 		t.Errorf("Files = %+v, want a plain content match", res.Files)
+	}
+}
+
+func TestSearchLeavesOutTitleMatchesOutsideTheGlob(t *testing.T) {
+	s := titleSearchServer(t,
+		"Journaling/BuJo for Engineering Managers.md",
+		"Leadership/Monday Habits of Great Leaders.md",
+	)
+
+	for _, glob := range []string{"Journaling/BuJo for Engineering Managers.md", "Journaling/*BuJo*.md"} {
+		_, res, err := s.searchNotes(context.Background(), &mcp.CallToolRequest{}, searchNotesInput{
+			Vault: "Personal",
+			Query: "Monday|Tyre",
+			Glob:  glob,
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(res.Files) != 1 || res.Files[0].Path != "Journaling/BuJo for Engineering Managers.md" {
+			t.Errorf("glob %q: Files = %+v, want only the note inside the glob", glob, res.Files)
+		}
+	}
+}
+
+func TestSearchWithGlobReportsTitleErrors(t *testing.T) {
+	v := vault.New("Personal", t.TempDir())
+	failFiles := func(_ context.Context, _, _ string, args ...string) ([]byte, []byte, int, error) {
+		if slices.Contains(args, "--files") {
+			return nil, []byte("glob error"), 2, nil
+		}
+		return nil, nil, 1, nil
+	}
+	s := New([]*vault.Vault{v}, search.New("rg", failFiles), func() bool { return true })
+
+	for _, query := range []string{"(", "Monday"} {
+		_, _, err := s.searchNotes(context.Background(), &mcp.CallToolRequest{}, searchNotesInput{
+			Vault: "Personal",
+			Query: query,
+			Mode:  "regex",
+			Glob:  "B/**",
+		})
+		if err == nil {
+			t.Errorf("query %q: searchNotes succeeded, want an error", query)
+		}
+	}
+}
+
+func TestSearchCountsOnlyTitleMatchesInsideTheGlobAgainstMaxResults(t *testing.T) {
+	s := titleSearchServer(t, "A/Monday one.md", "B/Monday two.md")
+
+	_, res, err := s.searchNotes(context.Background(), &mcp.CallToolRequest{}, searchNotesInput{
+		Vault:      "Personal",
+		Query:      "Monday",
+		Glob:       "B/**",
+		MaxResults: 1,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(res.Files) != 1 || res.Files[0].Path != "B/Monday two.md" || res.Truncated {
+		t.Errorf("Files = %+v, Truncated = %v, want only B/Monday two.md, not truncated", res.Files, res.Truncated)
+	}
+
+	_, res, err = s.searchNotes(context.Background(), &mcp.CallToolRequest{}, searchNotesInput{
+		Vault:      "Personal",
+		Query:      "Monday",
+		Glob:       "*.md",
+		MaxResults: 1,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(res.Files) != 1 || !res.Truncated {
+		t.Errorf("Files = %+v, Truncated = %v, want one note and truncated", res.Files, res.Truncated)
 	}
 }

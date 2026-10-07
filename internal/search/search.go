@@ -211,6 +211,26 @@ func (s *Searcher) Search(ctx context.Context, root string, opts Options) (*Resu
 	return parseJSONEvents(stdout, maxLines, newWordCheck(words, opts.CaseSensitive))
 }
 
+// Files returns the vault-relative paths ripgrep would search under glob,
+// so callers can hold other results to the same glob rules Search uses.
+func (s *Searcher) Files(ctx context.Context, root, glob string) (map[string]bool, error) {
+	args := []string{"--files", "--no-ignore", "--glob", glob, "--", "."}
+	stdout, stderr, exitCode, err := s.run(ctx, root, s.binary, args...)
+	if err != nil {
+		return nil, fmt.Errorf("running %s: %w", s.binary, err)
+	}
+	if exitCode > 1 {
+		return nil, fmt.Errorf("listing files: %s", strings.TrimSpace(string(stderr)))
+	}
+	files := make(map[string]bool)
+	for line := range strings.Lines(string(stdout)) {
+		if p := strings.TrimSuffix(line, "\n"); p != "" {
+			files[strings.TrimPrefix(p, "./")] = true
+		}
+	}
+	return files, nil
+}
+
 // QueryWords returns the words a query asks for, or nothing when the query
 // is a regular expression. Callers use it to rank results and to match
 // note names the same way the content search did.
