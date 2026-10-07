@@ -144,8 +144,9 @@ func (s *Server) MCPServer() *mcp.Server {
 	}, s.getBacklinks)
 
 	addTool(srv, params, &mcp.Tool{
-		Name:        "get_frontmatter",
-		Description: "Read one note's frontmatter fields and its tags, without its body.",
+		Name: "get_frontmatter",
+		Description: "Read one note's frontmatter fields and its tags, without its body. Fields are listed " +
+			"alphabetically; read_note shows their order in the file.",
 	}, s.getFrontmatter)
 
 	if !s.policy.ReadOnly {
@@ -175,7 +176,8 @@ func (s *Server) addWriteTools(srv *mcp.Server, params map[string]string) {
 	addTool(srv, params, &mcp.Tool{
 		Name: "update_frontmatter",
 		Description: "Add, replace or delete frontmatter fields on one note. Fields that are not mentioned keep their " +
-			"value and order, and the note's body is left untouched. Returns the note's fields after the change.",
+			"value and order, and the note's body is left untouched. Returns the note's fields after the change, " +
+			"listed alphabetically; read_note shows their order in the file.",
 	}, s.updateFrontmatter)
 
 	addTool(srv, params, &mcp.Tool{
