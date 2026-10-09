@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -57,6 +58,20 @@ func TestNoteToolsRejectObsidianConfig(t *testing.T) {
 
 	if accepted := callsRejecting(t, s, ".obsidian/notes.md"); len(accepted) != 0 {
 		t.Errorf("these tools reached into .obsidian: %v", accepted)
+	}
+}
+
+func TestRequireNoteNamesWhatIsHidden(t *testing.T) {
+	for _, tc := range []struct{ path, want string }{
+		{".mcp-instructions.md", "is a hidden file"},
+		{"Inbox/.draft.md", "is a hidden file"},
+		{".obsidian/notes.md", "is inside a hidden folder"},
+		{"Inbox/.drafts/a.md", "is inside a hidden folder"},
+	} {
+		err := requireNote(tc.path)
+		if err == nil || !strings.Contains(err.Error(), tc.want) {
+			t.Errorf("requireNote(%q) = %v, want an error saying it %s", tc.path, err, tc.want)
+		}
 	}
 }
 
