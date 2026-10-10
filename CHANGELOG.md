@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.12.3](https://github.com/dakotahp/crystal-cove/compare/v0.12.2...v0.12.3) (2026-10-10)
+
+
+### Bug Fixes
+
+* say a hidden file is hidden, not inside a hidden folder ([b9c5d4e](https://github.com/dakotahp/crystal-cove/commit/b9c5d4ef00aeadbe4133b75ea40c0fd717f454e8))
+* upgrade runtime base packages to patch zlib CVE-2026-85091 ([f6fbce1](https://github.com/dakotahp/crystal-cove/commit/f6fbce1c428a72b8562e29c265733f5dbd7ca0ea))
+
 ## [0.12.2](https://github.com/dakotahp/crystal-cove/compare/v0.12.1...v0.12.2) (2026-10-07)
 
 
