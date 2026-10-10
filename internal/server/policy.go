@@ -26,19 +26,22 @@ func outOfTrash(p string) (string, bool) {
 	return strings.CutPrefix(path.Clean(filepath.ToSlash(p)), vault.TrashDir+"/")
 }
 
-// requireNote rejects a path that is not a Markdown note, and any path
-// inside a hidden folder other than the vault's trash. The path sandbox
-// stops escapes from the vault but allows every file inside it, so without
-// this a caller could rewrite a stylesheet or Obsidian's own config. The
-// trash stays reachable because delete and restore work through it.
+// requireNote rejects a path that is not a Markdown note, any hidden file,
+// and any path inside a hidden folder other than the vault's trash. The path
+// sandbox stops escapes from the vault but allows every file inside it, so
+// without this a caller could rewrite a stylesheet or Obsidian's own config.
+// The trash stays reachable because delete and restore work through it.
 func requireNote(path string) error {
 	if !strings.EqualFold(filepath.Ext(path), vault.NoteExtension) {
 		return fmt.Errorf("path %q is not a %s note: these tools work on notes only", path, vault.NoteExtension)
 	}
-	if inHiddenFolder(filepath.ToSlash(path)) {
-		return fmt.Errorf("path %q is inside a hidden folder: these tools work on notes only", path)
+	if !inHiddenFolder(filepath.ToSlash(path)) {
+		return nil
 	}
-	return nil
+	if strings.HasPrefix(filepath.Base(path), ".") {
+		return fmt.Errorf("path %q is a hidden file: these tools work on notes only", path)
+	}
+	return fmt.Errorf("path %q is inside a hidden folder: these tools work on notes only", path)
 }
 
 // requireVisibleDir rejects a directory inside a hidden folder other than
