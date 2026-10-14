@@ -83,7 +83,8 @@ func (s *Server) MCPServer() *mcp.Server {
 			"but passing dir \".trash\" with recursive lists deleted notes, which keep their folders there. Other " +
 			"hidden folders cannot be listed. Returns at " +
 			"most 200 entries unless limit says otherwise (max 1000); when next_offset is not -1, call again with offset " +
-			"set to it, or narrow the listing with dir.",
+			"set to it, or narrow the listing with dir. Entries come in path order; order desc reverses it, so " +
+			"{\"dir\": \"Session Logs\", \"order\": \"desc\", \"limit\": 3} lists the three newest notes named by date.",
 	}, s.listNotes)
 
 	addTool(srv, params, &mcp.Tool{
