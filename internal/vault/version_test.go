@@ -41,7 +41,7 @@ func TestEditRefusesAStaleVersion(t *testing.T) {
 	}
 	mustWrite(t, v, "a.md", "alpha\nbeta\nsynced\n")
 
-	_, _, err = v.Edit("a.md", "alpha", "ALPHA", false, read.Version)
+	_, _, err = v.Edit("a.md", read.Version, Replacement{"alpha", "ALPHA", false})
 	if err == nil || !strings.Contains(err.Error(), "changed since") {
 		t.Fatalf("err = %v, want a changed-since error", err)
 	}
@@ -58,7 +58,7 @@ func TestEditWithTheCurrentVersionReturnsTheNextOne(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, next, err := v.Edit("a.md", "alpha", "beta", false, read.Version)
+	_, next, err := v.Edit("a.md", read.Version, Replacement{"alpha", "beta", false})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -69,7 +69,7 @@ func TestEditWithTheCurrentVersionReturnsTheNextOne(t *testing.T) {
 	if next != reread.Version {
 		t.Errorf("Edit returned version %q, want %q, the version a new read reports", next, reread.Version)
 	}
-	if _, _, err := v.Edit("a.md", "beta", "gamma", false, next); err != nil {
+	if _, _, err := v.Edit("a.md", next, Replacement{"beta", "gamma", false}); err != nil {
 		t.Errorf("a second edit with the returned version failed: %v", err)
 	}
 }

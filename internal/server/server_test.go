@@ -78,7 +78,7 @@ func TestUnknownVaultRejectedByEveryTool(t *testing.T) {
 			return err
 		}},
 		{"edit_note", func() error {
-			_, _, err := s.editNote(ctx, nil, editNoteInput{Vault: "Nope", Path: "x", Find: "a"})
+			_, _, err := s.editNote(ctx, nil, editNoteInput{Vault: "Nope", Path: "x", Edits: []vault.Replacement{{Find: "a"}}})
 			return err
 		}},
 		{"move_note", func() error {
@@ -168,11 +168,11 @@ func TestWriteTools(t *testing.T) {
 		t.Error("appendNote escaped the vault root")
 	}
 
-	_, edited, err := s.editNote(ctx, nil, editNoteInput{Vault: "Personal", Path: "new.md", Find: "fresh", Replace: "stale"})
+	_, edited, err := s.editNote(ctx, nil, editNoteInput{Vault: "Personal", Path: "new.md", Edits: []vault.Replacement{{Find: "fresh", Replace: "stale"}}})
 	if err != nil || edited.Replacements != 1 {
 		t.Fatalf("editNote: %+v %v", edited, err)
 	}
-	if _, _, err := s.editNote(ctx, nil, editNoteInput{Vault: "Personal", Path: "new.md", Find: "absent", Replace: "x"}); err == nil {
+	if _, _, err := s.editNote(ctx, nil, editNoteInput{Vault: "Personal", Path: "new.md", Edits: []vault.Replacement{{Find: "absent", Replace: "x"}}}); err == nil {
 		t.Error("editNote succeeded on absent text")
 	}
 

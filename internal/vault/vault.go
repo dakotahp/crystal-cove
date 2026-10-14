@@ -264,13 +264,21 @@ func (v *Vault) Append(rel, content string) error {
 	return nil
 }
 
-// Edit replaces find with replace in the note at path and returns the number
-// of replacements made and the note's new version. Unless replaceAll is true,
-// find must occur exactly once. When version is set, the edit is refused if
-// the note is no longer at that version.
-func (v *Vault) Edit(rel, find, replace string, replaceAll bool, version string) (int, string, error) {
-	if find == "" {
-		return 0, "", errors.New("find must not be empty")
+// Replacement is one find-and-replace within a note.
+type Replacement struct {
+	Find       string `json:"find" jsonschema:"exact text to replace; must occur exactly once unless replace_all is set"`
+	Replace    string `json:"replace" jsonschema:"replacement text"`
+	ReplaceAll bool   `json:"replace_all,omitempty" jsonschema:"replace every occurrence instead of requiring a unique match"`
+}
+
+// Edit applies edits in order to the note at path, each to the text the one
+// before it left, and returns the number of replacements made and the note's
+// new version. Unless ReplaceAll is set, each Find must occur exactly once.
+// When any edit fails nothing is written. When version is set, the edits are
+// refused if the note is no longer at that version.
+func (v *Vault) Edit(rel, version string, edits ...Replacement) (int, string, error) {
+	if len(edits) == 0 {
+		return 0, "", errors.New("give at least one edit")
 	}
 	var count int
 	updated, err := v.Update(rel, func(old []byte) ([]byte, error) {
@@ -278,19 +286,40 @@ func (v *Vault) Edit(rel, find, replace string, replaceAll bool, version string)
 			return nil, err
 		}
 		content := string(old)
-		count = strings.Count(content, find)
-		if count == 0 {
-			return nil, fmt.Errorf("text not found in %q", rel)
+		count = 0
+		for i, e := range edits {
+			n, err := countReplacements(content, e, rel)
+			if err != nil {
+				if len(edits) > 1 {
+					err = fmt.Errorf("edit %d of %d: %w; nothing was written", i+1, len(edits), err)
+				}
+				return nil, err
+			}
+			count += n
+			content = strings.ReplaceAll(content, e.Find, e.Replace)
 		}
-		if count > 1 && !replaceAll {
-			return nil, fmt.Errorf("text occurs %d times in %q: provide more surrounding context to make it unique, or set replace_all", count, rel)
-		}
-		return []byte(strings.ReplaceAll(content, find, replace)), nil
+		return []byte(content), nil
 	})
 	if err != nil {
 		return 0, "", err
 	}
 	return count, Version(updated), nil
+}
+
+// countReplacements returns how many times e applies to content, or why it
+// cannot.
+func countReplacements(content string, e Replacement, rel string) (int, error) {
+	if e.Find == "" {
+		return 0, errors.New("find must not be empty")
+	}
+	n := strings.Count(content, e.Find)
+	if n == 0 {
+		return 0, fmt.Errorf("text not found in %q", rel)
+	}
+	if n > 1 && !e.ReplaceAll {
+		return 0, fmt.Errorf("text occurs %d times in %q: provide more surrounding context to make it unique, or set replace_all", n, rel)
+	}
+	return n, nil
 }
 
 // Move renames a note from one vault-relative path to another, creating

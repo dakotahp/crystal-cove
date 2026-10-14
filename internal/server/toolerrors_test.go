@@ -67,7 +67,7 @@ func TestMissingNoteIsReportedAsNotFound(t *testing.T) {
 	for name, args := range map[string]map[string]any{
 		"read_note":       {"vault": "Work", "path": "missing.md"},
 		"get_frontmatter": {"vault": "Work", "path": "missing.md"},
-		"edit_note":       {"vault": "Work", "path": "missing.md", "find": "a", "replace": "b"},
+		"edit_note":       {"vault": "Work", "path": "missing.md", "edits": []map[string]any{{"find": "a", "replace": "b"}}},
 		"move_note":       {"vault": "Work", "path": "missing.md", "new_path": "other.md"},
 		"delete_note":     {"vault": "Work", "path": "missing.md"},
 	} {

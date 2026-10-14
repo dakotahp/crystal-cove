@@ -119,12 +119,10 @@ func (s *Server) appendNote(_ context.Context, _ *mcp.CallToolRequest, in writeN
 }
 
 type editNoteInput struct {
-	Vault      string `json:"vault,omitempty" jsonschema:"name of the vault; optional when the server holds one vault"`
-	Path       string `json:"path" jsonschema:"vault-relative path of the note"`
-	Find       string `json:"find" jsonschema:"exact text to replace; must occur exactly once unless replace_all is set"`
-	Replace    string `json:"replace" jsonschema:"replacement text"`
-	ReplaceAll bool   `json:"replace_all,omitempty" jsonschema:"replace every occurrence instead of requiring a unique match"`
-	Version    string `json:"version,omitempty" jsonschema:"the version read_note returned; the edit is refused if the note changed since"`
+	Vault   string              `json:"vault,omitempty" jsonschema:"name of the vault; optional when the server holds one vault"`
+	Path    string              `json:"path" jsonschema:"vault-relative path of the note"`
+	Edits   []vault.Replacement `json:"edits" jsonschema:"one or more replacements, applied in order: each finds its text in the note as the edits before it left it. If any fails, nothing is written"`
+	Version string              `json:"version,omitempty" jsonschema:"the version read_note returned; the edits are refused if the note changed since"`
 }
 
 type editNoteOutput struct {
@@ -137,7 +135,7 @@ func (s *Server) editNote(_ context.Context, _ *mcp.CallToolRequest, in editNote
 	if err != nil {
 		return nil, editNoteOutput{}, err
 	}
-	n, version, err := v.Edit(in.Path, in.Find, in.Replace, in.ReplaceAll, in.Version)
+	n, version, err := v.Edit(in.Path, in.Version, in.Edits...)
 	if err != nil {
 		return nil, editNoteOutput{}, err
 	}
