@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"slices"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -13,8 +14,8 @@ import (
 
 type searchNotesInput struct {
 	Vault           string `json:"vault,omitempty" jsonschema:"name of the vault to search; optional when the server holds one vault"`
-	Query           string `json:"query" jsonschema:"words to look for, or a regular expression in ripgrep syntax"`
-	Mode            string `json:"mode,omitempty" jsonschema:"how to read the query: words (every word, any order), regex, or auto (the default: regex when the query holds regex characters, words otherwise)"`
+	Query           string `json:"query" jsonschema:"words to look for, an exact phrase, or a regular expression in ripgrep syntax"`
+	Mode            string `json:"mode,omitempty" jsonschema:"how to read the query: words (every word, any order), phrase (the exact text, punctuation included, no escaping), regex, or auto (the default: phrase when the query is wrapped in double quotes, regex when it holds regex characters, words otherwise)"`
 	MaxLinesPerNote int    `json:"max_lines_per_note,omitempty" jsonschema:"lines to return per note (default 5); use -1 for every matching line"`
 	Glob            string `json:"glob,omitempty" jsonschema:"restrict the search, name matches included, to note paths matching this glob, e.g. daily/**"`
 	CaseSensitive   bool   `json:"case_sensitive,omitempty" jsonschema:"match case exactly instead of the default case-insensitive search"`
@@ -47,7 +48,7 @@ func (s *Server) searchNotes(ctx context.Context, _ *mcp.CallToolRequest, in sea
 	if limit <= 0 {
 		limit = search.DefaultMaxResults
 	}
-	titles, truncated, err := s.titlesInGlob(ctx, v, in, search.QueryWords(opts), limit)
+	titles, truncated, err := s.titlesInGlob(ctx, v, in.Glob, titleMatcher(opts), limit)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -61,24 +62,42 @@ func (s *Server) searchNotes(ctx context.Context, _ *mcp.CallToolRequest, in sea
 // is not one of them.
 func searchMode(mode string) (search.Mode, error) {
 	switch search.Mode(mode) {
-	case search.ModeAuto, search.ModeWords, search.ModeRegex:
+	case search.ModeAuto, search.ModeWords, search.ModePhrase, search.ModeRegex:
 		return search.Mode(mode), nil
 	default:
-		return "", fmt.Errorf("mode %q is not one of auto, words or regex", mode)
+		return "", fmt.Errorf("mode %q is not one of auto, words, phrase or regex", mode)
+	}
+}
+
+// titleMatcher finds notes by name the same way the content search read the
+// query: every word in any order, the literal phrase, or the raw pattern for
+// a regex query.
+func titleMatcher(opts search.Options) func(v *vault.Vault, limit int) ([]string, bool, error) {
+	if words := search.QueryWords(opts); len(words) > 0 {
+		return func(v *vault.Vault, limit int) ([]string, bool, error) {
+			return v.MatchTitleWords(words, opts.CaseSensitive, limit)
+		}
+	}
+	pattern := opts.Query
+	if phrase, ok := search.QueryPhrase(opts); ok {
+		pattern = regexp.QuoteMeta(phrase)
+	}
+	return func(v *vault.Vault, limit int) ([]string, bool, error) {
+		return v.MatchTitles(pattern, opts.CaseSensitive, limit)
 	}
 }
 
 // titlesInGlob finds the notes named after the query that the glob, when
 // given, also selects, cutting them to limit only after the glob filter.
-func (s *Server) titlesInGlob(ctx context.Context, v *vault.Vault, in searchNotesInput, words []string, limit int) ([]string, bool, error) {
-	if in.Glob == "" {
-		return matchTitles(v, in.Query, words, in.CaseSensitive, limit)
+func (s *Server) titlesInGlob(ctx context.Context, v *vault.Vault, glob string, match func(*vault.Vault, int) ([]string, bool, error), limit int) ([]string, bool, error) {
+	if glob == "" {
+		return match(v, limit)
 	}
-	titles, _, err := matchTitles(v, in.Query, words, in.CaseSensitive, 0)
+	titles, _, err := match(v, 0)
 	if err != nil {
 		return nil, false, err
 	}
-	inGlob, err := s.searcher.Files(ctx, v.Root(), in.Glob)
+	inGlob, err := s.searcher.Files(ctx, v.Root(), glob)
 	if err != nil {
 		return nil, false, err
 	}
@@ -87,15 +106,6 @@ func (s *Server) titlesInGlob(ctx context.Context, v *vault.Vault, in searchNote
 		return kept[:limit], true, nil
 	}
 	return kept, false, nil
-}
-
-// matchTitles finds notes by name the same way the content search read the
-// query: every word in any order, or the raw pattern for a regex query.
-func matchTitles(v *vault.Vault, query string, words []string, caseSensitive bool, limit int) ([]string, bool, error) {
-	if len(words) > 0 {
-		return v.MatchTitleWords(words, caseSensitive, limit)
-	}
-	return v.MatchTitles(query, caseSensitive, limit)
 }
 
 // withTitleMatches moves the notes whose name matched to the front of the

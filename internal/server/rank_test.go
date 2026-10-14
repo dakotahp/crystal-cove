@@ -113,8 +113,8 @@ func TestSearchRejectsAnUnknownMode(t *testing.T) {
 	s := rankServer(t, map[string]string{"Inbox/a.md": "bike\n"})
 
 	_, _, err := s.searchNotes(context.Background(), &mcp.CallToolRequest{}, searchNotesInput{Query: "bike", Mode: "fuzzy"})
-	if err == nil {
-		t.Error("searchNotes accepted an unknown mode")
+	if err == nil || !strings.Contains(err.Error(), "phrase") {
+		t.Errorf("err = %v, want one naming every mode, phrase included", err)
 	}
 }
 

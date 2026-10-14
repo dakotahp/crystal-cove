@@ -87,10 +87,11 @@ Key invariants:
   heartbeat. A silent continuous-sync child is restarted by the supervisor;
   `/health` must remain process-only so transient network failures do not
   restart the whole container.
-- **Search reads a query as words unless it looks like a regex.** Two or more
-  plain words mean "a note holding all of them, in any order"; any of the
-  characters in `search.regexChars` make the query a regex. `mode` overrides
-  the guess. The all-words check reads every matching line, not only the
+- **Search reads a query as words unless it looks like a phrase or a regex.**
+  Two or more plain words mean "a note holding all of them, in any order"; a
+  query wrapped in double quotes is a literal phrase (ripgrep
+  `--fixed-strings`); any of the characters in `search.regexChars` make the
+  query a regex. `mode` overrides the guess. The all-words check reads every matching line, not only the
   lines a note returns. Ranking lives in `server/rank.go`: name match, then
   match count, then path order. `search.Search` returns every matching note;
   the handler ranks them and only then applies `max_results` with
