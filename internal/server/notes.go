@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
@@ -24,6 +25,7 @@ type listNotesInput struct {
 	Recursive bool   `json:"recursive,omitempty" jsonschema:"list subdirectories recursively"`
 	Offset    int    `json:"offset,omitempty" jsonschema:"entry to start from; use next_offset from the previous page"`
 	Limit     int    `json:"limit,omitempty" jsonschema:"maximum entries to return (default 200, max 1000)"`
+	Order     string `json:"order,omitempty" jsonschema:"asc (the default) lists in path order; desc reverses it, so notes named by date, such as session logs, come newest first"`
 }
 
 // DefaultListLimit and MaxListLimit bound one page of list_notes, so a
@@ -49,9 +51,15 @@ func (s *Server) listNotes(_ context.Context, _ *mcp.CallToolRequest, in listNot
 	if err := requireVisibleDir(in.Dir); err != nil {
 		return nil, listNotesOutput{}, err
 	}
+	if in.Order != "" && in.Order != "asc" && in.Order != "desc" {
+		return nil, listNotesOutput{}, fmt.Errorf("order %q is not one of asc or desc", in.Order)
+	}
 	entries, err := v.List(in.Dir, in.Recursive)
 	if err != nil {
 		return nil, listNotesOutput{}, err
+	}
+	if in.Order == "desc" {
+		slices.Reverse(entries)
 	}
 	total := len(entries)
 	if in.Offset < 0 || in.Offset > total {
