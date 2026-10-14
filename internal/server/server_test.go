@@ -331,7 +331,7 @@ func TestEndToEndOverHTTP(t *testing.T) {
 		"append_note", "create_note", "delete_note", "edit_note", "edit_section", "find_notes",
 		"get_backlinks", "get_frontmatter", "get_links",
 		"get_section", "list_notes", "list_tags", "list_vaults",
-		"move_note", "read_note", "recent_notes",
+		"move_note", "read_note", "read_notes", "recent_notes",
 		"search_notes", "update_frontmatter",
 	}
 	if !slices.Equal(names, want) {

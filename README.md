@@ -200,7 +200,7 @@ Already run an identity provider such as Keycloak or Auth0? Crystal Cove can use
 
 Agents get tools that work with notes, not raw files:
 
-- **Read:** `read_note`, `get_section`, `get_frontmatter`, `list_notes`, `recent_notes`
+- **Read:** `read_note`, `read_notes`, `get_section`, `get_frontmatter`, `list_notes`, `recent_notes`
 - **Find:** `search_notes` (by name and content, ranked), `find_notes` (by tags and frontmatter), `list_tags`, `get_links`, `get_backlinks`
 - **Write:** `create_note`, `append_note`, `edit_note`, `edit_section`, `update_frontmatter`, `move_note` (also restores from the trash), `delete_note`
 
