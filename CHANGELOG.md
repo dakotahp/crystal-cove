@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.14.0](https://github.com/dakotahp/crystal-cove/compare/v0.13.0...v0.14.0) (2026-10-14)
+
+
+### Features
+
+* show the running version and commit on /health and at startup ([710c41f](https://github.com/dakotahp/crystal-cove/commit/710c41f1d19fe9206eac6dfd5c0126231ef695e7))
+
+
+### Bug Fixes
+
+* accept mode auto and list parameter choices as enums ([bd35dc4](https://github.com/dakotahp/crystal-cove/commit/bd35dc4be5b57cbcee290b4306e438a2a914fef1))
+* leave read fields out of a read_notes entry that failed ([f2f500e](https://github.com/dakotahp/crystal-cove/commit/f2f500e275388d4cc7f47c8273de3d84f4b4ec79))
+
 ## [0.13.0](https://github.com/dakotahp/crystal-cove/compare/v0.12.3...v0.13.0) (2026-10-14)
 
 
