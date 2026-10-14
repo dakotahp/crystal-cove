@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"slices"
 
+	"github.com/google/jsonschema-go/jsonschema"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"github.com/dakotahp/crystal-cove/internal/vault"
@@ -139,7 +140,7 @@ func (s *Server) readNotes(_ context.Context, _ *mcp.CallToolRequest, in readNot
 	for _, path := range in.Paths {
 		page, err := s.readFirst(in.Vault, path, budget)
 		if err != nil {
-			out.Notes = append(out.Notes, NotePage{Path: path, Error: err.Error(), ReadResult: &vault.ReadResult{NextOffset: -1}})
+			out.Notes = append(out.Notes, NotePage{Path: path, Error: err.Error()})
 			continue
 		}
 		budget -= len([]rune(page.Content))
@@ -149,6 +150,18 @@ func (s *Server) readNotes(_ context.Context, _ *mcp.CallToolRequest, in readNot
 		out.Notes = append(out.Notes, NotePage{Path: path, ReadResult: page})
 	}
 	return nil, out, nil
+}
+
+// readNotesOutputSchema is the inferred schema for ReadNotes with only path
+// required on each note: a note that could not be read carries error instead
+// of the read fields, so it cannot pass for an empty note.
+func readNotesOutputSchema() *jsonschema.Schema {
+	schema, err := jsonschema.For[ReadNotes](nil)
+	if err != nil {
+		return nil
+	}
+	schema.Properties["notes"].Items.Required = []string{"path"}
+	return schema
 }
 
 func (s *Server) readFirst(vaultName, path string, limit int) (*vault.ReadResult, error) {

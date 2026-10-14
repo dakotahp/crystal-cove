@@ -96,14 +96,19 @@ func (s *Server) MCPServer() *mcp.Server {
 			"for example through sync from another device.", vault.ReadPageSize),
 	}, s.readNote)
 
-	addTool(srv, params, &mcp.Tool{
+	readNotesTool := &mcp.Tool{
 		Name: "read_notes",
 		Description: fmt.Sprintf("Read several notes in one call, such as every note find_notes returned. Each note "+
 			"returns its first page of up to %d characters with its version, in the order asked, and the call returns "+
 			"at most %d characters in all. A note cut short by either limit reports truncated and next_offset: continue "+
-			"it with read_note. A note that cannot be read reports error, and the others are still returned. At most %d paths.",
+			"it with read_note. A note that cannot be read reports only its path and error, and the others are still "+
+			"returned. At most %d paths.",
 			vault.ReadPageSize, MaxReadNotesChars, MaxReadNotes),
-	}, s.readNotes)
+	}
+	if schema := readNotesOutputSchema(); schema != nil {
+		readNotesTool.OutputSchema = schema
+	}
+	addTool(srv, params, readNotesTool, s.readNotes)
 
 	addTool(srv, params, &mcp.Tool{
 		Name:        "get_section",
