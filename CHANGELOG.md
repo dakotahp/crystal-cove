@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.13.0](https://github.com/dakotahp/crystal-cove/compare/v0.12.3...v0.13.0) (2026-10-14)
+
+
+### ⚠ BREAKING CHANGES
+
+* edit_note no longer takes find, replace and replace_all at the top level; pass them as one entry in edits.
+
+### Features
+
+* add exact-phrase mode to search_notes ([987c7bc](https://github.com/dakotahp/crystal-cove/commit/987c7bcc8f5fa11a9be2a2cf3e8d6d5064b494f0))
+* add files output to search_notes and clip long lines ([4215bcc](https://github.com/dakotahp/crystal-cove/commit/4215bcc07d56c2b4679820c2358c9125608cc694))
+* add order to list_notes for newest-first listings ([b8efb8b](https://github.com/dakotahp/crystal-cove/commit/b8efb8b61605550bce3bd1abdaa9974d65b05546))
+* add read_notes to read several notes in one call ([4815c09](https://github.com/dakotahp/crystal-cove/commit/4815c09bea5e721bc90f8278bbe2d9ec5abe883a))
+* list a note's headings when a section is not found ([df6dc50](https://github.com/dakotahp/crystal-cove/commit/df6dc502fd20604c21168d1af4d9dcd8e50dbb8e))
+* take a list of edits in edit_note ([53450da](https://github.com/dakotahp/crystal-cove/commit/53450dab38ccbfc606fa199aab57e7e80a24acb6))
+
 ## [0.12.3](https://github.com/dakotahp/crystal-cove/compare/v0.12.2...v0.12.3) (2026-10-10)
 
 
