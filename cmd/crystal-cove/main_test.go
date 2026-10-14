@@ -45,11 +45,16 @@ func getenv(m map[string]string) func(string) string {
 	return func(key string) string { return m[key] }
 }
 
+// testClient opens a fresh connection per request. A pooling client can leave
+// a dialed connection that never sends a request, and http.Server.Shutdown
+// waits five seconds for one of those: as long as run's shutdown timeout.
+var testClient = &http.Client{Transport: &http.Transport{DisableKeepAlives: true}}
+
 func waitForStatus(t *testing.T, url string, want int) {
 	t.Helper()
 	deadline := time.Now().Add(5 * time.Second)
 	for {
-		res, err := http.Get(url)
+		res, err := testClient.Get(url)
 		if err == nil {
 			res.Body.Close()
 			if res.StatusCode == want {
@@ -85,7 +90,7 @@ func TestRunServesUntilShutdown(t *testing.T) {
 		t.Fatal("server did not become ready")
 	}
 
-	res, err := http.Get(fmt.Sprintf("http://%s/health", addr))
+	res, err := testClient.Get(fmt.Sprintf("http://%s/health", addr))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -99,7 +104,7 @@ func TestRunServesUntilShutdown(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	res, err = http.DefaultClient.Do(req)
+	res, err = testClient.Do(req)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -222,7 +227,7 @@ func runWithOIDC(t *testing.T, mutate func(map[string]string)) (string, *lockedB
 func TestRunWithOIDC(t *testing.T) {
 	addr, _ := runWithOIDC(t, nil)
 
-	res, err := http.Get(fmt.Sprintf("http://%s/.well-known/oauth-protected-resource", addr))
+	res, err := testClient.Get(fmt.Sprintf("http://%s/.well-known/oauth-protected-resource", addr))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -298,7 +303,7 @@ func TestRunWithBuiltinSignIn(t *testing.T) {
 		t.Fatal("server did not become ready")
 	}
 
-	res, err := http.Get(fmt.Sprintf("http://%s/.well-known/oauth-authorization-server", addr))
+	res, err := testClient.Get(fmt.Sprintf("http://%s/.well-known/oauth-authorization-server", addr))
 	if err != nil {
 		t.Fatal(err)
 	}
