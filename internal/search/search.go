@@ -15,6 +15,7 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/dakotahp/crystal-cove/internal/vault"
 )
@@ -29,6 +30,11 @@ const MaxResultsCeiling = 500
 // DefaultLinesPerNote caps how many lines one note contributes, so a long
 // note cannot fill a whole result. A negative MaxLinesPerFile lifts it.
 const DefaultLinesPerNote = 5
+
+// MaxLineChars caps the characters one line returns. A Markdown paragraph
+// is often a single line thousands of characters long, and a search result
+// only needs enough of it to show where the match is.
+const MaxLineChars = 500
 
 // Mode selects how a query's text is read.
 type Mode string
@@ -82,6 +88,8 @@ type Line struct {
 	// Match reports whether the line matched the query (false for
 	// context lines).
 	Match bool `json:"match"`
+	// TextTruncated reports that Text is a window of a longer line.
+	TextTruncated bool `json:"text_truncated,omitempty"`
 }
 
 // FileMatches groups the matching lines of one file.
@@ -314,7 +322,30 @@ type event struct {
 			Text string `json:"text"`
 		} `json:"lines"`
 		LineNumber int `json:"line_number"`
+		Submatches []struct {
+			Start int `json:"start"`
+		} `json:"submatches"`
 	} `json:"data"`
+}
+
+// clipLine cuts text longer than MaxLineChars to a window around the byte
+// offset at, marking each cut end with an ellipsis.
+func clipLine(text string, at int) (string, bool) {
+	if utf8.RuneCountInString(text) <= MaxLineChars {
+		return text, false
+	}
+	runes := []rune(text)
+	match := utf8.RuneCountInString(text[:min(at, len(text))])
+	start := max(0, min(match-MaxLineChars/5, len(runes)-MaxLineChars))
+	end := start + MaxLineChars
+	clipped := string(runes[start:end])
+	if start > 0 {
+		clipped = "…" + clipped
+	}
+	if end < len(runes) {
+		clipped += "…"
+	}
+	return clipped, true
 }
 
 func parseJSONEvents(out []byte, maxLinesPerFile int, words wordCheck) (*Result, error) {
@@ -360,10 +391,16 @@ func parseJSONEvents(out []byte, maxLinesPerFile int, words wordCheck) (*Result,
 		if maxLinesPerFile > 0 && len(current.Lines) >= maxLinesPerFile {
 			continue
 		}
+		at := 0
+		if len(ev.Data.Submatches) > 0 {
+			at = ev.Data.Submatches[0].Start
+		}
+		text, clipped := clipLine(strings.TrimRight(ev.Data.Lines.Text, "\n"), at)
 		current.Lines = append(current.Lines, Line{
-			Number: ev.Data.LineNumber,
-			Text:   strings.TrimRight(ev.Data.Lines.Text, "\n"),
-			Match:  ev.Type == "match",
+			Number:        ev.Data.LineNumber,
+			Text:          text,
+			Match:         ev.Type == "match",
+			TextTruncated: clipped,
 		})
 	}
 	if err := scanner.Err(); err != nil {

@@ -21,7 +21,13 @@ type searchNotesInput struct {
 	CaseSensitive   bool   `json:"case_sensitive,omitempty" jsonschema:"match case exactly instead of the default case-insensitive search"`
 	ContextLines    int    `json:"context_lines,omitempty" jsonschema:"lines of context to include around each match"`
 	MaxResults      int    `json:"max_results,omitempty" jsonschema:"maximum notes to return (default 50, max 500)"`
+	Output          string `json:"output,omitempty" jsonschema:"lines (the default) returns matching lines per note; files returns only each note's path, total_matches and title_match, to choose which note to read"`
 }
+
+const (
+	outputLines = "lines"
+	outputFiles = "files"
+)
 
 func (s *Server) searchNotes(ctx context.Context, _ *mcp.CallToolRequest, in searchNotesInput) (*mcp.CallToolResult, *search.Result, error) {
 	v, err := s.vault(in.Vault)
@@ -31,6 +37,9 @@ func (s *Server) searchNotes(ctx context.Context, _ *mcp.CallToolRequest, in sea
 	mode, err := searchMode(in.Mode)
 	if err != nil {
 		return nil, nil, err
+	}
+	if in.Output != "" && in.Output != outputLines && in.Output != outputFiles {
+		return nil, nil, fmt.Errorf("output %q is not one of lines or files", in.Output)
 	}
 	opts := search.Options{
 		Query:           in.Query,
@@ -55,6 +64,11 @@ func (s *Server) searchNotes(ctx context.Context, _ *mcp.CallToolRequest, in sea
 	res = withTitleMatches(res, titles, truncated)
 	rankFiles(res)
 	res.Limit(limit)
+	if in.Output == outputFiles {
+		for i := range res.Files {
+			res.Files[i].Lines = []search.Line{}
+		}
+	}
 	return nil, res, nil
 }
 
