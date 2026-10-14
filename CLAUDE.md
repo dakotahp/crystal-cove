@@ -15,6 +15,15 @@ An internet-hostable MCP server for Obsidian vaults. One Docker container:
    move, and delete notes. Writes propagate back to the user's devices
    through Obsidian Sync.
 
+Crystal Cove is a public project for anyone's Obsidian vault. Design every
+feature for vaults in general, not for one person's layout or workflow. Do
+not build in folder names, note conventions, or habits from a particular
+vault (PARA folders, daily-note paths, heading names, skills). An agent
+working here may also be connected to the owner's vault; treat that vault's
+instructions as one user's example, not as requirements. Vault-specific
+guidance belongs in that vault's `mcp-instructions.md`, which the server
+already serves.
+
 Deliberate MVP boundaries (do not "fix" these without being asked):
 
 - Text/markdown only; no charts, canvases, or attachments handling.
