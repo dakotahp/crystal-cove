@@ -62,7 +62,7 @@ func (s *Server) Handler(authCfg AuthConfig) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		fmt.Fprintln(w, "ok")
+		fmt.Fprintf(w, "ok\n%s\n", BuildInfo())
 	})
 	mux.HandleFunc("/ready", func(w http.ResponseWriter, _ *http.Request) {
 		if s.syncReady == nil || !s.syncReady() {

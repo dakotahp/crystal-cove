@@ -16,6 +16,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/dakotahp/crystal-cove/internal/server"
 )
 
 // installFakeOb puts a fake ob binary at the front of PATH. Continuous sync
@@ -129,6 +131,18 @@ func TestRunFailsOnBadConfig(t *testing.T) {
 	delete(env, "OBSIDIAN_EMAIL")
 	if err := run(context.Background(), getenv(env), io.Discard, nil); err == nil {
 		t.Error("run succeeded without OBSIDIAN_EMAIL")
+	}
+}
+
+func TestRunLogsTheBuildFirst(t *testing.T) {
+	env := testEnv(t)
+	delete(env, "OBSIDIAN_EMAIL")
+	var logs strings.Builder
+	_ = run(context.Background(), getenv(env), &logs, nil)
+	for _, want := range []string{"version=" + server.Version, "commit=" + server.Commit} {
+		if !strings.Contains(logs.String(), want) {
+			t.Errorf("logs %q do not hold %q", logs.String(), want)
+		}
 	}
 }
 

@@ -15,8 +15,8 @@ import (
 type searchNotesInput struct {
 	Vault           string `json:"vault,omitempty" jsonschema:"name of the vault to search; optional when the server holds one vault"`
 	Query           string `json:"query" jsonschema:"words to look for, an exact phrase, or a regular expression in ripgrep syntax"`
-	Mode            string `json:"mode,omitempty" jsonschema:"how to read the query: words (every word, any order), phrase (the exact text, punctuation included, no escaping), regex, or auto (the default: phrase when the query is wrapped in double quotes, regex when it holds regex characters, words otherwise)"`
-	MaxLinesPerNote int    `json:"max_lines_per_note,omitempty" jsonschema:"lines to return per note (default 5); use -1 for every matching line"`
+	Mode            string `json:"mode,omitempty" jsonschema:"how to read the query: words (every word, any order); phrase (the exact text, case-insensitive, with no escaping: use it to find a line before editing it, or for text with punctuation, quotes, dashes or emoji); regex (ripgrep syntax); or auto (the default: phrase when the query is wrapped in double quotes, regex when it holds regex characters, words otherwise)"`
+	MaxLinesPerNote int    `json:"max_lines_per_note,omitempty" jsonschema:"lines to return per note; 0 or leaving it out means 5, and -1 means every matching line. For no lines at all, use output files"`
 	Glob            string `json:"glob,omitempty" jsonschema:"restrict the search, name matches included, to note paths matching this glob, e.g. daily/**"`
 	CaseSensitive   bool   `json:"case_sensitive,omitempty" jsonschema:"match case exactly instead of the default case-insensitive search"`
 	ContextLines    int    `json:"context_lines,omitempty" jsonschema:"lines of context to include around each match"`
@@ -75,6 +75,9 @@ func (s *Server) searchNotes(ctx context.Context, _ *mcp.CallToolRequest, in sea
 // searchMode converts the tool's mode argument, naming the choices when it
 // is not one of them.
 func searchMode(mode string) (search.Mode, error) {
+	if mode == "auto" {
+		return search.ModeAuto, nil
+	}
 	switch search.Mode(mode) {
 	case search.ModeAuto, search.ModeWords, search.ModePhrase, search.ModeRegex:
 		return search.Mode(mode), nil
