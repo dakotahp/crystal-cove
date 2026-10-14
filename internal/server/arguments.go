@@ -7,13 +7,40 @@ import (
 
 	"github.com/google/jsonschema-go/jsonschema"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
+
+	"github.com/dakotahp/crystal-cove/internal/search"
+	"github.com/dakotahp/crystal-cove/internal/vault"
 )
 
 // addTool registers a tool and records the parameters it takes, which
 // argumentHints quotes when a call passes arguments that do not fit.
 func addTool[In, Out any](srv *mcp.Server, params map[string]string, t *mcp.Tool, h mcp.ToolHandlerFor[In, Out]) {
+	if values, ok := toolChoices[t.Name]; ok {
+		if schema, err := jsonschema.For[In](nil); err == nil {
+			for name, choices := range values {
+				if p := schema.Properties[name]; p != nil {
+					for _, c := range choices {
+						p.Enum = append(p.Enum, c)
+					}
+				}
+			}
+			t.InputSchema = schema
+		}
+	}
 	mcp.AddTool(srv, t, h)
 	params[t.Name] = describeParams[In]()
+}
+
+// toolChoices lists the values each string parameter that picks among fixed
+// options accepts. They go into the advertised schema as an enum, so a client
+// shows the options and rejects any other value before calling.
+var toolChoices = map[string]map[string][]string{
+	"search_notes": {
+		"mode":   {"auto", string(search.ModeWords), string(search.ModePhrase), string(search.ModeRegex)},
+		"output": {outputLines, outputFiles},
+	},
+	"list_notes":   {"order": {"asc", "desc"}},
+	"edit_section": {"mode": {string(vault.SectionAppend), string(vault.SectionPrepend), string(vault.SectionReplace)}},
 }
 
 func describeParams[In any]() string {
