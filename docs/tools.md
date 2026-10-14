@@ -56,6 +56,12 @@ the tools reject it; use `edit_note` with unique surrounding text instead.
 Use the heading's Markdown title without its opening/closing heading markers
 (e.g. `"**Tasks**"` for `## **Tasks**`).
 
+A heading that is not found fails with the note's heading paths in
+`heading_path` form, closest first, so an agent that misremembered a heading
+can retry without reading the whole note. Closeness ignores case, spacing,
+and dash and quote differences, but only to order the list: the tools never
+pick a heading the agent did not name exactly. At most 50 are listed.
+
 A section's body starts immediately after its heading and ends before the next
 heading of equal or higher rank, or at EOF. It includes nested subsections and
 blank lines. Both `#`-style and underlined (setext) headings are supported.
