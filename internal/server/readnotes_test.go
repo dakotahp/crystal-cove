@@ -97,6 +97,31 @@ func TestReadNotesReportsBadPathsPerNote(t *testing.T) {
 	}
 }
 
+func TestReadNotesLeavesTheContentOutOfAFailedNote(t *testing.T) {
+	s, _ := metaServer(t, map[string]string{"Inbox/empty.md": ""})
+	session := testSession(t, s)
+	res, err := session.CallTool(context.Background(), &mcp.CallToolParams{Name: "read_notes", Arguments: map[string]any{"paths": []string{"Inbox/missing.md", "Inbox/empty.md"}}})
+	if err != nil || res.IsError {
+		t.Fatalf("read_notes: %v %+v", err, res)
+	}
+	raw, err := json.Marshal(res.StructuredContent)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var out struct {
+		Notes []map[string]any `json:"notes"`
+	}
+	if err := json.Unmarshal(raw, &out); err != nil {
+		t.Fatal(err)
+	}
+	if want := []string{"path", "error"}; len(out.Notes[0]) != len(want) || out.Notes[0]["error"] == nil {
+		t.Errorf("failed note = %v, want only %v", out.Notes[0], want)
+	}
+	if _, ok := out.Notes[1]["content"]; !ok {
+		t.Errorf("empty note = %v, want its empty content reported", out.Notes[1])
+	}
+}
+
 func TestReadNotesRejectsTooFewOrTooManyPaths(t *testing.T) {
 	s, _ := metaServer(t, map[string]string{"Inbox/a.md": "alpha\n"})
 	req := &mcp.CallToolRequest{}

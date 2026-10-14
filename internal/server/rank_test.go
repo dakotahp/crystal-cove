@@ -98,7 +98,8 @@ func TestRankingIsStableForEqualScores(t *testing.T) {
 func TestSearchAcceptsModeAndLineCap(t *testing.T) {
 	s := rankServer(t, map[string]string{"Inbox/a.md": "bike\nbike\nbike\n"})
 
-	res := search1(t, s, searchNotesInput{Query: "bike", MaxLinesPerNote: 1})
+	one := 1
+	res := search1(t, s, searchNotesInput{Query: "bike", MaxLinesPerNote: &one})
 	if len(res.Files) != 1 || len(res.Files[0].Lines) != 1 {
 		t.Errorf("Files = %+v, want one line kept", res.Files)
 	}

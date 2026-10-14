@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"regexp"
 	"slices"
@@ -15,13 +16,13 @@ import (
 type searchNotesInput struct {
 	Vault           string `json:"vault,omitempty" jsonschema:"name of the vault to search; optional when the server holds one vault"`
 	Query           string `json:"query" jsonschema:"words to look for, an exact phrase, or a regular expression in ripgrep syntax"`
-	Mode            string `json:"mode,omitempty" jsonschema:"how to read the query: words (every word, any order), phrase (the exact text, punctuation included, no escaping), regex, or auto (the default: phrase when the query is wrapped in double quotes, regex when it holds regex characters, words otherwise)"`
-	MaxLinesPerNote int    `json:"max_lines_per_note,omitempty" jsonschema:"lines to return per note (default 5); use -1 for every matching line"`
+	Mode            string `json:"mode,omitempty" enum:"auto,words,phrase,regex" jsonschema:"how to read the query: words (every word, any order), phrase (the exact text, punctuation included, no escaping; use it to find a line to edit), regex, or auto (the default: phrase when the query is wrapped in double quotes, regex when it holds regex characters, words otherwise)"`
+	MaxLinesPerNote *int   `json:"max_lines_per_note,omitempty" jsonschema:"lines to return per note (default 5); use -1 for every matching line. 0 is refused: use output files to leave the lines out"`
 	Glob            string `json:"glob,omitempty" jsonschema:"restrict the search, name matches included, to note paths matching this glob, e.g. daily/**"`
 	CaseSensitive   bool   `json:"case_sensitive,omitempty" jsonschema:"match case exactly instead of the default case-insensitive search"`
 	ContextLines    int    `json:"context_lines,omitempty" jsonschema:"lines of context to include around each match"`
 	MaxResults      int    `json:"max_results,omitempty" jsonschema:"maximum notes to return (default 50, max 500)"`
-	Output          string `json:"output,omitempty" jsonschema:"lines (the default) returns matching lines per note; files returns only each note's path, total_matches and title_match, to choose which note to read"`
+	Output          string `json:"output,omitempty" enum:"lines,files" jsonschema:"lines (the default) returns matching lines per note; files returns only each note's path, total_matches and title_match, to choose which note to read"`
 }
 
 const (
@@ -41,10 +42,17 @@ func (s *Server) searchNotes(ctx context.Context, _ *mcp.CallToolRequest, in sea
 	if in.Output != "" && in.Output != outputLines && in.Output != outputFiles {
 		return nil, nil, fmt.Errorf("output %q is not one of lines or files", in.Output)
 	}
+	maxLines := 0
+	if in.MaxLinesPerNote != nil {
+		if *in.MaxLinesPerNote == 0 {
+			return nil, nil, errors.New("max_lines_per_note 0 would return no lines: to list only the matching notes, set output to files")
+		}
+		maxLines = *in.MaxLinesPerNote
+	}
 	opts := search.Options{
 		Query:           in.Query,
 		Mode:            mode,
-		MaxLinesPerFile: in.MaxLinesPerNote,
+		MaxLinesPerFile: maxLines,
 		Glob:            in.Glob,
 		CaseSensitive:   in.CaseSensitive,
 		ContextLines:    in.ContextLines,

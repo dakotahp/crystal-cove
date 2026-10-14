@@ -101,8 +101,9 @@ func (s *Server) MCPServer() *mcp.Server {
 		Description: fmt.Sprintf("Read several notes in one call, such as every note find_notes returned. Each note "+
 			"returns its first page of up to %d characters with its version, in the order asked, and the call returns "+
 			"at most %d characters in all. A note cut short by either limit reports truncated and next_offset: continue "+
-			"it with read_note. A note that cannot be read reports error, and the others are still returned. At most %d paths.",
+			"it with read_note. A note that cannot be read reports only its path and error, and the others are still returned. At most %d paths.",
 			vault.ReadPageSize, MaxReadNotesChars, MaxReadNotes),
+		OutputSchema: readNotesSchema(),
 	}, s.readNotes)
 
 	addTool(srv, params, &mcp.Tool{
@@ -114,7 +115,8 @@ func (s *Server) MCPServer() *mcp.Server {
 		Name: "search_notes",
 		Description: "Search a vault by note name and by content. A plain multi-word query finds notes holding every " +
 			"word, in any order; a query wrapped in double quotes, or mode phrase, finds that exact text with no escaping " +
-			"needed; a query with regular-expression characters is read as a regex (ripgrep syntax). mode forces any " +
+			"needed, which is how to find a line before editing it or text with quotes, dashes, brackets or emoji; " +
+			"a query with regular-expression characters is read as a regex (ripgrep syntax). mode forces any " +
 			"reading. Only Markdown notes are searched. Results are ranked: notes named after the query first, " +
 			"flagged title_match, then notes with more matching lines. A note whose name matches is a result even when " +
 			"no line in it matches; it reports total_matches 0. glob limits name matches as well as content matches. Case-insensitive unless " +

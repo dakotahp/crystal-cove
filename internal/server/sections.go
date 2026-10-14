@@ -28,7 +28,7 @@ type editSectionInput struct {
 	Vault       string   `json:"vault,omitempty" jsonschema:"name of the vault; optional when the server holds one vault"`
 	Path        string   `json:"path" jsonschema:"vault-relative path of the note"`
 	HeadingPath []string `json:"heading_path" jsonschema:"one or more exact heading titles from ancestor to target; a unique suffix of the full hierarchy"`
-	Mode        string   `json:"mode" jsonschema:"append (after the section's own text, before its first subheading), prepend (right below the heading) or replace (the whole body, subsections included)"`
+	Mode        string   `json:"mode" enum:"append,prepend,replace" jsonschema:"append (after the section's own text, before its first subheading), prepend (right below the heading) or replace (the whole body, subsections included)"`
 	Content     string   `json:"content" jsonschema:"lines to add, or for replace the new body without the heading; empty with replace clears the body"`
 	Version     string   `json:"version,omitempty" jsonschema:"the version get_section returned for this section; required for replace, and the edit is refused if the section changed since"`
 }

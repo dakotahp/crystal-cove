@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"reflect"
 	"slices"
 	"strings"
 
@@ -12,8 +13,44 @@ import (
 // addTool registers a tool and records the parameters it takes, which
 // argumentHints quotes when a call passes arguments that do not fit.
 func addTool[In, Out any](srv *mcp.Server, params map[string]string, t *mcp.Tool, h mcp.ToolHandlerFor[In, Out]) {
+	if schema := enumSchema[In](); schema != nil {
+		t.InputSchema = schema
+	}
 	mcp.AddTool(srv, t, h)
 	params[t.Name] = describeParams[In]()
+}
+
+// enumSchema infers In's input schema with each field's enum struct tag
+// applied, which jsonschema-go does not read, so clients see the allowed
+// values and reject any other. It is nil when no field has the tag.
+func enumSchema[In any]() *jsonschema.Schema {
+	typ := reflect.TypeFor[In]()
+	if typ.Kind() != reflect.Struct {
+		return nil
+	}
+	enums := map[string][]any{}
+	for i := range typ.NumField() {
+		field := typ.Field(i)
+		values, ok := field.Tag.Lookup("enum")
+		if !ok {
+			continue
+		}
+		name, _, _ := strings.Cut(field.Tag.Get("json"), ",")
+		for _, v := range strings.Split(values, ",") {
+			enums[name] = append(enums[name], v)
+		}
+	}
+	if len(enums) == 0 {
+		return nil
+	}
+	schema, err := jsonschema.For[In](nil)
+	if err != nil {
+		return nil
+	}
+	for name, values := range enums {
+		schema.Properties[name].Enum = values
+	}
+	return schema
 }
 
 func describeParams[In any]() string {

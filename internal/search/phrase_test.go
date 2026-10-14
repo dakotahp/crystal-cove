@@ -86,3 +86,52 @@ func TestPhraseQueriesHaveNoWords(t *testing.T) {
 		}
 	}
 }
+
+func TestPhraseModeMatchesBracketsAndEmoji(t *testing.T) {
+	s := requireRipgrep(t)
+	root := wordsVault(t, map[string]string{
+		"tasks.md": "- [ ] 💡 idea: ship it\n",
+		"other.md": "ship it\n",
+	})
+
+	res, err := s.Search(context.Background(), root, Options{Query: "[ ] 💡 idea:", Mode: ModePhrase})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := paths(res); !slices.Equal(got, []string{"tasks.md"}) {
+		t.Errorf("matched %q, want the literal checkbox and emoji found", got)
+	}
+}
+
+func TestPhraseModeHonorsCaseGlobAndContext(t *testing.T) {
+	s := requireRipgrep(t)
+	root := wordsVault(t, map[string]string{
+		"a/upper.md": "before\nOne Line For Tomorrow\nafter\n",
+		"a/lower.md": "one line for tomorrow\n",
+		"b/lower.md": "one line for tomorrow\n",
+	})
+
+	res, err := s.Search(context.Background(), root, Options{Query: "One Line For Tomorrow", Mode: ModePhrase, CaseSensitive: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := paths(res); !slices.Equal(got, []string{"a/upper.md"}) {
+		t.Errorf("case-sensitive matched %q, want only a/upper.md", got)
+	}
+
+	res, err = s.Search(context.Background(), root, Options{Query: "one line for tomorrow", Mode: ModePhrase, Glob: "b/**"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := paths(res); !slices.Equal(got, []string{"b/lower.md"}) {
+		t.Errorf("glob matched %q, want only b/lower.md", got)
+	}
+
+	res, err = s.Search(context.Background(), root, Options{Query: "one line for tomorrow", Mode: ModePhrase, Glob: "a/upper.md", ContextLines: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(res.Files) != 1 || len(res.Files[0].Lines) != 3 {
+		t.Errorf("Files = %+v, want the match with one line of context each side", res.Files)
+	}
+}

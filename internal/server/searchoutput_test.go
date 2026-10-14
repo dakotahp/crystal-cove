@@ -47,3 +47,25 @@ func TestSearchRejectsAnUnknownOutput(t *testing.T) {
 		t.Errorf("err = %v, want one naming the outputs", err)
 	}
 }
+
+func TestZeroLinesPerNoteIsRejectedNotDefaulted(t *testing.T) {
+	s := rankServer(t, map[string]string{"Inbox/a.md": "bike\n"})
+	session := testSession(t, s)
+
+	msg := toolError(t, session, "search_notes", map[string]any{"query": "bike", "max_lines_per_note": 0})
+	if !strings.Contains(msg, "max_lines_per_note") || !strings.Contains(msg, "output") {
+		t.Errorf("error = %q, want one pointing at output files", msg)
+	}
+}
+
+func TestLinesPerNoteDefaultsWhenLeftOut(t *testing.T) {
+	s := rankServer(t, map[string]string{"Inbox/a.md": strings.Repeat("bike\n", 8)})
+
+	if res := search1(t, s, searchNotesInput{Query: "bike"}); len(res.Files[0].Lines) != 5 {
+		t.Errorf("Lines = %d, want the default 5", len(res.Files[0].Lines))
+	}
+	every := -1
+	if res := search1(t, s, searchNotesInput{Query: "bike", MaxLinesPerNote: &every}); len(res.Files[0].Lines) != 8 {
+		t.Errorf("Lines = %d, want all 8 for -1", len(res.Files[0].Lines))
+	}
+}

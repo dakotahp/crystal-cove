@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"slices"
 
+	"github.com/google/jsonschema-go/jsonschema"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"github.com/dakotahp/crystal-cove/internal/vault"
@@ -25,7 +26,7 @@ type listNotesInput struct {
 	Recursive bool   `json:"recursive,omitempty" jsonschema:"list subdirectories recursively"`
 	Offset    int    `json:"offset,omitempty" jsonschema:"entry to start from; use next_offset from the previous page"`
 	Limit     int    `json:"limit,omitempty" jsonschema:"maximum entries to return (default 200, max 1000)"`
-	Order     string `json:"order,omitempty" jsonschema:"asc (the default) lists in path order; desc reverses it, so notes named by date, such as session logs, come newest first"`
+	Order     string `json:"order,omitempty" enum:"asc,desc" jsonschema:"asc (the default) lists in path order; desc reverses it, so notes named by date, such as session logs, come newest first"`
 }
 
 // DefaultListLimit and MaxListLimit bound one page of list_notes, so a
@@ -124,6 +125,18 @@ type ReadNotes struct {
 	BudgetExhausted bool `json:"budget_exhausted" jsonschema:"true when the shared character budget ran out; continue any truncated note with read_note from its next_offset"`
 }
 
+// readNotesSchema requires only a note's path, so a note that failed can
+// leave out the page fields of the ReadResult it embeds, which the inferred
+// schema would require.
+func readNotesSchema() *jsonschema.Schema {
+	schema, err := jsonschema.For[ReadNotes](nil)
+	if err != nil {
+		return nil
+	}
+	schema.Properties["notes"].Items.Required = []string{"path"}
+	return schema
+}
+
 func (s *Server) readNotes(_ context.Context, _ *mcp.CallToolRequest, in readNotesInput) (*mcp.CallToolResult, *ReadNotes, error) {
 	if len(in.Paths) == 0 {
 		return nil, nil, errors.New("give paths: the notes to read")
@@ -139,7 +152,7 @@ func (s *Server) readNotes(_ context.Context, _ *mcp.CallToolRequest, in readNot
 	for _, path := range in.Paths {
 		page, err := s.readFirst(in.Vault, path, budget)
 		if err != nil {
-			out.Notes = append(out.Notes, NotePage{Path: path, Error: err.Error(), ReadResult: &vault.ReadResult{NextOffset: -1}})
+			out.Notes = append(out.Notes, NotePage{Path: path, Error: err.Error()})
 			continue
 		}
 		budget -= len([]rune(page.Content))
