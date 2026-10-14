@@ -42,6 +42,10 @@ const (
 	ModeWords Mode = "words"
 	// ModeRegex reads the whole query as one regular expression.
 	ModeRegex Mode = "regex"
+	// ModePhrase reads the whole query as literal text, so punctuation in it
+	// needs no escaping. Under ModeAuto a query wrapped in double quotes is a
+	// phrase too.
+	ModePhrase Mode = "phrase"
 )
 
 // regexChars are the characters that make a query a regular expression
@@ -188,7 +192,9 @@ func (s *Searcher) Search(ctx context.Context, root string, opts Options) (*Resu
 		args = append(args, "--glob", opts.Glob)
 	}
 	words := QueryWords(opts)
-	if len(words) > 0 {
+	if phrase, ok := QueryPhrase(opts); ok {
+		args = append(args, "--fixed-strings", "--regexp", phrase)
+	} else if len(words) > 0 {
 		// One pass finds any word; notes missing a word are dropped below.
 		quoted := make([]string, len(words))
 		for i, w := range words {
@@ -236,16 +242,34 @@ func (s *Searcher) Files(ctx context.Context, root, glob string) (map[string]boo
 // note names the same way the content search did.
 func QueryWords(opts Options) []string {
 	switch opts.Mode {
-	case ModeRegex:
+	case ModeRegex, ModePhrase:
 		return nil
 	case ModeWords:
 		return strings.Fields(opts.Query)
+	}
+	if _, ok := QueryPhrase(opts); ok {
+		return nil
 	}
 	words := strings.Fields(opts.Query)
 	if len(words) < 2 || strings.ContainsAny(opts.Query, regexChars) {
 		return nil
 	}
 	return words
+}
+
+// QueryPhrase returns the literal text a phrase query asks for, and whether
+// the query is a phrase at all.
+func QueryPhrase(opts Options) (string, bool) {
+	switch opts.Mode {
+	case ModePhrase:
+		return opts.Query, true
+	case ModeAuto:
+		q := strings.TrimSpace(opts.Query)
+		if len(q) > 2 && strings.HasPrefix(q, `"`) && strings.HasSuffix(q, `"`) {
+			return q[1 : len(q)-1], true
+		}
+	}
+	return "", false
 }
 
 // wordCheck tracks which query words a note's matching lines hold, which is

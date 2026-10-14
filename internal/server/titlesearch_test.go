@@ -165,3 +165,19 @@ func TestSearchCountsOnlyTitleMatchesInsideTheGlobAgainstMaxResults(t *testing.T
 		t.Errorf("Files = %+v, Truncated = %v, want one note and truncated", res.Files, res.Truncated)
 	}
 }
+
+func TestPhraseSearchMatchesNamesLiterally(t *testing.T) {
+	s := titleSearchServer(t, "Inbox/What? (draft).md", "Inbox/What draft.md")
+
+	_, res, err := s.searchNotes(context.Background(), &mcp.CallToolRequest{}, searchNotesInput{
+		Vault: "Personal",
+		Query: "what? (draft)",
+		Mode:  "phrase",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(res.Files) != 1 || res.Files[0].Path != "Inbox/What? (draft).md" || !res.Files[0].TitleMatch {
+		t.Errorf("Files = %+v, want only the note named with the literal phrase", res.Files)
+	}
+}
