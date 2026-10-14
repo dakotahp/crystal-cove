@@ -5,7 +5,10 @@ COPY go.mod go.sum ./
 RUN go mod download
 COPY cmd ./cmd
 COPY internal ./internal
-RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/crystal-cove ./cmd/crystal-cove
+ARG COMMIT=dev
+RUN CGO_ENABLED=0 go build -trimpath \
+    -ldflags="-s -w -X github.com/dakotahp/crystal-cove/internal/server.Commit=${COMMIT}" \
+    -o /out/crystal-cove ./cmd/crystal-cove
 
 # Build obsidian-headless separately: better-sqlite3 has no musl prebuilds
 # and needs a node-gyp toolchain; build intermediates are stripped before

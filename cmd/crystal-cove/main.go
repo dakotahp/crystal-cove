@@ -39,6 +39,7 @@ func main() {
 // the bound listen address once the HTTP server is accepting connections.
 func run(ctx context.Context, getenv config.Getenv, logOut io.Writer, onReady func(addr string)) error {
 	logger := slog.New(slog.NewTextHandler(logOut, nil))
+	logger.Info("starting crystal-cove", "version", server.Version, "commit", server.Commit)
 
 	cfg, err := config.Load(getenv, rand.Reader)
 	if err != nil {

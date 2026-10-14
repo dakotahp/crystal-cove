@@ -17,6 +17,16 @@ import (
 // Version is the server version reported to MCP clients.
 const Version = "0.13.0" // x-release-please-version
 
+// Commit is the source commit the binary was built from, set at build time
+// with -ldflags "-X .../internal/server.Commit=<sha>". Version changes only
+// at a release, so Commit is what tells two builds between releases apart.
+var Commit = "dev"
+
+// BuildInfo names the running build, for the startup log and /health.
+func BuildInfo() string {
+	return fmt.Sprintf("crystal-cove %s (commit %s)", Version, Commit)
+}
+
 // Server wires vaults and search into an MCP tool set.
 type Server struct {
 	vaults map[string]*vault.Vault
