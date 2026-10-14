@@ -8,6 +8,8 @@ import (
 	"testing"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
+
+	"github.com/dakotahp/crystal-cove/internal/vault"
 )
 
 // callsRejecting runs every note tool against path and reports the tools
@@ -27,7 +29,7 @@ func callsRejecting(t *testing.T, s *Server, path string) []string {
 	check("create_note", err)
 	_, _, err = s.appendNote(ctx, &mcp.CallToolRequest{}, writeNoteInput{Path: path, Content: "x"})
 	check("append_note", err)
-	_, _, err = s.editNote(ctx, &mcp.CallToolRequest{}, editNoteInput{Path: path, Find: "a", Replace: "b"})
+	_, _, err = s.editNote(ctx, &mcp.CallToolRequest{}, editNoteInput{Path: path, Edits: []vault.Replacement{{Find: "a", Replace: "b"}}})
 	check("edit_note", err)
 	_, _, err = s.moveNote(ctx, &mcp.CallToolRequest{}, moveNoteInput{Path: path, NewPath: "Inbox/moved.md"})
 	check("move_note", err)

@@ -197,9 +197,11 @@ func (s *Server) addWriteTools(srv *mcp.Server, params map[string]string) {
 
 	addTool(srv, params, &mcp.Tool{
 		Name: "edit_note",
-		Description: "Edit a note by replacing an exact text snippet. The snippet must occur exactly once " +
-			"unless replace_all is set; include surrounding lines to make it unique. Pass the version read_note returned " +
-			"to refuse the edit if the note changed since; the result carries the new version for a following edit.",
+		Description: "Edit a note by replacing exact text snippets. edits is a list of {find, replace, replace_all}, " +
+			"applied in order, each to the text the edits before it left; make several changes to one note in one call. " +
+			"Each find must occur exactly once unless replace_all is set; include surrounding lines to make it unique. " +
+			"If any edit fails, nothing is written and the error names the edit. Pass the version read_note returned " +
+			"to refuse the edits if the note changed since; the result carries the new version for a following edit.",
 	}, s.editNote)
 
 	addTool(srv, params, &mcp.Tool{

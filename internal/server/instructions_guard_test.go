@@ -7,6 +7,8 @@ import (
 	"testing"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
+
+	"github.com/dakotahp/crystal-cove/internal/vault"
 )
 
 func TestToolsCannotChangeTheInstructionsNote(t *testing.T) {
@@ -31,7 +33,7 @@ func TestToolsCannotChangeTheInstructionsNote(t *testing.T) {
 			check("create_note", err)
 			_, _, err = s.appendNote(ctx, req, writeNoteInput{Path: path, Content: "x"})
 			check("append_note", err)
-			_, _, err = s.editNote(ctx, req, editNoteInput{Path: path, Find: "Never", Replace: "Always"})
+			_, _, err = s.editNote(ctx, req, editNoteInput{Path: path, Edits: []vault.Replacement{{Find: "Never", Replace: "Always"}}})
 			check("edit_note", err)
 			_, _, err = s.editSection(ctx, req, editSectionInput{Path: path, HeadingPath: []string{"Rules"}, Mode: "append", Content: "x"})
 			check("edit_section", err)

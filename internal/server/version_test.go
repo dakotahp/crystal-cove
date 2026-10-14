@@ -8,6 +8,8 @@ import (
 	"testing"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
+
+	"github.com/dakotahp/crystal-cove/internal/vault"
 )
 
 func TestEditNoteRefusesAnEditBuiltOnAnOldRead(t *testing.T) {
@@ -19,7 +21,7 @@ func TestEditNoteRefusesAnEditBuiltOnAnOldRead(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, edited, err := s.editNote(ctx, req, editNoteInput{Path: "Inbox/a.md", Find: "- [ ]", Replace: "- [x]", Version: read.Version})
+	_, edited, err := s.editNote(ctx, req, editNoteInput{Path: "Inbox/a.md", Edits: []vault.Replacement{{Find: "- [ ]", Replace: "- [x]"}}, Version: read.Version})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -28,7 +30,7 @@ func TestEditNoteRefusesAnEditBuiltOnAnOldRead(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(v.Root(), "Inbox", "a.md"), []byte(synced), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	_, _, err = s.editNote(ctx, req, editNoteInput{Path: "Inbox/a.md", Find: "ship", Replace: "shipped", Version: edited.Version})
+	_, _, err = s.editNote(ctx, req, editNoteInput{Path: "Inbox/a.md", Edits: []vault.Replacement{{Find: "ship", Replace: "shipped"}}, Version: edited.Version})
 	if err == nil || !strings.Contains(err.Error(), "changed since") {
 		t.Fatalf("err = %v, want the stale edit refused", err)
 	}
