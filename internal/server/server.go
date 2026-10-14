@@ -96,6 +96,15 @@ func (s *Server) MCPServer() *mcp.Server {
 	}, s.readNote)
 
 	addTool(srv, params, &mcp.Tool{
+		Name: "read_notes",
+		Description: fmt.Sprintf("Read several notes in one call, such as every note find_notes returned. Each note "+
+			"returns its first page of up to %d characters with its version, in the order asked, and the call returns "+
+			"at most %d characters in all. A note cut short by either limit reports truncated and next_offset: continue "+
+			"it with read_note. A note that cannot be read reports error, and the others are still returned. At most %d paths.",
+			vault.ReadPageSize, MaxReadNotesChars, MaxReadNotes),
+	}, s.readNotes)
+
+	addTool(srv, params, &mcp.Tool{
 		Name:        "get_section",
 		Description: "Read a Markdown heading section's body, including nested subsections but excluding its heading. heading_path is an exact case-sensitive suffix of the heading hierarchy (Markdown title text without heading markers); ambiguous matches fail, and a heading that is not found fails with the note's heading paths, closest first, to retry with. Only document-level headings count, not headings in code, quotes, lists, or YAML frontmatter. Returns at most 10240 characters; continue with next_offset. version identifies this section's text, for edit_section.",
 	}, s.getSection)

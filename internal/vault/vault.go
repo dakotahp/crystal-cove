@@ -192,15 +192,30 @@ func (v *Vault) Read(rel string, offset int) (*ReadResult, error) {
 	return page(data, offset, "note")
 }
 
+// ReadFirst returns the start of the note at path: up to limit characters,
+// and never more than ReadPageSize. Callers reading several notes use it to
+// share one budget between them.
+func (v *Vault) ReadFirst(rel string, limit int) (*ReadResult, error) {
+	data, err := v.ReadAll(rel)
+	if err != nil {
+		return nil, err
+	}
+	return pageOf(data, 0, min(limit, ReadPageSize), "note")
+}
+
 // page returns up to ReadPageSize characters of text starting at the
 // character offset. what names the text in the out-of-range error.
 func page(text []byte, offset int, what string) (*ReadResult, error) {
+	return pageOf(text, offset, ReadPageSize, what)
+}
+
+func pageOf(text []byte, offset, size int, what string) (*ReadResult, error) {
 	runes := []rune(string(text))
 	total := len(runes)
 	if offset < 0 || offset > total {
 		return nil, fmt.Errorf("offset %d is out of range: %s has %d characters", offset, what, total)
 	}
-	end := min(offset+ReadPageSize, total)
+	end := min(offset+size, total)
 	res := &ReadResult{
 		Content:         string(runes[offset:end]),
 		Offset:          offset,
