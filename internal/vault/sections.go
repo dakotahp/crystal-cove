@@ -124,14 +124,15 @@ func selectSection(source []byte, headingPath []string) (section, error) {
 	if len(headingPath) == 0 {
 		return section{}, errors.New("heading_path must contain at least one heading title")
 	}
+	sections := markdownSections(source)
 	matches := []section{}
-	for _, s := range markdownSections(source) {
+	for _, s := range sections {
 		if len(s.path) >= len(headingPath) && slices.Equal(s.path[len(s.path)-len(headingPath):], headingPath) {
 			matches = append(matches, s)
 		}
 	}
 	if len(matches) == 0 {
-		return section{}, fmt.Errorf("section %q not found", headingPath)
+		return section{}, fmt.Errorf("section %q not found; %s", headingPath, headingHints(sections, headingPath[len(headingPath)-1]))
 	}
 	if len(matches) > 1 {
 		return section{}, fmt.Errorf("section %q is ambiguous (%d matches): provide more ancestor headings in heading_path", headingPath, len(matches))

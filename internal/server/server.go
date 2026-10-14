@@ -97,7 +97,7 @@ func (s *Server) MCPServer() *mcp.Server {
 
 	addTool(srv, params, &mcp.Tool{
 		Name:        "get_section",
-		Description: "Read a Markdown heading section's body, including nested subsections but excluding its heading. heading_path is an exact case-sensitive suffix of the heading hierarchy (Markdown title text without heading markers); ambiguous matches fail. Only document-level headings count, not headings in code, quotes, lists, or YAML frontmatter. Returns at most 10240 characters; continue with next_offset. version identifies this section's text, for edit_section.",
+		Description: "Read a Markdown heading section's body, including nested subsections but excluding its heading. heading_path is an exact case-sensitive suffix of the heading hierarchy (Markdown title text without heading markers); ambiguous matches fail, and a heading that is not found fails with the note's heading paths, closest first, to retry with. Only document-level headings count, not headings in code, quotes, lists, or YAML frontmatter. Returns at most 10240 characters; continue with next_offset. version identifies this section's text, for edit_section.",
 	}, s.getSection)
 
 	addTool(srv, params, &mcp.Tool{
@@ -172,7 +172,8 @@ func (s *Server) addWriteTools(srv *mcp.Server, params map[string]string) {
 			"lines right below the heading. mode replace replaces the whole body, subsections included, and needs " +
 			"the version get_section returned, so it cannot remove text it has not seen. Any mode refuses the edit " +
 			"when a given version no longer matches; changes elsewhere in the note do not count. heading_path is an " +
-			"exact case-sensitive suffix of the heading hierarchy; missing or ambiguous matches fail.",
+			"exact case-sensitive suffix of the heading hierarchy; ambiguous matches fail, and a missing heading fails " +
+			"with the note's heading paths, closest first.",
 	}, s.editSection)
 
 	addTool(srv, params, &mcp.Tool{
