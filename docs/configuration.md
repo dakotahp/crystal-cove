@@ -7,7 +7,7 @@ Crystal Cove reads all of its settings from environment variables. With Docker C
 | `OBSIDIAN_EMAIL` | yes* | Obsidian account email. Not needed with `OBSIDIAN_AUTH_TOKEN`. |
 | `OBSIDIAN_PASSWORD` | yes* | Obsidian account password. Not needed with `OBSIDIAN_AUTH_TOKEN`. |
 | `OBSIDIAN_AUTH_TOKEN` | no | An existing `obsidian-headless` session token, used instead of email and password. Required for accounts with MFA enabled. |
-| `OBSIDIAN_VAULTS` | yes | Comma-separated remote vault names, each optionally `Name:encryption-password`. |
+| `OBSIDIAN_VAULTS` | yes | Comma-separated remote vault names, each optionally `Name:encryption-password`. That password cannot contain a comma, the name cannot contain a colon, and spaces at the end of the password are removed. |
 | `OBSIDIAN_VAULT_PASSWORD` | no | End-to-end encryption password applied to vaults that don't carry their own. |
 | `MCP_AUTH_TOKEN` | yes* | Static bearer token (API key) clients may present. At least 32 characters (`openssl rand -hex 32`); the server refuses to start with a shorter one. Optional when `OAUTH_ISSUER` or `MCP_OWNER_PASSWORD` is set; at least one of the three is required. |
 | `MCP_OWNER_PASSWORD` | no | Turns on the built-in OAuth sign-in, see [OAuth](oauth.md). At least 16 characters. Requires `MCP_PUBLIC_URL`; cannot be combined with `OAUTH_ISSUER`. Changing it signs every app out. |
