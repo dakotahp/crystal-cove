@@ -128,6 +128,16 @@ Key invariants:
   `createAtomic` for a new note, which links the temporary file into place
   and so can never replace a note that already exists. One consequence: a
   read-only note can be replaced, because rename depends on the directory.
+  The vault's `writes` lock serializes this server's own writes, since two
+  writes could both pass the unchanged check before either rename.
+- **Writes wait for a device to stop editing**: Obsidian on a device that
+  has the note open saves its copy over changes that arrive while someone
+  types, so `Vault.update` first waits until the note has gone
+  `EditGuard.Quiet` without an outside change (a note still holding what
+  this server last wrote changed here) and refuses after `MaxWait`.
+- **No paths that differ only in letter case**: `checkCase` refuses a new
+  note or move target matching an existing file or folder in all but case,
+  because case-insensitive devices merge them and sync loses one.
 - **Note tools work on notes only.** `requireNote` rejects anything without a
   `.md` extension and any path inside a hidden folder except the trash, which
   delete and restore need. The vault sandbox stops escapes but allows every

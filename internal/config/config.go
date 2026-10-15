@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // DefaultPort is the HTTP port used when PORT is not set.
@@ -105,6 +106,12 @@ type Config struct {
 	// AllowPermanentDelete lets delete_note remove a note outright instead
 	// of moving it to the vault's trash.
 	AllowPermanentDelete bool
+	// WriteQuiet is how long a note must go unchanged by another device
+	// before a tool writes to it; zero turns the wait off.
+	WriteQuiet time.Duration
+	// WriteMaxWait is the longest a write waits for that before it is
+	// refused.
+	WriteMaxWait time.Duration
 }
 
 // Getenv is the subset of os.Getenv needed by Load, injectable for tests.
@@ -177,6 +184,13 @@ func Load(getenv Getenv, randSource io.Reader) (*Config, error) {
 		return nil, err
 	}
 	if cfg.AllowPermanentDelete, err = parseBool(getenv, "MCP_ALLOW_PERMANENT_DELETE"); err != nil {
+		return nil, err
+	}
+
+	if cfg.WriteQuiet, err = parseSeconds(getenv, "MCP_WRITE_QUIET_SECONDS", 10); err != nil {
+		return nil, err
+	}
+	if cfg.WriteMaxWait, err = parseSeconds(getenv, "MCP_WRITE_WAIT_SECONDS", 30); err != nil {
 		return nil, err
 	}
 
@@ -335,6 +349,19 @@ func parseBool(getenv Getenv, key string) (bool, error) {
 		return false, fmt.Errorf("%s must be true or false, got %q", key, v)
 	}
 	return b, nil
+}
+
+// parseSeconds reads an optional whole number of seconds, def when unset.
+func parseSeconds(getenv Getenv, key string, def int) (time.Duration, error) {
+	v := strings.TrimSpace(getenv(key))
+	if v == "" {
+		return time.Duration(def) * time.Second, nil
+	}
+	n, err := strconv.Atoi(v)
+	if err != nil || n < 0 {
+		return 0, fmt.Errorf("%s must be a whole number of seconds, 0 or more, got %q", key, v)
+	}
+	return time.Duration(n) * time.Second, nil
 }
 
 // randomDeviceName returns deviceNamePrefix followed by 8 hex characters.

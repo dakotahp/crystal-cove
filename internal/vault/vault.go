@@ -35,11 +35,17 @@ type Vault struct {
 	// unchanged runs just before its rename, so two writes from here could
 	// both pass it and the second rename would drop the first one's change.
 	writes sync.Mutex
+
+	guard     EditGuard
+	now       func() time.Time
+	sleep     func(time.Duration)
+	writtenMu sync.Mutex
+	written   map[string]string
 }
 
 // New returns a Vault named name rooted at the absolute directory root.
 func New(name, root string) *Vault {
-	return &Vault{name: name, root: root}
+	return &Vault{name: name, root: root, now: time.Now, sleep: time.Sleep}
 }
 
 // Name returns the vault's name.
@@ -257,6 +263,7 @@ func (v *Vault) Create(rel, content string) error {
 		}
 		return fmt.Errorf("creating %q: %w", rel, err)
 	}
+	v.remember(clean, []byte(content))
 	return nil
 }
 
@@ -380,6 +387,7 @@ func (v *Vault) Move(from, to string) error {
 	if err := root.Rename(src, dst); err != nil {
 		return fmt.Errorf("moving %q to %q: %w", from, to, err)
 	}
+	v.remembered(src, dst)
 	removeEmptyTrashFolders(root, filepath.Dir(src))
 	return nil
 }

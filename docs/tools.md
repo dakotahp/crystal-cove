@@ -46,6 +46,18 @@ it did not see:
   again instead of undoing someone's change. `edit_note` returns the new
   `version` for a following edit. `get_section` and `edit_section` work the
   same way for one section, and a `replace` requires the version.
+- Obsidian, on a device where a note is open and being typed in, saves its
+  own copy over changes that reach it meanwhile. So a write waits until the
+  note has gone 10 seconds without a change from another device, and is
+  refused with an error if it is still changing after 30 seconds.
+  `MCP_WRITE_QUIET_SECONDS` and `MCP_WRITE_WAIT_SECONDS` set the two times.
+  The server learns of an edit only once sync delivers it, so a write in the
+  first moments of someone's typing can still be lost on that device.
+- A new note's path cannot differ from an existing note or folder only in
+  letter case, such as `plan.md` beside `Plan.md`. The server keeps the two
+  apart, but macOS, Windows, iOS and Android treat them as one file, so sync
+  would merge them and lose one note's text. Renaming a note to change only
+  its own case is allowed.
 
 ## Working with heading sections
 

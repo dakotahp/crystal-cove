@@ -24,3 +24,5 @@ Crystal Cove reads all of its settings from environment variables. With Docker C
 | `BIND_ADDRESS` | no | Docker Compose only: the host address to publish on. Defaults to `127.0.0.1`, so only this machine can reach the plain-HTTP port. `0.0.0.0` exposes it to every network the host is on. |
 | `MCP_READ_ONLY` | no | `true` leaves out every tool that changes a note, so clients can only read and search. Default `false`. |
 | `MCP_ALLOW_PERMANENT_DELETE` | no | `true` lets `delete_note` remove notes outright, including notes already in `.trash`. Default `false`: deletes only move notes to `.trash`. |
+| `MCP_WRITE_QUIET_SECONDS` | no | How long a note must go unchanged by another device before a tool writes to it. Default `10`; `0` turns the wait off. See [Edits and sync](tools.md#edits-and-sync). |
+| `MCP_WRITE_WAIT_SECONDS` | no | The longest a write waits for that quiet period before it is refused. Default `30`. |
