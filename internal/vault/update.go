@@ -36,6 +36,11 @@ func (v *Vault) update(rel string, missingOK bool, change func(old []byte) ([]by
 		return nil, err
 	}
 	defer root.Close()
+	if err := v.waitUntilQuiet(root, clean, rel); err != nil {
+		return nil, err
+	}
+	v.writes.Lock()
+	defer v.writes.Unlock()
 	for range updateAttempts {
 		old, err := root.ReadFile(clean)
 		missing := errors.Is(err, fs.ErrNotExist)
@@ -63,6 +68,7 @@ func (v *Vault) update(rel string, missingOK bool, change func(old []byte) ([]by
 		if err != nil {
 			return nil, err
 		}
+		v.remember(clean, updated)
 		return updated, nil
 	}
 	return nil, fmt.Errorf("note %q kept changing while it was being written, most likely from sync: try again", rel)

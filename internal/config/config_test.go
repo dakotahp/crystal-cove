@@ -6,6 +6,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 )
 
 const (
@@ -141,6 +142,37 @@ func TestLoadToolPolicy(t *testing.T) {
 		m[key] = "yes please"
 		if _, err := Load(env(m), rand.Reader); err == nil || !strings.Contains(err.Error(), key) {
 			t.Errorf("%s=%q: err = %v, want an error naming it", key, m[key], err)
+		}
+	}
+}
+
+func TestLoadWriteGuard(t *testing.T) {
+	cfg, err := Load(env(validEnv()), rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.WriteQuiet != 10*time.Second || cfg.WriteMaxWait != 30*time.Second {
+		t.Errorf("defaults: WriteQuiet=%v WriteMaxWait=%v, want 10s and 30s", cfg.WriteQuiet, cfg.WriteMaxWait)
+	}
+
+	m := validEnv()
+	m["MCP_WRITE_QUIET_SECONDS"] = "0"
+	m["MCP_WRITE_WAIT_SECONDS"] = "45"
+	cfg, err = Load(env(m), rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.WriteQuiet != 0 || cfg.WriteMaxWait != 45*time.Second {
+		t.Errorf("set: WriteQuiet=%v WriteMaxWait=%v, want 0s and 45s", cfg.WriteQuiet, cfg.WriteMaxWait)
+	}
+
+	for _, key := range []string{"MCP_WRITE_QUIET_SECONDS", "MCP_WRITE_WAIT_SECONDS"} {
+		for _, bad := range []string{"soon", "-1"} {
+			m := validEnv()
+			m[key] = bad
+			if _, err := Load(env(m), rand.Reader); err == nil || !strings.Contains(err.Error(), key) {
+				t.Errorf("%s=%q: err = %v, want an error naming it", key, bad, err)
+			}
 		}
 	}
 }

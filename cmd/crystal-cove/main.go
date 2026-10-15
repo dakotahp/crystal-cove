@@ -57,7 +57,9 @@ func run(ctx context.Context, getenv config.Getenv, logOut io.Writer, onReady fu
 
 	vaults := make([]*vault.Vault, 0, len(cfg.Vaults))
 	for _, v := range cfg.Vaults {
-		vaults = append(vaults, vault.New(v.Name, b.VaultPath(v)))
+		vv := vault.New(v.Name, b.VaultPath(v))
+		vv.SetEditGuard(vault.EditGuard{Quiet: cfg.WriteQuiet, MaxWait: cfg.WriteMaxWait})
+		vaults = append(vaults, vv)
 	}
 	srv := server.New(vaults, search.New("rg", nil), b.SyncReady)
 	srv.SetPolicy(server.Policy{ReadOnly: cfg.ReadOnly, AllowPermanentDelete: cfg.AllowPermanentDelete})

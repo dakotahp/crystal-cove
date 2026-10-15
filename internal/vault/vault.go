@@ -13,6 +13,7 @@ import (
 	"slices"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -30,11 +31,21 @@ const TrashDir = ".trash"
 type Vault struct {
 	name string
 	root string
+	// writes serializes this server's own writes. The check that a note is
+	// unchanged runs just before its rename, so two writes from here could
+	// both pass it and the second rename would drop the first one's change.
+	writes sync.Mutex
+
+	guard     EditGuard
+	now       func() time.Time
+	sleep     func(time.Duration)
+	writtenMu sync.Mutex
+	written   map[string]string
 }
 
 // New returns a Vault named name rooted at the absolute directory root.
 func New(name, root string) *Vault {
-	return &Vault{name: name, root: root}
+	return &Vault{name: name, root: root, now: time.Now, sleep: time.Sleep}
 }
 
 // Name returns the vault's name.
@@ -233,11 +244,16 @@ func pageOf(text []byte, offset, size int, what string) (*ReadResult, error) {
 // Create writes a new note at path, creating parent directories as needed.
 // It fails if the note already exists.
 func (v *Vault) Create(rel, content string) error {
+	v.writes.Lock()
+	defer v.writes.Unlock()
 	root, clean, err := v.open(rel)
 	if err != nil {
 		return err
 	}
 	defer root.Close()
+	if err := checkCase(root, clean, ""); err != nil {
+		return err
+	}
 	if err := root.MkdirAll(filepath.Dir(clean), 0o755); err != nil {
 		return fmt.Errorf("creating parent directories for %q: %w", rel, err)
 	}
@@ -247,6 +263,7 @@ func (v *Vault) Create(rel, content string) error {
 		}
 		return fmt.Errorf("creating %q: %w", rel, err)
 	}
+	v.remember(clean, []byte(content))
 	return nil
 }
 
@@ -260,6 +277,9 @@ func (v *Vault) Append(rel, content string) error {
 		return err
 	}
 	defer root.Close()
+	if err := checkCase(root, clean, ""); err != nil {
+		return err
+	}
 	if err := root.MkdirAll(filepath.Dir(clean), 0o755); err != nil {
 		return fmt.Errorf("creating parent directories for %q: %w", rel, err)
 	}
@@ -341,6 +361,8 @@ func countReplacements(content string, e Replacement, rel string) (int, error) {
 // destination parent directories as needed. It fails if the destination
 // already exists.
 func (v *Vault) Move(from, to string) error {
+	v.writes.Lock()
+	defer v.writes.Unlock()
 	dst, err := v.resolve(to)
 	if err != nil {
 		return err
@@ -353,6 +375,9 @@ func (v *Vault) Move(from, to string) error {
 	if _, err := root.Stat(src); err != nil {
 		return v.noteError("moving", from, err)
 	}
+	if err := checkCase(root, dst, src); err != nil {
+		return err
+	}
 	if _, err := root.Lstat(dst); err == nil {
 		return fmt.Errorf("destination %q already exists", to)
 	}
@@ -362,6 +387,7 @@ func (v *Vault) Move(from, to string) error {
 	if err := root.Rename(src, dst); err != nil {
 		return fmt.Errorf("moving %q to %q: %w", from, to, err)
 	}
+	v.remembered(src, dst)
 	removeEmptyTrashFolders(root, filepath.Dir(src))
 	return nil
 }
@@ -371,6 +397,8 @@ func (v *Vault) Move(from, to string) error {
 // records where it came from and a restore can put it back there; when
 // permanent is true the note is removed outright.
 func (v *Vault) Delete(rel string, permanent bool) (trashedTo string, err error) {
+	v.writes.Lock()
+	defer v.writes.Unlock()
 	root, clean, err := v.open(rel)
 	if err != nil {
 		return "", err

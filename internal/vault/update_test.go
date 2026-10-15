@@ -1,11 +1,35 @@
 package vault
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 )
+
+func TestParallelAppendsAllLand(t *testing.T) {
+	v := newNotesVault(t, "Inbox/a.md")
+	const writers = 16
+
+	var wg sync.WaitGroup
+	errs := make(chan error, writers)
+	for i := range writers {
+		wg.Go(func() { errs <- v.Append("Inbox/a.md", fmt.Sprintf("line-%d\n", i)) })
+	}
+	wg.Wait()
+	close(errs)
+	for err := range errs {
+		if err != nil {
+			t.Errorf("append failed: %v", err)
+		}
+	}
+	data, _ := os.ReadFile(filepath.Join(v.Root(), "Inbox", "a.md"))
+	if got := strings.Count(string(data), "line-"); got != writers {
+		t.Errorf("note holds %d of %d appended lines:\n%s", got, writers, data)
+	}
+}
 
 // setTo is an Update change that replaces a note's content with data.
 func setTo(data string) func([]byte) ([]byte, error) {
