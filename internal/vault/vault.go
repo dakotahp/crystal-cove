@@ -245,6 +245,9 @@ func (v *Vault) Create(rel, content string) error {
 		return err
 	}
 	defer root.Close()
+	if err := checkCase(root, clean, ""); err != nil {
+		return err
+	}
 	if err := root.MkdirAll(filepath.Dir(clean), 0o755); err != nil {
 		return fmt.Errorf("creating parent directories for %q: %w", rel, err)
 	}
@@ -267,6 +270,9 @@ func (v *Vault) Append(rel, content string) error {
 		return err
 	}
 	defer root.Close()
+	if err := checkCase(root, clean, ""); err != nil {
+		return err
+	}
 	if err := root.MkdirAll(filepath.Dir(clean), 0o755); err != nil {
 		return fmt.Errorf("creating parent directories for %q: %w", rel, err)
 	}
@@ -361,6 +367,9 @@ func (v *Vault) Move(from, to string) error {
 	defer root.Close()
 	if _, err := root.Stat(src); err != nil {
 		return v.noteError("moving", from, err)
+	}
+	if err := checkCase(root, dst, src); err != nil {
+		return err
 	}
 	if _, err := root.Lstat(dst); err == nil {
 		return fmt.Errorf("destination %q already exists", to)
