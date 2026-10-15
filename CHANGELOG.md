@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.15.0](https://github.com/dakotahp/crystal-cove/compare/v0.14.0...v0.15.0) (2026-10-15)
+
+
+### Features
+
+* hold a write while another device is still editing the note ([3300cbb](https://github.com/dakotahp/crystal-cove/commit/3300cbb317f5c42e3bd0e88198278d16d51865af))
+
+
+### Bug Fixes
+
+* refuse note paths that differ from an existing one only in letter case ([ee26305](https://github.com/dakotahp/crystal-cove/commit/ee2630548fcfa9867628a11200f77692c84736dd))
+* serialize writes within a vault so parallel writes cannot drop each other ([2be0597](https://github.com/dakotahp/crystal-cove/commit/2be059719096d10971826c23f87efac0a3c712d5))
+
 ## [0.14.0](https://github.com/dakotahp/crystal-cove/compare/v0.13.0...v0.14.0) (2026-10-14)
 
 
