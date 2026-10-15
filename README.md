@@ -120,6 +120,14 @@ MCP_AUTH_TOKEN=
 
 **Is your vault end-to-end encrypted?** If you chose an encryption password when you set up Obsidian Sync for it, yes. Set `OBSIDIAN_VAULT_PASSWORD`, or the container stops with "Password not provided".
 
+**Do your vaults have different encryption passwords?** `OBSIDIAN_VAULT_PASSWORD` applies to every vault. To give a vault its own password, write it after the vault name with a colon:
+
+```sh
+OBSIDIAN_VAULTS=Personal:personal-password,Work:work-password
+```
+
+A vault without its own password uses `OBSIDIAN_VAULT_PASSWORD`. Because commas separate the vaults and the first colon ends the name, this form has limits: the password cannot contain a comma, the vault name cannot contain a colon, and spaces at the end of the password are removed. If your password breaks one of these rules, change it in Obsidian Sync.
+
 The [example file](.env.example) lists every option. Now follow the section for where you run it.
 
 ### On your computer
