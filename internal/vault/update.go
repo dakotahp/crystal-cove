@@ -31,6 +31,8 @@ func (v *Vault) Update(rel string, change func(old []byte) ([]byte, error)) ([]b
 // as empty content and is created, never replacing a note that appears
 // meanwhile.
 func (v *Vault) update(rel string, missingOK bool, change func(old []byte) ([]byte, error)) ([]byte, error) {
+	v.writes.Lock()
+	defer v.writes.Unlock()
 	root, clean, err := v.open(rel)
 	if err != nil {
 		return nil, err

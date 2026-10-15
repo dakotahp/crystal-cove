@@ -13,6 +13,7 @@ import (
 	"slices"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -30,6 +31,10 @@ const TrashDir = ".trash"
 type Vault struct {
 	name string
 	root string
+	// writes serializes this server's own writes. The check that a note is
+	// unchanged runs just before its rename, so two writes from here could
+	// both pass it and the second rename would drop the first one's change.
+	writes sync.Mutex
 }
 
 // New returns a Vault named name rooted at the absolute directory root.
@@ -233,6 +238,8 @@ func pageOf(text []byte, offset, size int, what string) (*ReadResult, error) {
 // Create writes a new note at path, creating parent directories as needed.
 // It fails if the note already exists.
 func (v *Vault) Create(rel, content string) error {
+	v.writes.Lock()
+	defer v.writes.Unlock()
 	root, clean, err := v.open(rel)
 	if err != nil {
 		return err
@@ -341,6 +348,8 @@ func countReplacements(content string, e Replacement, rel string) (int, error) {
 // destination parent directories as needed. It fails if the destination
 // already exists.
 func (v *Vault) Move(from, to string) error {
+	v.writes.Lock()
+	defer v.writes.Unlock()
 	dst, err := v.resolve(to)
 	if err != nil {
 		return err
@@ -371,6 +380,8 @@ func (v *Vault) Move(from, to string) error {
 // records where it came from and a restore can put it back there; when
 // permanent is true the note is removed outright.
 func (v *Vault) Delete(rel string, permanent bool) (trashedTo string, err error) {
+	v.writes.Lock()
+	defer v.writes.Unlock()
 	root, clean, err := v.open(rel)
 	if err != nil {
 		return "", err
