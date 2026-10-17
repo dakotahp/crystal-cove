@@ -212,7 +212,7 @@ func (s *Server) addWriteTools(srv *mcp.Server, params map[string]string) {
 
 	addTool(srv, params, &mcp.Tool{
 		Name:        "create_note",
-		Description: "Create a new note. Parent directories are created automatically; fails if the note already exists.",
+		Description: "Create a new note. Parent directories are created automatically; fails if the note already exists. Returns the new note's version, the same one read_note would give, so a following edit_note needs no read first.",
 	}, s.createNote)
 
 	addTool(srv, params, &mcp.Tool{
