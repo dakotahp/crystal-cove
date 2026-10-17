@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.16.0](https://github.com/dakotahp/crystal-cove/compare/v0.15.0...v0.16.0) (2026-10-17)
+
+
+### Features
+
+* return the new note's version from create_note ([15efab9](https://github.com/dakotahp/crystal-cove/commit/15efab912c33eea7463763a6565b1a6630ae9dbe))
+
 ## [0.15.0](https://github.com/dakotahp/crystal-cove/compare/v0.14.0...v0.15.0) (2026-10-15)
 
 
