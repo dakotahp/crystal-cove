@@ -13,6 +13,8 @@ Two file names are accepted, in this order:
 
 The first one found per vault wins. Vaults without either file add nothing. If several vaults supply guidance, each section is labelled `## Vault: <name>`.
 
+Keep the file short. Some MCP clients cut long server instructions without warning, and every vault adds to one shared total. With two vaults of about 2,500 characters each, one client dropped the end of the second vault's guidance. Put what the agent must know first in the file, and move detailed conventions into an ordinary note that the file names, so the agent can read that note when it needs it.
+
 The file is re-read for each new session, so an edit made on another device reaches the next conversation once it syncs. The boot log reports how many characters were loaded at startup.
 
 The MCP tools can read `mcp-instructions.md` but cannot create, edit, move, delete or restore it. Its text steers every later session, so a note that talks an assistant into rewriting it would steer every client from then on. Edit it in Obsidian instead.

@@ -182,15 +182,20 @@ type okOutput struct {
 	OK bool `json:"ok"`
 }
 
-func (s *Server) createNote(_ context.Context, _ *mcp.CallToolRequest, in writeNoteInput) (*mcp.CallToolResult, okOutput, error) {
+type createNoteOutput struct {
+	OK      bool   `json:"ok"`
+	Version string `json:"version" jsonschema:"the new note's version, as read_note returns it, for a following edit_note"`
+}
+
+func (s *Server) createNote(_ context.Context, _ *mcp.CallToolRequest, in writeNoteInput) (*mcp.CallToolResult, createNoteOutput, error) {
 	v, err := s.writableNote(in.Vault, in.Path)
 	if err != nil {
-		return nil, okOutput{}, err
+		return nil, createNoteOutput{}, err
 	}
 	if err := v.Create(in.Path, in.Content); err != nil {
-		return nil, okOutput{}, err
+		return nil, createNoteOutput{}, err
 	}
-	return nil, okOutput{OK: true}, nil
+	return nil, createNoteOutput{OK: true, Version: vault.Version([]byte(in.Content))}, nil
 }
 
 func (s *Server) appendNote(_ context.Context, _ *mcp.CallToolRequest, in writeNoteInput) (*mcp.CallToolResult, okOutput, error) {
