@@ -71,6 +71,32 @@ if (demo && !reducedMotion.matches && 'IntersectionObserver' in window) {
   replay.addEventListener('click', playDemo);
 }
 
+const layerEls = [...document.querySelectorAll('#security [data-layer]')];
+let layerTimer = null;
+const activateLayer = n => layerEls.forEach(el => el.classList.toggle('is-active', el.dataset.layer === n));
+activateLayer('1');
+document.querySelectorAll('.layer-list li').forEach(li => {
+  const pick = () => {
+    clearInterval(layerTimer);
+    activateLayer(li.dataset.layer);
+  };
+  li.addEventListener('mouseenter', pick);
+  li.addEventListener('focus', pick);
+});
+const security = document.getElementById('security');
+if (security && !reducedMotion.matches && 'IntersectionObserver' in window) {
+  const securityObserver = new IntersectionObserver(entries => {
+    if (!entries.some(e => e.isIntersecting)) return;
+    securityObserver.disconnect();
+    let n = 1;
+    layerTimer = setInterval(() => {
+      n = (n % 5) + 1;
+      activateLayer(String(n));
+    }, 2800);
+  }, { threshold: 0.3 });
+  securityObserver.observe(security);
+}
+
 const layers = [...document.querySelectorAll('.hero .parallax')];
 let ticking = false;
 const parallax = () => {

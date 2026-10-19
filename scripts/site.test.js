@@ -141,4 +141,20 @@ test('the demo uses no vendor logos', () => {
   assert.doesNotMatch(html, /anthropic|openai/i);
 });
 
+test('the cosign command matches SECURITY.md exactly', () => {
+  const fromDoc = read('docs/SECURITY.md').match(/```sh\n(cosign verify[\s\S]*?)```/)[1].trim();
+  assert.ok(codeBlocks(html).some(b => b.trim() === fromDoc), 'cosign command differs from docs/SECURITY.md');
+});
+
+test('the security section links to the known limits', () => {
+  assert.match(html, /href="https:\/\/github\.com\/dakotahp\/crystal-cove\/blob\/master\/docs\/SECURITY\.md#known-limits"/);
+});
+
+test('five security layers, outermost first', () => {
+  const rings = [...html.matchAll(/<circle[^>]*data-layer="(\d)"/g)].map(m => m[1]);
+  const items = [...html.matchAll(/<li[^>]*data-layer="(\d)"/g)].map(m => m[1]);
+  assert.deepStrictEqual(rings, ['1', '2', '3', '4', '5']);
+  assert.deepStrictEqual(items, ['1', '2', '3', '4', '5']);
+});
+
 module.exports = { codeBlocks, attr };

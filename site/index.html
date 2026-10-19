@@ -232,7 +232,63 @@
         </div>
       </div>
     </section>
-    <section id="security" class="reveal"></section>
+    <section id="security" class="section reveal">
+      <div class="wrap">
+        <header class="section-head">
+          <p class="kicker"><span>03</span> Security</p>
+          <h2>Your notes on the internet. <em class="accent">Locked down.</em></h2>
+          <p class="lead">This server holds your whole knowledge base on a machine that faces the internet. Every design decision starts there.</p>
+        </header>
+
+        <div class="layers">
+          <div class="rings" aria-hidden="true">
+            <svg viewBox="0 0 520 520">
+              <circle class="ring" data-layer="1" cx="260" cy="260" r="246"/>
+              <circle class="ring" data-layer="2" cx="260" cy="260" r="204"/>
+              <circle class="ring" data-layer="3" cx="260" cy="260" r="162"/>
+              <circle class="ring" data-layer="4" cx="260" cy="260" r="120"/>
+              <circle class="ring" data-layer="5" cx="260" cy="260" r="78"/>
+              <circle cx="260" cy="260" r="70" fill="url(#g-halo)"/>
+              <use href="#crystal" x="236" y="200" width="48" height="120"/>
+            </svg>
+          </div>
+
+          <ol class="layer-list">
+            <li data-layer="1" tabindex="0">
+              <h3>Sign-in, always</h3>
+              <p>Every request needs a token. There is no open mode. OAuth with PKCE, rotating refresh tokens, and a lockout after wrong passwords.</p>
+            </li>
+            <li data-layer="2" tabindex="0">
+              <h3>The vault and nothing else</h3>
+              <p>Paths cannot escape the vault, and symlinks cannot lead out of it. Tools touch notes only, never Obsidian's settings.</p>
+            </li>
+            <li data-layer="3" tabindex="0">
+              <h3>Notes stay intact</h3>
+              <p>Writes never overwrite a sync change, and they wait while you type on another device. Deletes go to the trash. A read-only mode removes every write tool.</p>
+            </li>
+            <li data-layer="4" tabindex="0">
+              <h3>A locked-down container</h3>
+              <p>It runs as a non-root user, with a read-only filesystem and every Linux capability dropped.</p>
+            </li>
+            <li data-layer="5" tabindex="0">
+              <h3>Checked before it ships</h3>
+              <p>Static analysis, fuzzing, secret scanning, and an image vulnerability scan run on every change. Every published image is signed.</p>
+            </li>
+          </ol>
+        </div>
+
+        <div class="verify">
+          <p class="verify-caption">Check that an image came from this repo before you run it.</p>
+          <div class="code">
+            <pre><code data-copy>cosign verify ghcr.io/dakotahp/crystal-cove:latest \
+  --certificate-identity-regexp '^https://github.com/dakotahp/crystal-cove/\.github/workflows/(ci|release-please)\.yml@' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com</code></pre>
+          </div>
+        </div>
+
+        <p class="limits">We list the known limits too. <a href="https://github.com/dakotahp/crystal-cove/blob/master/docs/SECURITY.md#known-limits">Read them in SECURITY.md <span aria-hidden="true">→</span></a></p>
+      </div>
+    </section>
     <section id="setup" class="reveal"></section>
     <section id="tools" class="reveal"></section>
     <section id="closing" class="reveal"></section>
