@@ -35,7 +35,7 @@ func TestSearchParsesMatchesAndContext(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if res.TotalMatches != 2 || res.Truncated {
+	if res.TotalMatches != 2 {
 		t.Fatalf("got %+v", res)
 	}
 	if len(res.Files) != 2 || res.Files[0].Path != "a.md" || res.Files[1].Path != "b.md" {
@@ -53,34 +53,57 @@ func TestSearchParsesMatchesAndContext(t *testing.T) {
 	}
 }
 
-func TestLimitTruncatesAndRecountsMatches(t *testing.T) {
-	s := New("rg", fakeRun(sampleOutput, "", 0, nil))
-	res, err := s.Search(context.Background(), "/vault", Options{Query: "hit"})
-	if err != nil {
+func notesResult(n int) *Result {
+	res := &Result{}
+	for i := range n {
+		res.Files = append(res.Files, FileMatches{Path: fmt.Sprintf("n%d.md", i), TotalMatches: i + 1})
+	}
+	return res
+}
+
+func TestPageKeepsOnePageAndRecountsMatches(t *testing.T) {
+	res := notesResult(3)
+	if err := res.Page(0, 2); err != nil {
 		t.Fatal(err)
 	}
-	res.Limit(1)
-	if res.TotalMatches != 1 || !res.Truncated {
-		t.Fatalf("got %+v", res)
-	}
-	if len(res.Files) != 1 {
-		t.Fatalf("files = %+v", res.Files)
+	if len(res.Files) != 2 || res.TotalMatches != 3 || res.Total != 3 || res.NextOffset != 2 {
+		t.Fatalf("got %+v; want two notes, 3 matches, total 3, next 2", res)
 	}
 }
 
-func TestLimitDefaultsWhenUnset(t *testing.T) {
-	res := &Result{}
-	for i := range DefaultMaxResults + 1 {
-		res.Files = append(res.Files, FileMatches{Path: fmt.Sprintf("n%d.md", i), TotalMatches: 1})
+func TestPageFromAnOffset(t *testing.T) {
+	res := notesResult(3)
+	if err := res.Page(2, 2); err != nil {
+		t.Fatal(err)
 	}
-	res.Limit(0)
-	if len(res.Files) != DefaultMaxResults || !res.Truncated || res.TotalMatches != DefaultMaxResults {
-		t.Fatalf("got %d notes, Truncated=%v, TotalMatches=%d; want the default limit",
-			len(res.Files), res.Truncated, res.TotalMatches)
+	if len(res.Files) != 1 || res.Files[0].Path != "n2.md" || res.TotalMatches != 3 || res.Total != 3 || res.NextOffset != -1 {
+		t.Fatalf("got %+v; want only n2.md and no next page", res)
 	}
 }
 
-func TestLimitCeiling(t *testing.T) {
+func TestPageRejectsAnOffsetOutOfRange(t *testing.T) {
+	for _, offset := range []int{-1, 4} {
+		if err := notesResult(3).Page(offset, 0); err == nil {
+			t.Errorf("offset %d accepted", offset)
+		}
+	}
+	res := notesResult(3)
+	if err := res.Page(3, 0); err != nil || len(res.Files) != 0 || res.NextOffset != -1 {
+		t.Errorf("offset at the end = %+v, %v; want an empty last page", res, err)
+	}
+}
+
+func TestPageDefaultsWhenUnset(t *testing.T) {
+	res := notesResult(DefaultMaxResults + 1)
+	if err := res.Page(0, 0); err != nil {
+		t.Fatal(err)
+	}
+	if len(res.Files) != DefaultMaxResults || res.NextOffset != DefaultMaxResults {
+		t.Fatalf("got %d notes, next %d; want the default limit", len(res.Files), res.NextOffset)
+	}
+}
+
+func TestPageCeiling(t *testing.T) {
 	var events strings.Builder
 	for i := range MaxResultsCeiling + 10 {
 		fmt.Fprintf(&events,
@@ -91,12 +114,14 @@ func TestLimitCeiling(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(res.Files) != MaxResultsCeiling+10 || res.Truncated {
-		t.Fatalf("Search returned %d notes, Truncated=%v; want every note before Limit", len(res.Files), res.Truncated)
+	if len(res.Files) != MaxResultsCeiling+10 {
+		t.Fatalf("Search returned %d notes; want every note before Page", len(res.Files))
 	}
-	res.Limit(10000)
-	if len(res.Files) != MaxResultsCeiling || !res.Truncated {
-		t.Fatalf("got %d notes, Truncated=%v; want the ceiling to cap notes", len(res.Files), res.Truncated)
+	if err := res.Page(0, 10000); err != nil {
+		t.Fatal(err)
+	}
+	if len(res.Files) != MaxResultsCeiling || res.NextOffset != MaxResultsCeiling {
+		t.Fatalf("got %d notes, next %d; want the ceiling to cap notes", len(res.Files), res.NextOffset)
 	}
 }
 
@@ -106,7 +131,7 @@ func TestSearchNoMatches(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if res.TotalMatches != 0 || len(res.Files) != 0 || res.Truncated {
+	if res.TotalMatches != 0 || len(res.Files) != 0 {
 		t.Fatalf("got %+v", res)
 	}
 	out, err := json.Marshal(res)

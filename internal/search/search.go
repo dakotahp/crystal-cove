@@ -112,27 +112,35 @@ type Result struct {
 	Files []FileMatches `json:"files"`
 	// TotalMatches counts matching lines across every note returned.
 	TotalMatches int `json:"total_matches"`
-	// Truncated reports whether notes were left out by Limit.
-	Truncated bool `json:"truncated"`
+	// Total counts the matching notes across every page.
+	Total int `json:"total"`
+	// NextOffset is where the next page starts, or -1 on the last page.
+	NextOffset int `json:"next_offset"`
 }
 
-// Limit keeps the first n notes and recounts TotalMatches over them. A
-// non-positive n means DefaultMaxResults, and n never exceeds
-// MaxResultsCeiling. Rank the notes before calling it: it keeps whatever
-// comes first.
-func (r *Result) Limit(n int) {
+// Page keeps at most n notes starting at offset, sets Total and NextOffset,
+// and recounts TotalMatches over the notes kept. A non-positive n means
+// DefaultMaxResults, and n never exceeds MaxResultsCeiling. Rank the notes
+// before calling it, so every page comes from the same order.
+func (r *Result) Page(offset, n int) error {
+	r.Total = len(r.Files)
+	if offset < 0 || offset > r.Total {
+		return fmt.Errorf("offset %d is out of range: the search found %d notes", offset, r.Total)
+	}
 	if n <= 0 {
 		n = DefaultMaxResults
 	}
-	n = min(n, MaxResultsCeiling)
-	if len(r.Files) > n {
-		r.Files = r.Files[:n]
-		r.Truncated = true
+	end := min(offset+min(n, MaxResultsCeiling), r.Total)
+	r.Files = r.Files[offset:end]
+	r.NextOffset = -1
+	if end < r.Total {
+		r.NextOffset = end
 	}
 	r.TotalMatches = 0
 	for _, f := range r.Files {
 		r.TotalMatches += f.TotalMatches
 	}
+	return nil
 }
 
 // RunFunc executes a command in dir and returns its stdout, stderr, and

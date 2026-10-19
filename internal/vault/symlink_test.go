@@ -130,7 +130,7 @@ func TestWalksSkipSymlinksLeadingOutOfTheVault(t *testing.T) {
 		}
 	}
 
-	titles, _, err := v.MatchTitles("leak|secret", false, 0)
+	titles, err := v.MatchTitles("leak|secret", false)
 	if err != nil {
 		t.Fatal(err)
 	}
