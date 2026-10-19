@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.17.0](https://github.com/dakotahp/crystal-cove/compare/v0.16.0...v0.17.0) (2026-10-19)
+
+
+### ⚠ BREAKING CHANGES
+
+* search_notes reports total and next_offset instead of truncated.
+* search_notes and find_notes take limit instead of max_results, and find_notes reports next_offset and total instead of truncated.
+
+### Features
+
+* page list_tags with offset and limit like list_notes ([c7e93dc](https://github.com/dakotahp/crystal-cove/commit/c7e93dcf67bf6d86b8f66189d1f7b0ef9ef70106))
+* page search_notes with offset and next_offset ([c7b6b4d](https://github.com/dakotahp/crystal-cove/commit/c7b6b4d2c518ef0f727ff8ea5a3e2054809e23ff))
+* use limit, offset and next_offset across listing tools ([9c3049f](https://github.com/dakotahp/crystal-cove/commit/9c3049fc5f50e1b7850dc4e4e5692eb5ae64a01b))
+
 ## [0.16.0](https://github.com/dakotahp/crystal-cove/compare/v0.15.0...v0.16.0) (2026-10-17)
 
 
