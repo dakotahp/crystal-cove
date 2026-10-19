@@ -188,10 +188,12 @@ func (s *Server) getFrontmatter(_ context.Context, _ *mcp.CallToolRequest, in no
 }
 
 type updateFrontmatterInput struct {
-	Vault  string         `json:"vault,omitempty" jsonschema:"the vault holding the note; optional when the server holds one vault"`
-	Path   string         `json:"path" jsonschema:"vault-relative path of the note"`
-	Set    map[string]any `json:"set,omitempty" jsonschema:"fields to add or replace"`
-	Remove []string       `json:"remove,omitempty" jsonschema:"field names to delete"`
+	Vault      string         `json:"vault,omitempty" jsonschema:"the vault holding the note; optional when the server holds one vault"`
+	Path       string         `json:"path" jsonschema:"vault-relative path of the note"`
+	Set        map[string]any `json:"set,omitempty" jsonschema:"fields to add or replace"`
+	Remove     []string       `json:"remove,omitempty" jsonschema:"field names to delete"`
+	AddTags    []string       `json:"add_tags,omitempty" jsonschema:"tags to merge into the tags field, kept in order and not repeated; a leading # is optional"`
+	RemoveTags []string       `json:"remove_tags,omitempty" jsonschema:"tags to take out of the tags field; inline hashtags in the body stay"`
 }
 
 func (s *Server) updateFrontmatter(_ context.Context, _ *mcp.CallToolRequest, in updateFrontmatterInput) (*mcp.CallToolResult, *Frontmatter, error) {
@@ -199,11 +201,18 @@ func (s *Server) updateFrontmatter(_ context.Context, _ *mcp.CallToolRequest, in
 	if err != nil {
 		return nil, nil, err
 	}
-	if len(in.Set) == 0 && len(in.Remove) == 0 {
-		return nil, nil, errors.New("give set, remove, or both: update_frontmatter changes nothing otherwise")
+	changesTags := len(in.AddTags) > 0 || len(in.RemoveTags) > 0
+	if len(in.Set) == 0 && len(in.Remove) == 0 && !changesTags {
+		return nil, nil, errors.New("give set, remove, add_tags or remove_tags: update_frontmatter changes nothing otherwise")
+	}
+	if _, setsTags := in.Set["tags"]; changesTags && (setsTags || slices.Contains(in.Remove, "tags")) {
+		return nil, nil, errors.New("give tags through set or remove, or through add_tags and remove_tags, not both")
 	}
 	updated, err := v.Update(in.Path, func(old []byte) ([]byte, error) {
 		updated, err := notes.UpdateFrontmatter(old, in.Set, in.Remove)
+		if err == nil && changesTags {
+			updated, err = notes.ChangeTags(updated, in.AddTags, in.RemoveTags)
+		}
 		if err != nil {
 			return nil, fmt.Errorf("updating %q: %w", in.Path, err)
 		}

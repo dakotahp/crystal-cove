@@ -154,15 +154,11 @@ func stripCodeFences(body string) string {
 // no block gets one when set is non-empty; removing every field drops the
 // block again.
 func UpdateFrontmatter(data []byte, set map[string]any, remove []string) ([]byte, error) {
-	block, body, hadBlock := splitFrontmatter(string(data))
-
-	var doc yaml.Node
-	if strings.TrimSpace(block) != "" {
-		if err := yaml.Unmarshal([]byte(block), &doc); err != nil {
-			return nil, fmt.Errorf("parsing frontmatter: %w", err)
-		}
+	fm, err := readFrontmatter(data)
+	if err != nil {
+		return nil, err
 	}
-	mapping := mappingNode(&doc)
+	mapping := fm.mapping
 
 	for _, key := range remove {
 		deleteKey(mapping, key)
@@ -177,10 +173,37 @@ func UpdateFrontmatter(data []byte, set map[string]any, remove []string) ([]byte
 		}
 		setKey(mapping, key, &valueNode)
 	}
+	return fm.write()
+}
 
+// frontmatter is a note split into its parsed frontmatter mapping and the
+// rest, ready to be changed and written back.
+type frontmatter struct {
+	data     []byte
+	mapping  *yaml.Node
+	body     string
+	hadBlock bool
+}
+
+func readFrontmatter(data []byte) (*frontmatter, error) {
+	block, body, hadBlock := splitFrontmatter(string(data))
+	var doc yaml.Node
+	if strings.TrimSpace(block) != "" {
+		if err := yaml.Unmarshal([]byte(block), &doc); err != nil {
+			return nil, fmt.Errorf("parsing frontmatter: %w", err)
+		}
+	}
+	return &frontmatter{data: data, mapping: mappingNode(&doc), body: body, hadBlock: hadBlock}, nil
+}
+
+// write returns the whole note with the changed mapping. A note that never
+// had a block and still has no fields comes back unchanged, and emptying
+// the mapping drops the block.
+func (fm *frontmatter) write() ([]byte, error) {
+	mapping, body := fm.mapping, fm.body
 	if len(mapping.Content) == 0 {
-		if !hadBlock {
-			return data, nil
+		if !fm.hadBlock {
+			return fm.data, nil
 		}
 		return []byte(body), nil
 	}

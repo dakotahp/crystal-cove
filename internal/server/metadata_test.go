@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -242,6 +243,55 @@ func TestUpdateFrontmatterWritesAndLeavesBodyAlone(t *testing.T) {
 	got := string(data)
 	if want := "---\nstatus: done\n---\n\nbody text\n"; got != want {
 		t.Errorf("file = %q, want %q", got, want)
+	}
+}
+
+func TestUpdateFrontmatterMergesTags(t *testing.T) {
+	s, v := metaServer(t, map[string]string{
+		"a.md": "---\ntitle: Plan\ntags: [a, b, draft]\n---\n\nbody #inline\n",
+	})
+
+	_, res, err := s.updateFrontmatter(context.Background(), &mcp.CallToolRequest{}, updateFrontmatterInput{
+		Path:       "a.md",
+		Set:        map[string]any{"status": "active"},
+		AddTags:    []string{"b", "#c"},
+		RemoveTags: []string{"Draft"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := []string{"a", "b", "c", "inline"}; !slices.Equal(res.Tags, want) {
+		t.Errorf("Tags = %q, want %q", res.Tags, want)
+	}
+	data, err := v.ReadAll("a.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := "---\ntitle: Plan\ntags: [a, b, c]\nstatus: active\n---\n\nbody #inline\n"; string(data) != want {
+		t.Errorf("file = %q, want %q", data, want)
+	}
+}
+
+func TestUpdateFrontmatterRejectsTagsGivenTwoWays(t *testing.T) {
+	s, _ := metaServer(t, map[string]string{"a.md": "---\ntags: [a]\n---\nbody\n"})
+	ctx := context.Background()
+
+	for _, in := range []updateFrontmatterInput{
+		{Path: "a.md", Set: map[string]any{"tags": []string{"x"}}, AddTags: []string{"b"}},
+		{Path: "a.md", Remove: []string{"tags"}, RemoveTags: []string{"a"}},
+	} {
+		if _, _, err := s.updateFrontmatter(ctx, &mcp.CallToolRequest{}, in); err == nil {
+			t.Errorf("updateFrontmatter accepted %+v", in)
+		}
+	}
+}
+
+func TestUpdateFrontmatterReportsATagsFieldItCannotChange(t *testing.T) {
+	s, _ := metaServer(t, map[string]string{"a.md": "---\ntags:\n  k: v\n---\nbody\n"})
+
+	_, _, err := s.updateFrontmatter(context.Background(), &mcp.CallToolRequest{}, updateFrontmatterInput{Path: "a.md", AddTags: []string{"b"}})
+	if err == nil || !strings.Contains(err.Error(), "a.md") {
+		t.Errorf("err = %v, want it to name the note", err)
 	}
 }
 

@@ -227,8 +227,11 @@ func (s *Server) addWriteTools(srv *mcp.Server, params map[string]string) {
 	addTool(srv, params, &mcp.Tool{
 		Name: "update_frontmatter",
 		Description: "Add, replace or delete frontmatter fields on one note. Fields that are not mentioned keep their " +
-			"value and order, and the note's body is left untouched. Returns the note's fields after the change, " +
-			"listed alphabetically; read_note shows their order in the file.",
+			"value and order, and the note's body is left untouched. add_tags and remove_tags change the tags field " +
+			"without sending the whole list, so a tag added on another device is not lost: tags compare without case " +
+			"or #, new ones go at the end, a list keeps its style, and a tags field written as text becomes a list. " +
+			"Example: {\"path\": \"Ideas/Bridge.md\", \"add_tags\": [\"design\"], \"remove_tags\": [\"draft\"]}. " +
+			"Returns the note's fields after the change, listed alphabetically; read_note shows their order in the file.",
 	}, s.updateFrontmatter)
 
 	addTool(srv, params, &mcp.Tool{
