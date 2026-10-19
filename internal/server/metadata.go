@@ -17,7 +17,9 @@ import (
 const DefaultNoteResults = 50
 
 type listTagsInput struct {
-	Vault string `json:"vault,omitempty" jsonschema:"the vault to scan; optional when the server holds one vault"`
+	Vault  string `json:"vault,omitempty" jsonschema:"the vault to scan; optional when the server holds one vault"`
+	Offset int    `json:"offset,omitempty" jsonschema:"tag to start from; use next_offset from the previous page"`
+	Limit  int    `json:"limit,omitempty" jsonschema:"maximum tags to return (default 200, max 1000); a small limit gives the most used tags"`
 }
 
 // TagCount is one tag and how many notes carry it.
@@ -32,6 +34,8 @@ type TagList struct {
 	Tags []TagCount `json:"tags"`
 	// NotesScanned is how many notes were read to build the list.
 	NotesScanned int `json:"notes_scanned"`
+	Total        int `json:"total" jsonschema:"distinct tags in the whole vault"`
+	NextOffset   int `json:"next_offset" jsonschema:"offset of the next page; -1 when this is the last page"`
 }
 
 func (s *Server) listTags(_ context.Context, _ *mcp.CallToolRequest, in listTagsInput) (*mcp.CallToolResult, *TagList, error) {
@@ -50,17 +54,21 @@ func (s *Server) listTags(_ context.Context, _ *mcp.CallToolRequest, in listTags
 		return nil, nil, err
 	}
 
-	out := &TagList{Tags: make([]TagCount, 0, len(counts)), NotesScanned: scanned}
+	tags := make([]TagCount, 0, len(counts))
 	for tag, count := range counts {
-		out.Tags = append(out.Tags, TagCount{Tag: tag, Count: count})
+		tags = append(tags, TagCount{Tag: tag, Count: count})
 	}
-	sort.Slice(out.Tags, func(i, j int) bool {
-		if out.Tags[i].Count != out.Tags[j].Count {
-			return out.Tags[i].Count > out.Tags[j].Count
+	sort.Slice(tags, func(i, j int) bool {
+		if tags[i].Count != tags[j].Count {
+			return tags[i].Count > tags[j].Count
 		}
-		return out.Tags[i].Tag < out.Tags[j].Tag
+		return tags[i].Tag < tags[j].Tag
 	})
-	return nil, out, nil
+	page, next, err := pageOf(tags, in.Offset, in.Limit)
+	if err != nil {
+		return nil, nil, err
+	}
+	return nil, &TagList{Tags: page, NotesScanned: scanned, Total: len(tags), NextOffset: next}, nil
 }
 
 type findNotesInput struct {
