@@ -70,7 +70,13 @@ internal/vault/        sandboxed filesystem ops rooted at one vault; ALL path
 internal/notes/        YAML frontmatter parsing, tag collection (frontmatter
                        `tags` plus inline hashtags, code fences excluded),
                        frontmatter rewriting that preserves key order and body,
-                       and wikilink parsing plus name-based link resolution
+                       link parsing (wikilinks, Markdown links, wikilinks in
+                       frontmatter; code excluded), and a Resolver that
+                       matches Obsidian: every vault file is a target, a
+                       path may be partial, and a link without an extension
+                       reaches only a note. Checked against Obsidian's own
+                       unresolved and orphan lists; Obsidian also hides
+                       dangling links that look like daily-note dates
 internal/search/       ripgrep runner; parses `rg --json` events; hidden dirs
                        (.obsidian, .trash) excluded because rg skips hidden
                        files by default; --no-ignore so stray ignore files

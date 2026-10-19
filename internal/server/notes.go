@@ -9,6 +9,7 @@ import (
 	"github.com/google/jsonschema-go/jsonschema"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
+	"github.com/dakotahp/crystal-cove/internal/notes"
 	"github.com/dakotahp/crystal-cove/internal/vault"
 )
 
@@ -114,8 +115,9 @@ const (
 )
 
 type readNotesInput struct {
-	Vault string   `json:"vault,omitempty" jsonschema:"name of the vault; optional when the server holds one vault"`
-	Paths []string `json:"paths" jsonschema:"vault-relative paths of the notes to read, at most 20"`
+	Vault    string   `json:"vault,omitempty" jsonschema:"name of the vault; optional when the server holds one vault"`
+	Paths    []string `json:"paths" jsonschema:"vault-relative paths of the notes to read, at most 20"`
+	MaxChars int      `json:"max_chars,omitempty" jsonschema:"characters of each note's body to return; the frontmatter always comes whole before them. Use it to skim many notes, such as 500 for the start of each"`
 }
 
 // NotePage is the first page of one note read by read_notes, or why it
@@ -141,13 +143,21 @@ func (s *Server) readNotes(_ context.Context, _ *mcp.CallToolRequest, in readNot
 	if len(in.Paths) > MaxReadNotes {
 		return nil, nil, fmt.Errorf("read_notes takes at most %d paths, got %d: split the call", MaxReadNotes, len(in.Paths))
 	}
+	if in.MaxChars < 0 {
+		return nil, nil, errors.New("max_chars cannot be negative: leave it out to read each note's first page")
+	}
 	if _, err := s.vault(in.Vault); err != nil {
 		return nil, nil, err
 	}
 	out := &ReadNotes{Notes: make([]NotePage, 0, len(in.Paths))}
 	budget := MaxReadNotesChars
 	for _, path := range in.Paths {
-		page, err := s.readFirst(in.Vault, path, budget)
+		page, err := s.readFirst(in.Vault, path, func(data []byte) int {
+			if in.MaxChars == 0 {
+				return budget
+			}
+			return min(budget, notes.FrontmatterChars(data)+in.MaxChars)
+		})
 		if err != nil {
 			out.Notes = append(out.Notes, NotePage{Path: path, Error: err.Error()})
 			continue
@@ -173,12 +183,12 @@ func readNotesOutputSchema() *jsonschema.Schema {
 	return schema
 }
 
-func (s *Server) readFirst(vaultName, path string, limit int) (*vault.ReadResult, error) {
+func (s *Server) readFirst(vaultName, path string, limit func(data []byte) int) (*vault.ReadResult, error) {
 	v, err := s.note(vaultName, path)
 	if err != nil {
 		return nil, err
 	}
-	return v.ReadFirst(path, limit)
+	return v.ReadFirstFunc(path, limit)
 }
 
 type writeNoteInput struct {

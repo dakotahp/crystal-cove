@@ -114,4 +114,31 @@ func TestReadNotesRejectsTooFewOrTooManyPaths(t *testing.T) {
 	if _, _, err := s.readNotes(context.Background(), req, readNotesInput{Vault: "Nope", Paths: []string{"Inbox/a.md"}}); err == nil {
 		t.Error("read_notes accepted an unknown vault")
 	}
+	if _, _, err := s.readNotes(context.Background(), req, readNotesInput{Paths: []string{"Inbox/a.md"}, MaxChars: -1}); err == nil {
+		t.Error("read_notes accepted a negative max_chars")
+	}
+}
+
+func TestReadNotesMaxCharsCountsAfterTheFrontmatter(t *testing.T) {
+	const front = "---\ntitle: Plan\ntags: [a]\n---\n"
+	s, _ := metaServer(t, map[string]string{
+		"a.md": front + "0123456789 and more\n",
+		"b.md": "no frontmatter at all\n",
+		"c.md": "tiny\n",
+	})
+
+	_, out, err := s.readNotes(context.Background(), &mcp.CallToolRequest{}, readNotesInput{Paths: []string{"a.md", "b.md", "c.md"}, MaxChars: 10})
+	if err != nil {
+		t.Fatal(err)
+	}
+	a, b, c := out.Notes[0], out.Notes[1], out.Notes[2]
+	if a.Content != front+"0123456789" || !a.Truncated || a.NextOffset != len(front)+10 {
+		t.Errorf("a = %q truncated %v next %d", a.Content, a.Truncated, a.NextOffset)
+	}
+	if b.Content != "no frontma" || !b.Truncated {
+		t.Errorf("b = %q truncated %v", b.Content, b.Truncated)
+	}
+	if c.Content != "tiny\n" || c.Truncated || out.BudgetExhausted {
+		t.Errorf("c = %q truncated %v, budget exhausted %v", c.Content, c.Truncated, out.BudgetExhausted)
+	}
 }

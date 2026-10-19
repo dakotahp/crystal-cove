@@ -14,9 +14,10 @@ import (
 
 // updateLinks rewrites every wikilink that pointed at the note at from so it
 // points at the note's new path, to, and returns the notes it changed.
-// before lists every note as it was before the move, which is what the old
+// before lists every file as it was before the move, which is what the old
 // links resolved against.
 func updateLinks(v *vault.Vault, from, to string, before []string) ([]string, error) {
+	resolver := notes.NewResolver(before)
 	after, err := v.Notes()
 	if err != nil {
 		return nil, err
@@ -29,8 +30,8 @@ func updateLinks(v *vault.Vault, from, to string, before []string) ([]string, er
 			nameIsUnique = false
 		}
 	}
-	target := func(l notes.Link) (string, bool) {
-		if resolved, ok := notes.ResolveLink(l.Target, before); !ok || resolved != from {
+	target := func(source string, l notes.Link) (string, bool) {
+		if resolved, ok := resolver.Resolve(l.Target, source); !ok || resolved != from {
 			return "", false
 		}
 		t := stem
@@ -47,7 +48,7 @@ func updateLinks(v *vault.Vault, from, to string, before []string) ([]string, er
 	for _, p := range after {
 		var n int
 		_, err := v.Update(p, func(old []byte) ([]byte, error) {
-			updated, count := notes.RewriteLinks(string(old), target)
+			updated, count := notes.RewriteLinks(string(old), func(l notes.Link) (string, bool) { return target(p, l) })
 			n = count
 			return []byte(updated), nil
 		})
@@ -69,7 +70,7 @@ func moveWithLinks(v *vault.Vault, from, to string, update bool) (changed []stri
 	update = update && !inTrash(from) && !inTrash(to)
 	var before []string
 	if update {
-		if before, err = v.Notes(); err != nil {
+		if before, err = v.Files(); err != nil {
 			return nil, false, err
 		}
 	}
@@ -89,10 +90,10 @@ func moveWithLinks(v *vault.Vault, from, to string, update bool) (changed []stri
 // ResolvedLink is one wikilink and the note it points at.
 type ResolvedLink struct {
 	notes.Link
-	// Path is the linked note's vault-relative path, empty when the link
-	// points at a note that does not exist.
+	// Path is the linked file's vault-relative path, empty when the link
+	// points at a file that does not exist.
 	Path string `json:"path,omitempty"`
-	// Resolved reports whether a note with that name exists.
+	// Resolved reports whether the linked file exists.
 	Resolved bool `json:"resolved"`
 }
 
@@ -111,15 +112,15 @@ func (s *Server) getLinks(_ context.Context, _ *mcp.CallToolRequest, in noteRef)
 	if err != nil {
 		return nil, nil, err
 	}
-	paths, err := v.Notes()
+	resolver, err := resolverFor(v)
 	if err != nil {
 		return nil, nil, err
 	}
 
 	out := &LinkList{Path: in.Path, Links: []ResolvedLink{}}
-	for _, link := range notes.Links(n.Body) {
+	for _, link := range n.Links() {
 		resolved := ResolvedLink{Link: link}
-		if path, ok := notes.ResolveLink(link.Target, paths); ok {
+		if path, ok := resolver.Resolve(link.Target, in.Path); ok {
 			resolved.Path = path
 			resolved.Resolved = true
 		}
@@ -153,7 +154,7 @@ func (s *Server) getBacklinks(_ context.Context, _ *mcp.CallToolRequest, in note
 	if _, err := v.ReadAll(in.Path); err != nil {
 		return nil, nil, err
 	}
-	paths, err := v.Notes()
+	resolver, err := resolverFor(v)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -164,8 +165,8 @@ func (s *Server) getBacklinks(_ context.Context, _ *mcp.CallToolRequest, in note
 			return nil
 		}
 		var hits []notes.Link
-		for _, link := range notes.Links(n.Body) {
-			if target, ok := notes.ResolveLink(link.Target, paths); ok && target == in.Path {
+		for _, link := range n.Links() {
+			if target, ok := resolver.Resolve(link.Target, path); ok && target == in.Path {
 				hits = append(hits, link)
 			}
 		}

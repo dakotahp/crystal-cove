@@ -26,6 +26,23 @@ func (v *Vault) Notes() ([]string, error) {
 	return paths, nil
 }
 
+// Files returns every visible file's vault-relative path, notes and
+// attachments alike, in path order. Links can point at any of them.
+func (v *Vault) Files() ([]string, error) {
+	var paths []string
+	err := v.walk(".", func(rel string, d fs.DirEntry) error {
+		if !d.IsDir() {
+			paths = append(paths, rel)
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("listing files: %w", err)
+	}
+	sort.Strings(paths)
+	return paths, nil
+}
+
 // RecentNotes returns notes ordered by modification time, newest first.
 // A limit of zero returns them all, and a zero since includes every note.
 // Agents use this to pick up where work left off, which a path-ordered
