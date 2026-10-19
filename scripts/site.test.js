@@ -182,4 +182,13 @@ test('copyText reports manual when the clipboard is missing or refuses', async (
   assert.strictEqual(await copyText('x', { writeText: () => Promise.resolve() }), 'copied');
 });
 
+test('the tool grid matches the README list exactly', () => {
+  const readme = read('README.md');
+  const section = readme.slice(readme.indexOf('## What agents can do'), readme.indexOf('## More docs'));
+  const fromReadme = [...section.matchAll(/`([a-z_]+)`/g)].map(m => m[1]).filter(n => n.includes('_')).sort();
+  const onPage = [...html.matchAll(/<dt[^>]*><code>([a-z_]+)<\/code>/g)].map(m => m[1]).sort();
+  assert.ok(fromReadme.length > 0);
+  assert.deepStrictEqual(onPage, fromReadme);
+});
+
 module.exports = { codeBlocks, attr };
