@@ -261,8 +261,10 @@ func (s *Server) addWriteTools(srv *mcp.Server, params map[string]string) {
 	addTool(srv, params, &mcp.Tool{
 		Name: "move_note",
 		Description: "Move or rename a note within a vault. Fails if the destination already exists. A new name breaks " +
-			"[[links]] to the note unless update_links is set, which rewrites them in every note: a [[Name]] link " +
-			"stays a bare name unless another note shares the new name, and a [[folder/Name]] link gets the new path. " +
+			"links to the note unless update_links is set, which rewrites wikilinks and Markdown links in every note, " +
+			"each in its own form: a [[Name]] link stays a bare name unless another note shares the new name, a " +
+			"[[folder/Name]] link gets the new path, and a ./ or ../ link stays relative. Relative links inside the " +
+			"moved note are rewritten so they still reach their files. " +
 			"links_updated in the result says whether links were rewritten. It also restores " +
 			"a deleted note: pass its path inside .trash, and leave new_path out to put it back where it was deleted " +
 			"from. Use list_notes with dir \".trash\" and recursive to see deleted notes.",
