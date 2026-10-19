@@ -191,4 +191,30 @@ test('the tool grid matches the README list exactly', () => {
   assert.deepStrictEqual(onPage, fromReadme);
 });
 
+test('formatStars', () => {
+  const { formatStars } = require('../site/site.js');
+  assert.strictEqual(formatStars(null), '');
+  assert.strictEqual(formatStars(undefined), '');
+  assert.strictEqual(formatStars(0), '0');
+  assert.strictEqual(formatStars(987), '987');
+  assert.strictEqual(formatStars(1234), '1.2k');
+  assert.strictEqual(formatStars(12000), '12k');
+});
+
+test('star pill reads "★ Star" before any request', () => {
+  assert.match(html, /class="star-pill"[^>]*>★ Star<span class="star-count"><\/span>/);
+});
+
+test('footer links and attribution', () => {
+  for (const p of ['/blob/master/LICENSE', '/blob/master/CHANGELOG.md', '/releases', '/blob/master/docs/SECURITY.md'])
+    assert.match(html, new RegExp(`href="https://github\\.com/dakotahp/crystal-cove${p.replace(/\./g, '\\.')}"`));
+  assert.match(html, /Made by Dakotah Pena/);
+});
+
+test('the closing section offers Star on GitHub and Get started', () => {
+  const closing = html.slice(html.indexOf('id="closing"'));
+  assert.match(closing, /Star on GitHub/);
+  assert.match(closing, /href="#setup"[^>]*>Get started/);
+});
+
 module.exports = { codeBlocks, attr };

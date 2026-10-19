@@ -424,7 +424,69 @@ docker compose logs -f          # wait for "Fully synced", then Ctrl-C</code></p
         <p class="tools-foot">Want read-only? One setting removes every write tool. <a href="https://github.com/dakotahp/crystal-cove/blob/master/docs/tools.md">Every tool in detail <span aria-hidden="true">→</span></a></p>
       </div>
     </section>
-    <section id="closing" class="reveal"></section>
+    <section id="closing" class="closing">
+      <svg class="underwater" viewBox="0 0 1200 700" preserveAspectRatio="xMidYMin slice" aria-hidden="true" focusable="false">
+        <defs>
+          <filter id="f-ripple" x="-20%" y="-5%" width="140%" height="110%">
+            <feTurbulence type="fractalNoise" baseFrequency="0.012 0.06" numOctaves="2" seed="4"/>
+            <feDisplacementMap in="SourceGraphic" scale="9"/>
+          </filter>
+          <linearGradient id="g-deep" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#1d2858"/>
+            <stop offset=".55" stop-color="#121a42"/>
+            <stop offset="1" stop-color="#0a0f2b"/>
+          </linearGradient>
+          <linearGradient id="g-fade-deep" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#fff" stop-opacity=".9"/>
+            <stop offset=".7" stop-color="#fff" stop-opacity="0"/>
+          </linearGradient>
+          <mask id="m-deep" maskUnits="userSpaceOnUse" x="0" y="0" width="1200" height="700">
+            <rect width="1200" height="700" fill="url(#g-fade-deep)"/>
+          </mask>
+        </defs>
+        <rect width="1200" height="700" fill="url(#g-deep)"/>
+        <rect width="1200" height="2" fill="#3a4a8c" opacity=".6"/>
+        <g class="deep-glow"><ellipse cx="600" cy="40" rx="420" ry="220" fill="url(#g-halo)"/></g>
+        <g class="deep-reflection" mask="url(#m-deep)" filter="url(#f-ripple)">
+          <use href="#crystal" x="520" y="-560" width="160" height="560" transform="scale(1 -1)"/>
+        </g>
+        <g class="shimmer" stroke="#c4b5fd" stroke-linecap="round">
+          <line x1="530" y1="60" x2="670" y2="60" stroke-width="2"/>
+          <line x1="555" y1="120" x2="645" y2="120" stroke-width="2"/>
+          <line x1="575" y1="190" x2="625" y2="190" stroke-width="1.6"/>
+        </g>
+        <g class="bubbles" fill="none" stroke="#a98bfa" stroke-opacity=".5">
+          <circle cx="380" cy="520" r="4"/><circle cx="410" cy="600" r="2.5"/><circle cx="820" cy="560" r="3.5"/><circle cx="790" cy="640" r="2"/><circle cx="640" cy="620" r="3"/>
+        </g>
+      </svg>
+      <div class="wrap closing-inner reveal">
+        <img class="closing-mark" src="images/favicon.svg" alt="" width="72" height="72">
+        <h2>Your vault, <em class="accent">everywhere you ask.</em></h2>
+        <p class="lead">Free and open source, under the MIT License. If it earns a place on your server, a star helps other Obsidian users find it.</p>
+        <div class="actions">
+          <a class="btn btn-primary btn-star" href="https://github.com/dakotahp/crystal-cove">Star on GitHub</a>
+          <a class="btn btn-ghost" href="#setup">Get started <span aria-hidden="true">→</span></a>
+        </div>
+      </div>
+    </section>
   </main>
+
+  <footer class="footer">
+    <div class="wrap footer-inner">
+      <div class="footer-brand">
+        <a class="brand" href="#top"><img src="images/favicon.svg" alt="" width="28" height="28"><span>Crystal Cove</span></a>
+        <p>Your Obsidian vault, in Claude and ChatGPT.</p>
+        <p class="footer-small">MIT License · Made by Dakotah Pena</p>
+      </div>
+      <nav class="footer-links" aria-label="Project links">
+        <a href="https://github.com/dakotahp/crystal-cove">GitHub</a>
+        <a href="https://github.com/dakotahp/crystal-cove/tree/master/docs">Docs</a>
+        <a href="https://github.com/dakotahp/crystal-cove/blob/master/docs/SECURITY.md">Security</a>
+        <a href="https://github.com/dakotahp/crystal-cove/blob/master/CHANGELOG.md">Changelog</a>
+        <a href="https://github.com/dakotahp/crystal-cove/releases">Releases</a>
+        <a href="https://github.com/dakotahp/crystal-cove/blob/master/LICENSE">License</a>
+      </nav>
+    </div>
+  </footer>
 </body>
 </html>

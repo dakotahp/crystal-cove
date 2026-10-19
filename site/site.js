@@ -1,6 +1,12 @@
 (function (root) {
   const CrystalCove = {};
 
+  CrystalCove.formatStars = count => {
+    if (typeof count !== 'number') return '';
+    if (count < 1000) return String(count);
+    return `${(count / 1000).toFixed(1).replace(/\.0$/, '')}k`;
+  };
+
   CrystalCove.copyText = async (text, clipboard) => {
     if (!clipboard || typeof clipboard.writeText !== 'function') return 'manual';
     try {

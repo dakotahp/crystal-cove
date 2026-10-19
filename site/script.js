@@ -117,6 +117,30 @@ document.querySelectorAll('pre > code[data-copy]').forEach(code => {
   code.closest('.code').append(button);
 });
 
+const showStars = count => {
+  const text = window.CrystalCove.formatStars(count);
+  document.querySelectorAll('.star-count').forEach(el => (el.textContent = text));
+};
+const STAR_KEY = 'crystal-cove-stars';
+let cachedStars = null;
+try {
+  cachedStars = JSON.parse(sessionStorage.getItem(STAR_KEY));
+} catch {}
+if (typeof cachedStars === 'number') {
+  showStars(cachedStars);
+} else {
+  fetch('https://api.github.com/repos/dakotahp/crystal-cove', { headers: { Accept: 'application/vnd.github+json' } })
+    .then(r => (r.ok ? r.json() : null))
+    .then(repo => {
+      if (!repo || typeof repo.stargazers_count !== 'number') return;
+      showStars(repo.stargazers_count);
+      try {
+        sessionStorage.setItem(STAR_KEY, String(repo.stargazers_count));
+      } catch {}
+    })
+    .catch(() => {});
+}
+
 const layers = [...document.querySelectorAll('.hero .parallax')];
 let ticking = false;
 const parallax = () => {
