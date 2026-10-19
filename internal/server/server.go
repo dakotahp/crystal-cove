@@ -15,7 +15,7 @@ import (
 )
 
 // Version is the server version reported to MCP clients.
-const Version = "0.17.0" // x-release-please-version
+const Version = "0.18.0" // x-release-please-version
 
 // Commit is the source commit the binary was built from, set at build time
 // with -ldflags "-X .../internal/server.Commit=<sha>". Version changes only
