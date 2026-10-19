@@ -272,7 +272,7 @@
             </li>
             <li data-layer="5" tabindex="0">
               <h3>Checked before it ships</h3>
-              <p>Static analysis, fuzzing, secret scanning, and an image vulnerability scan run on every change. Every published image is signed.</p>
+              <p>Static analysis, fuzzing, secret scanning, and an image vulnerability scan run on every code change. Every published image is signed.</p>
             </li>
           </ol>
         </div>
@@ -307,7 +307,7 @@
               <p>Make a folder and download the compose file.</p>
               <div class="code"><pre><code data-copy>mkdir crystal-cove &amp;&amp; cd crystal-cove
 curl -O https://raw.githubusercontent.com/dakotahp/crystal-cove/master/docker-compose.yml</code></pre></div>
-              <p>Sign in to Obsidian Sync. It asks for your email, password, and MFA code, then prints a token.</p>
+              <p>Sign in to Obsidian Sync, on the machine where the container will run. It asks for your email, password, and MFA code if you have one, then prints a token.</p>
               <div class="code"><pre><code data-copy>docker run --rm -it ghcr.io/dakotahp/crystal-cove:latest \
   sh -c 'ob login &amp;&amp; cat ~/.config/obsidian-headless/auth_token'</code></pre></div>
               <p>List your vaults to get the name, exactly as Obsidian Sync spells it.</p>
@@ -415,7 +415,7 @@ docker compose logs -f          # wait for "Fully synced", then Ctrl-C</code></p
               <dt><code>edit_note</code></dt><dd>Exact find and replace.</dd>
               <dt><code>edit_section</code></dt><dd>Change one heading's section.</dd>
               <dt><code>update_frontmatter</code></dt><dd>Set or remove fields, keeping the rest.</dd>
-              <dt><code>move_note</code></dt><dd>Rename or move, and update links. Also restores from the trash.</dd>
+              <dt><code>move_note</code></dt><dd>Rename or move, and can update links. Also restores from the trash.</dd>
               <dt><code>delete_note</code></dt><dd>Move a note to the trash.</dd>
             </dl>
           </div>

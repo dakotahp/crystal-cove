@@ -239,6 +239,13 @@ test('scroll triggers fire on any overlap, so a section taller than the screen s
   assert.deepStrictEqual(thresholds.filter(t => t > 0), []);
 });
 
+test('copy does not overclaim what tools and checks do', () => {
+  assert.match(html, /<dt><code>move_note<\/code><\/dt><dd>[^<]*can update links/);
+  assert.match(setupSection(), /MFA code if you have one/);
+  assert.match(setupSection(), /on the machine where the container will run/);
+  assert.doesNotMatch(html, /run on every change\./);
+});
+
 test('print shows every section', () => {
   assert.match(css, /@media print\s*{[^@]*\.reveal\s*{[^}]*opacity:\s*1/);
 });

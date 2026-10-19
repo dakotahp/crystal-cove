@@ -39,8 +39,21 @@ jobs:
       - name: Check the site against the docs
         run: node --test scripts/site.test.js
 
+  # CI skips site-only changes, so this workflow scans them before they publish.
+  secrets:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Scan every commit for secrets
+        run: ./scripts/secret-scan.sh
+
   deploy:
-    needs: test
+    needs: [test, secrets]
     if: github.ref == 'refs/heads/master' && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     permissions:
