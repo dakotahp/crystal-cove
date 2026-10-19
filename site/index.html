@@ -103,7 +103,7 @@
         <a href="#setup">Setup</a>
         <a href="https://github.com/dakotahp/crystal-cove/tree/master/docs">Docs</a>
       </nav>
-      <a class="star-pill" href="https://github.com/dakotahp/crystal-cove">★ Star<span class="star-count"></span></a>
+      <a class="star-pill btn-star" href="https://github.com/dakotahp/crystal-cove">Star<span class="star-count"></span></a>
     </div>
   </header>
 
@@ -198,7 +198,7 @@
         </header>
 
         <div id="demo" class="demo" data-state="done">
-          <div class="phone" aria-label="Example chat with an assistant">
+          <div class="phone" role="group" aria-label="Example chat with an assistant">
             <div class="phone-notch" aria-hidden="true"></div>
             <div class="chat">
               <p class="bubble user" data-step="1">Add “call the landlord” to my to-do note.</p>
@@ -211,7 +211,7 @@
 
           <div class="beam" aria-hidden="true"><span></span></div>
 
-          <div class="note-window" aria-label="The same note in Obsidian">
+          <div class="note-window" role="group" aria-label="The same note in Obsidian">
             <div class="window-bar" aria-hidden="true"><i></i><i></i><i></i><span>To-do.md</span></div>
             <div class="note-body">
               <p class="note-title">To-do</p>
@@ -488,5 +488,7 @@ docker compose logs -f          # wait for "Fully synced", then Ctrl-C</code></p
       </nav>
     </div>
   </footer>
+
+  <p id="copy-status" class="sr-only" aria-live="polite"></p>
 </body>
 </html>

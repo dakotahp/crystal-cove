@@ -217,8 +217,25 @@ test('formatStars', () => {
   assert.strictEqual(formatStars(12000), '12k');
 });
 
-test('star pill reads "★ Star" before any request', () => {
-  assert.match(html, /class="star-pill"[^>]*>★ Star<span class="star-count"><\/span>/);
+test('star pill reads "Star" before any request, with the ★ hidden from screen readers', () => {
+  assert.match(html, /class="star-pill btn-star"[^>]*>Star<span class="star-count"><\/span>/);
+  assert.match(css, /\.btn-star::before\s*{\s*content:\s*"★"\s*\/\s*""/);
+});
+
+test('aria-label sits only on elements that can carry a name', () => {
+  for (const tag of html.match(/<[a-z]+\b[^>]*\saria-label="[^"]*"[^>]*>/g) || [])
+    assert.match(tag, /^<(a|nav|button|section|figure)\b|\srole="/, tag);
+});
+
+test('copy feedback is announced', () => {
+  assert.match(html, /<p id="copy-status" class="sr-only" aria-live="polite"><\/p>/);
+  assert.match(js, /getElementById\('copy-status'\)/);
+});
+
+test('the security highlight makes one pass, then stops', () => {
+  const { nextLayer } = require('../site/site.js');
+  assert.deepStrictEqual([1, 2, 3, 4].map(nextLayer), [2, 3, 4, 5]);
+  assert.strictEqual(nextLayer(5), null);
 });
 
 test('footer links and attribution', () => {

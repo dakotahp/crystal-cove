@@ -7,6 +7,8 @@
     return `${(count / 1000).toFixed(1).replace(/\.0$/, '')}k`;
   };
 
+  CrystalCove.nextLayer = n => (n < 5 ? n + 1 : null);
+
   CrystalCove.copyText = async (text, clipboard) => {
     if (!clipboard || typeof clipboard.writeText !== 'function') return 'manual';
     try {

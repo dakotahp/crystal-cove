@@ -90,13 +90,19 @@ if (security && !reducedMotion.matches && 'IntersectionObserver' in window) {
     securityObserver.disconnect();
     let n = 1;
     layerTimer = setInterval(() => {
-      n = (n % 5) + 1;
+      n = window.CrystalCove.nextLayer(n);
+      if (n === null) {
+        clearInterval(layerTimer);
+        activateLayer('1');
+        return;
+      }
       activateLayer(String(n));
     }, 2800);
   }, { threshold: 0, rootMargin: '0px 0px -35% 0px' });
   securityObserver.observe(security);
 }
 
+const copyStatus = document.getElementById('copy-status');
 document.querySelectorAll('pre > code[data-copy]').forEach(code => {
   const button = document.createElement('button');
   button.type = 'button';
@@ -107,6 +113,7 @@ document.querySelectorAll('pre > code[data-copy]').forEach(code => {
     const result = await window.CrystalCove.copyText(code.textContent, navigator.clipboard);
     button.dataset.state = result;
     button.textContent = result === 'copied' ? 'Copied' : 'Select and copy';
+    copyStatus.textContent = result === 'copied' ? 'Copied to the clipboard.' : 'Copy failed. The text is selected; copy it with your keyboard.';
     if (result === 'manual') getSelection().selectAllChildren(code);
     clearTimeout(reset);
     reset = setTimeout(() => {
