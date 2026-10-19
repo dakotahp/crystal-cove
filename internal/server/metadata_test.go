@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"slices"
@@ -146,21 +147,48 @@ func TestFindNotesRequiresAFilter(t *testing.T) {
 	}
 }
 
-func TestFindNotesTruncatesAtMaxResults(t *testing.T) {
+func TestFindNotesPagesWithLimitAndOffset(t *testing.T) {
 	s, _ := metaServer(t, map[string]string{
 		"Inbox/a.md": tagged("idea"),
 		"Inbox/b.md": tagged("idea"),
 		"Inbox/c.md": tagged("idea"),
 	})
+	ctx := context.Background()
 
-	_, res, err := s.findNotes(context.Background(), &mcp.CallToolRequest{}, findNotesInput{
-		Vault: "Personal", Tags: []string{"idea"}, MaxResults: 2,
-	})
+	_, res, err := s.findNotes(ctx, &mcp.CallToolRequest{}, findNotesInput{Tags: []string{"idea"}, Limit: 2})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(res.Notes) != 2 || !res.Truncated {
-		t.Errorf("Notes = %d, Truncated = %v; want 2 and true", len(res.Notes), res.Truncated)
+	if len(res.Notes) != 2 || res.Total != 3 || res.NextOffset != 2 {
+		t.Fatalf("Notes = %d, total %d, next %d; want 2, 3, 2", len(res.Notes), res.Total, res.NextOffset)
+	}
+
+	_, rest, err := s.findNotes(ctx, &mcp.CallToolRequest{}, findNotesInput{Tags: []string{"idea"}, Limit: 2, Offset: res.NextOffset})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rest.Notes) != 1 || rest.Notes[0].Path != "Inbox/c.md" || rest.NextOffset != -1 {
+		t.Errorf("second page = %+v, want only Inbox/c.md and no next page", rest)
+	}
+
+	if _, _, err := s.findNotes(ctx, &mcp.CallToolRequest{}, findNotesInput{Tags: []string{"idea"}, Offset: 4}); err == nil {
+		t.Error("offset past the end accepted")
+	}
+}
+
+func TestFindNotesDefaultsToFiftyNotes(t *testing.T) {
+	notes := map[string]string{}
+	for i := range DefaultNoteResults + 1 {
+		notes[fmt.Sprintf("n%03d.md", i)] = tagged("idea")
+	}
+	s, _ := metaServer(t, notes)
+
+	_, res, err := s.findNotes(context.Background(), &mcp.CallToolRequest{}, findNotesInput{Tags: []string{"idea"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(res.Notes) != DefaultNoteResults || res.NextOffset != DefaultNoteResults {
+		t.Errorf("%d notes, next %d; want %d and %d", len(res.Notes), res.NextOffset, DefaultNoteResults, DefaultNoteResults)
 	}
 }
 

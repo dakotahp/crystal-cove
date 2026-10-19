@@ -20,7 +20,7 @@ type searchNotesInput struct {
 	Glob            string `json:"glob,omitempty" jsonschema:"restrict the search, name matches included, to note paths matching this glob, e.g. daily/**"`
 	CaseSensitive   bool   `json:"case_sensitive,omitempty" jsonschema:"match case exactly instead of the default case-insensitive search"`
 	ContextLines    int    `json:"context_lines,omitempty" jsonschema:"lines of context to include around each match"`
-	MaxResults      int    `json:"max_results,omitempty" jsonschema:"maximum notes to return (default 50, max 500)"`
+	Limit           int    `json:"limit,omitempty" jsonschema:"maximum notes to return (default 50, max 500)"`
 	Output          string `json:"output,omitempty" jsonschema:"lines (the default) returns matching lines per note; files returns only each note's path, total_matches and title_match, to choose which note to read"`
 }
 
@@ -53,7 +53,7 @@ func (s *Server) searchNotes(ctx context.Context, _ *mcp.CallToolRequest, in sea
 	if err != nil {
 		return nil, nil, err
 	}
-	limit := in.MaxResults
+	limit := in.Limit
 	if limit <= 0 {
 		limit = search.DefaultMaxResults
 	}

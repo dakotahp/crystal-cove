@@ -66,6 +66,37 @@ func TestRecentNotesAcceptsSinceAndLimit(t *testing.T) {
 	}
 }
 
+func TestRecentNotesPagesWithOffset(t *testing.T) {
+	s, v := metaServer(t, map[string]string{
+		"a.md": "a\n",
+		"b.md": "b\n",
+		"c.md": "c\n",
+	})
+	ageNote(t, v, "b.md", time.Hour)
+	ageNote(t, v, "c.md", 2*time.Hour)
+	ctx := context.Background()
+
+	_, res, err := s.recentNotes(ctx, &mcp.CallToolRequest{}, recentNotesInput{Limit: 2})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(res.Notes) != 2 || res.Total != 3 || res.NextOffset != 2 {
+		t.Fatalf("Notes = %+v, total %d, next %d; want 2 notes, 3, 2", res.Notes, res.Total, res.NextOffset)
+	}
+
+	_, rest, err := s.recentNotes(ctx, &mcp.CallToolRequest{}, recentNotesInput{Limit: 2, Offset: res.NextOffset})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rest.Notes) != 1 || rest.Notes[0].Path != "c.md" || rest.NextOffset != -1 {
+		t.Errorf("second page = %+v, want only the oldest note and no next page", rest)
+	}
+
+	if _, _, err := s.recentNotes(ctx, &mcp.CallToolRequest{}, recentNotesInput{Offset: -1}); err == nil {
+		t.Error("negative offset accepted")
+	}
+}
+
 func TestRecentNotesRejectsAnUnreadableSince(t *testing.T) {
 	s, _ := metaServer(t, map[string]string{"Inbox/a.md": tagged("idea")})
 

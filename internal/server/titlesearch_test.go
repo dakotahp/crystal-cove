@@ -140,10 +140,10 @@ func TestSearchCountsOnlyTitleMatchesInsideTheGlobAgainstMaxResults(t *testing.T
 	s := titleSearchServer(t, "A/Monday one.md", "B/Monday two.md")
 
 	_, res, err := s.searchNotes(context.Background(), &mcp.CallToolRequest{}, searchNotesInput{
-		Vault:      "Personal",
-		Query:      "Monday",
-		Glob:       "B/**",
-		MaxResults: 1,
+		Vault: "Personal",
+		Query: "Monday",
+		Glob:  "B/**",
+		Limit: 1,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -153,10 +153,10 @@ func TestSearchCountsOnlyTitleMatchesInsideTheGlobAgainstMaxResults(t *testing.T
 	}
 
 	_, res, err = s.searchNotes(context.Background(), &mcp.CallToolRequest{}, searchNotesInput{
-		Vault:      "Personal",
-		Query:      "Monday",
-		Glob:       "*.md",
-		MaxResults: 1,
+		Vault: "Personal",
+		Query: "Monday",
+		Glob:  "*.md",
+		Limit: 1,
 	})
 	if err != nil {
 		t.Fatal(err)

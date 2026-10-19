@@ -62,7 +62,7 @@ func (s *Server) listNotes(_ context.Context, _ *mcp.CallToolRequest, in listNot
 	if in.Order == "desc" {
 		slices.Reverse(entries)
 	}
-	page, next, err := pageOf(entries, in.Offset, in.Limit)
+	page, next, err := pageOf(entries, in.Offset, in.Limit, DefaultListLimit)
 	if err != nil {
 		return nil, listNotesOutput{}, err
 	}
@@ -70,14 +70,15 @@ func (s *Server) listNotes(_ context.Context, _ *mcp.CallToolRequest, in listNot
 }
 
 // pageOf returns one page of items starting at offset, and the offset of the
-// next page, or -1 when this is the last.
-func pageOf[T any](items []T, offset, limit int) ([]T, int, error) {
+// next page, or -1 when this is the last. A limit of zero or less means
+// defaultLimit, and no page exceeds MaxListLimit.
+func pageOf[T any](items []T, offset, limit, defaultLimit int) ([]T, int, error) {
 	total := len(items)
 	if offset < 0 || offset > total {
 		return nil, -1, fmt.Errorf("offset %d is out of range: the listing has %d entries", offset, total)
 	}
 	if limit <= 0 {
-		limit = DefaultListLimit
+		limit = defaultLimit
 	}
 	end := min(offset+min(limit, MaxListLimit), total)
 	if end < total {
