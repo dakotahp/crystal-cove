@@ -159,8 +159,79 @@
       </div>
     </section>
 
-    <section id="nothing-missing" class="reveal"></section>
-    <section id="every-app" class="reveal"></section>
+    <section id="nothing-missing" class="section reveal">
+      <div class="wrap">
+        <header class="section-head">
+          <p class="kicker"><span>01</span> Why Crystal Cove</p>
+          <h2>Everything a vault needs. <em class="accent">Nothing missing.</em></h2>
+          <p class="lead">An assistant needs three things at once to work well in a vault. Most setups give you two. Crystal Cove puts all three in one container.</p>
+        </header>
+        <div class="pillars">
+          <article class="pillar">
+            <svg class="facet" viewBox="0 0 60 60" aria-hidden="true"><polygon points="30,4 6,40 30,46" fill="#e4dcff"/><polygon points="30,4 30,46 54,40" fill="#a98bfa" opacity=".55"/></svg>
+            <h3>Native sync</h3>
+            <p>Obsidian's official headless client keeps the vault current. The assistant's edits reach your phone and laptop like any other edit.</p>
+            <p class="without"><span>Without it</span> a copy that drifts, or a desktop app that must stay awake.</p>
+          </article>
+          <article class="pillar">
+            <svg class="facet" viewBox="0 0 60 60" aria-hidden="true"><polygon points="6,14 30,20 22,56" fill="#8b5cf6"/><polygon points="30,20 54,14 38,56" fill="#5b21b6" opacity=".7"/></svg>
+            <h3>Secure sign-in</h3>
+            <p>OAuth, the sign-in flow Claude and ChatGPT connectors expect. Paste your URL, enter one password, and you are connected.</p>
+            <p class="without"><span>Without it</span> the vault stays on your laptop.</p>
+          </article>
+          <article class="pillar">
+            <svg class="facet" viewBox="0 0 60 60" aria-hidden="true"><polygon points="30,4 6,40 30,46" fill="#7c3aed" opacity=".55"/><polygon points="22,56 30,20 38,56" fill="#7c3aed"/><polygon points="30,4 30,46 54,40" fill="#5b21b6"/></svg>
+            <h3>Tools that understand notes</h3>
+            <p>Names, tags, links, backlinks, sections, and frontmatter. The assistant finds the right note and edits one part of it, with fewer tokens than reading raw files.</p>
+            <p class="without"><span>Without them</span> an assistant that greps a folder.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="every-app" class="section reveal">
+      <div class="wrap">
+        <header class="section-head">
+          <p class="kicker"><span>02</span> In every app</p>
+          <h2>Ask from anywhere. <em class="accent">It lands in Obsidian.</em></h2>
+          <p class="lead">Your phone, a browser, a laptop that isn't yours. The assistant works in the same vault you do, and its edits sync like yours.</p>
+        </header>
+
+        <div id="demo" class="demo" data-state="done">
+          <div class="phone" aria-label="Example chat with an assistant">
+            <div class="phone-notch" aria-hidden="true"></div>
+            <div class="chat">
+              <p class="bubble user" data-step="1">Add “call the landlord” to my to-do note.</p>
+              <p class="tool" data-step="2" data-tool="search_notes"><code>search_notes</code> <span>“to-do”</span> <b>1 note</b></p>
+              <p class="tool" data-step="3" data-tool="append_note"><code>append_note</code> <span>To-do.md</span> <b>done</b></p>
+              <p class="bubble assistant" data-step="4">Added it to your To-do note. It's already on your other devices.</p>
+            </div>
+            <div class="composer" aria-hidden="true"><span>Reply…</span></div>
+          </div>
+
+          <div class="beam" aria-hidden="true"><span></span></div>
+
+          <div class="note-window" aria-label="The same note in Obsidian">
+            <div class="window-bar" aria-hidden="true"><i></i><i></i><i></i><span>To-do.md</span></div>
+            <div class="note-body">
+              <p class="note-title">To-do</p>
+              <ul class="tasks">
+                <li><span class="box"></span>Renew passport</li>
+                <li class="checked"><span class="box"></span>Book the dentist</li>
+                <li><span class="box"></span>Return library books</li>
+                <li class="new" data-step="5"><span class="box"></span>Call the landlord</li>
+              </ul>
+            </div>
+            <p class="synced" data-step="5"><span class="dot"></span>Synced</p>
+          </div>
+        </div>
+
+        <div class="demo-foot">
+          <p>Works in claude.ai, the Claude apps, Claude Code, and ChatGPT.</p>
+          <button type="button" class="replay" hidden>Replay</button>
+        </div>
+      </div>
+    </section>
     <section id="security" class="reveal"></section>
     <section id="setup" class="reveal"></section>
     <section id="tools" class="reveal"></section>

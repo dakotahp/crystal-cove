@@ -110,4 +110,35 @@ test('copy avoids banned words, exclamation marks, and emoji', () => {
   assert.strictEqual(emoji, null, `emoji in copy: ${emoji}`);
 });
 
+test('reduced motion stops animation and reveals every section', () => {
+  const block = css.match(/@media \(prefers-reduced-motion: reduce\)\s*{([\s\S]*?)\n}/);
+  assert.ok(block, 'reduced-motion block missing');
+  assert.match(block[1], /animation:\s*none/);
+  assert.match(block[1], /\.reveal\s*{[^}]*opacity:\s*1/);
+});
+
+test('sections are visible without JavaScript', () => {
+  assert.match(html, /<html[^>]*class="no-js"/);
+  assert.match(css, /\.no-js \.reveal\s*{[^}]*opacity:\s*1/);
+});
+
+test('hero offers Get started and Star on GitHub', () => {
+  assert.match(html, /href="#setup"[^>]*>Get started/);
+  assert.match(html, /href="https:\/\/github\.com\/dakotahp\/crystal-cove"[^>]*>[^<]*Star on GitHub/);
+});
+
+test('three pillars name sync, sign-in, and note tools', () => {
+  for (const t of ['Native sync', 'Secure sign-in', 'Tools that understand notes'])
+    assert.match(html, new RegExp(`<h3[^>]*>${t}</h3>`));
+});
+
+test('the demo names only real tools', () => {
+  const tools = [...html.matchAll(/data-tool="([a-z_]+)"/g)].map(m => m[1]);
+  assert.deepStrictEqual(tools, ['search_notes', 'append_note']);
+});
+
+test('the demo uses no vendor logos', () => {
+  assert.doesNotMatch(html, /anthropic|openai/i);
+});
+
 module.exports = { codeBlocks, attr };
