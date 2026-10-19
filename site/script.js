@@ -17,7 +17,7 @@ if ('IntersectionObserver' in window) {
         observer.unobserve(entry.target);
       }
     },
-    { threshold: 0.15 }
+    { threshold: 0, rootMargin: '0px 0px -12% 0px' }
   );
   reveals.forEach(el => observer.observe(el));
 } else {
@@ -65,7 +65,7 @@ if (demo && !reducedMotion.matches && 'IntersectionObserver' in window) {
       demoObserver.disconnect();
       playDemo();
     },
-    { threshold: 0.45 }
+    { threshold: 0, rootMargin: '0px 0px -35% 0px' }
   );
   demoObserver.observe(demo);
   replay.addEventListener('click', playDemo);
@@ -93,7 +93,7 @@ if (security && !reducedMotion.matches && 'IntersectionObserver' in window) {
       n = (n % 5) + 1;
       activateLayer(String(n));
     }, 2800);
-  }, { threshold: 0.3 });
+  }, { threshold: 0, rootMargin: '0px 0px -35% 0px' });
   securityObserver.observe(security);
 }
 

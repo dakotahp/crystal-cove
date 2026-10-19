@@ -218,4 +218,14 @@ test('the closing section offers Star on GitHub and Get started', () => {
   assert.match(closing, /href="#setup"[^>]*>Get started/);
 });
 
+test('scroll triggers fire on any overlap, so a section taller than the screen still appears', () => {
+  const thresholds = [...js.matchAll(/threshold:\s*([\d.]+)/g)].map(m => Number(m[1]));
+  assert.ok(thresholds.length > 0, 'no IntersectionObserver options found');
+  assert.deepStrictEqual(thresholds.filter(t => t > 0), []);
+});
+
+test('print shows every section', () => {
+  assert.match(css, /@media print\s*{[^@]*\.reveal\s*{[^}]*opacity:\s*1/);
+});
+
 module.exports = { codeBlocks, attr };

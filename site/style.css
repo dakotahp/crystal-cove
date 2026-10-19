@@ -140,7 +140,7 @@ a { color: inherit; }
 
 @media (max-width: 720px) {
   .hero { align-items: stretch; }
-  .hero-copy { padding-top: 104px; padding-bottom: 500px; }
+  .hero-copy { padding-top: 104px; padding-bottom: max(500px, calc(91vw + 80px)); }
   .hero-scene {
     inset: auto auto 0 calc(50vw - 0.706 * 250vw);
     width: 250vw; max-width: none; height: auto; aspect-ratio: 1600 / 1000;
@@ -448,6 +448,11 @@ main { background: linear-gradient(180deg, #0a0f2b 0, #0c0a26 900px, #0d0a24 100
 .reveal { opacity: 0; transform: translateY(28px); transition: opacity .9s ease, transform .9s cubic-bezier(.2, .7, .2, 1); }
 .reveal.is-visible { opacity: 1; transform: none; }
 .no-js .reveal { opacity: 1; transform: none; }
+
+@media print {
+  .reveal { opacity: 1; transform: none; }
+  .nav { position: static; }
+}
 
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
