@@ -246,6 +246,117 @@ func TestUpdateFrontmatterWritesAndLeavesBodyAlone(t *testing.T) {
 	}
 }
 
+func notePaths(list *NoteList) []string {
+	out := []string{}
+	for _, n := range list.Notes {
+		out = append(out, n.Path)
+	}
+	return out
+}
+
+func TestFindNotesByTagAndMissingKey(t *testing.T) {
+	s, _ := metaServer(t, map[string]string{
+		"a.md": "---\ntags: [inspiration]\nsummary: done\n---\nbody\n",
+		"b.md": "---\ntags: [inspiration]\n---\nbody\n",
+		"c.md": "---\ntags: [other]\n---\nbody\n",
+		"d.md": "no frontmatter #inspiration\n",
+	})
+
+	_, res, err := s.findNotes(context.Background(), &mcp.CallToolRequest{}, findNotesInput{
+		Tags: []string{"inspiration"}, MissingKey: "summary",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := []string{"b.md", "d.md"}; !slices.Equal(notePaths(res), want) {
+		t.Errorf("notes = %q, want %q", notePaths(res), want)
+	}
+}
+
+func TestFindNotesByFolderAndTagCount(t *testing.T) {
+	few, many := 0, 2
+	s, _ := metaServer(t, map[string]string{
+		"Projects/none.md":    "body\n",
+		"Projects/two.md":     tagged("a", "b"),
+		"Projects/three.md":   tagged("a", "b", "c"),
+		"Projects/Old/one.md": tagged("a"),
+		"Areas/one.md":        "#solo\n",
+		"Resources/one.md":    tagged("x"),
+		"Inbox/untagged.md":   "body\n",
+	})
+	ctx := context.Background()
+
+	_, res, err := s.findNotes(ctx, &mcp.CallToolRequest{}, findNotesInput{
+		folderFilter: folderFilter{Folders: []string{"Projects", "Areas/"}, ExcludeFolders: []string{"Projects/Old"}},
+		MaxTags:      &many,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := []string{"Areas/one.md", "Projects/none.md", "Projects/two.md"}; !slices.Equal(notePaths(res), want) {
+		t.Errorf("max_tags notes = %q, want %q", notePaths(res), want)
+	}
+
+	_, res, err = s.findNotes(ctx, &mcp.CallToolRequest{}, findNotesInput{MaxTags: &few})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := []string{"Inbox/untagged.md", "Projects/none.md"}; !slices.Equal(notePaths(res), want) {
+		t.Errorf("untagged notes = %q, want %q", notePaths(res), want)
+	}
+
+	three := 3
+	_, res, err = s.findNotes(ctx, &mcp.CallToolRequest{}, findNotesInput{MinTags: &three})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := []string{"Projects/three.md"}; !slices.Equal(notePaths(res), want) {
+		t.Errorf("min_tags notes = %q, want %q", notePaths(res), want)
+	}
+}
+
+func TestFindNotesListsAFolderAlone(t *testing.T) {
+	s, _ := metaServer(t, map[string]string{"Projects/a.md": "a\n", "Other/b.md": "b\n"})
+
+	_, res, err := s.findNotes(context.Background(), &mcp.CallToolRequest{}, findNotesInput{
+		folderFilter: folderFilter{Folders: []string{"Projects"}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := []string{"Projects/a.md"}; !slices.Equal(notePaths(res), want) {
+		t.Errorf("notes = %q, want %q", notePaths(res), want)
+	}
+}
+
+func TestFindNotesReturnsAskedFields(t *testing.T) {
+	s, _ := metaServer(t, map[string]string{
+		"a.md": "---\ntags: [x]\nsummary: short\nstatus: active\nsecret: no\n---\nbody\n",
+		"b.md": "---\ntags: [x]\n---\nbody\n",
+	})
+
+	_, res, err := s.findNotes(context.Background(), &mcp.CallToolRequest{}, findNotesInput{
+		Tags: []string{"x"}, Fields: []string{"summary", "status", "missing"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := res.Notes[0].Fields; len(got) != 2 || got["summary"] != "short" || got["status"] != "active" {
+		t.Errorf("fields = %+v, want only the asked fields the note has", got)
+	}
+	if res.Notes[1].Fields != nil {
+		t.Errorf("fields = %+v, want none for a note without them", res.Notes[1].Fields)
+	}
+}
+
+func TestFindNotesRejectsANegativeTagCount(t *testing.T) {
+	s, _ := metaServer(t, map[string]string{"a.md": "a\n"})
+	neg := -1
+	if _, _, err := s.findNotes(context.Background(), &mcp.CallToolRequest{}, findNotesInput{MinTags: &neg}); err == nil {
+		t.Error("find_notes accepted a negative min_tags")
+	}
+}
+
 func TestUpdateFrontmatterMergesTags(t *testing.T) {
 	s, v := metaServer(t, map[string]string{
 		"a.md": "---\ntitle: Plan\ntags: [a, b, draft]\n---\n\nbody #inline\n",

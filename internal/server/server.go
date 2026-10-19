@@ -156,10 +156,14 @@ func (s *Server) MCPServer() *mcp.Server {
 
 	addTool(srv, params, &mcp.Tool{
 		Name: "find_notes",
-		Description: "Find notes by metadata rather than text. Give tags, frontmatter_key, or both: tags is a list, " +
-			"and a note must carry every tag in it; frontmatter_key names a frontmatter field the note must have, and " +
-			"frontmatter_value, when given, is the value that field must hold (a list field matches when any item does). " +
-			"Example: {\"tags\": [\"project\"], \"frontmatter_key\": \"status\", \"frontmatter_value\": \"active\"}. " +
+		Description: "Find notes by metadata rather than text. Give at least one filter; a note must pass all of them. " +
+			"tags is a list, and a note must carry every tag in it; frontmatter_key names a frontmatter field the note " +
+			"must have, and frontmatter_value, when given, is the value that field must hold (a list field matches when " +
+			"any item does); missing_key names a field the note must not have; min_tags and max_tags bound how many tags " +
+			"it carries, counted as list_tags counts them; folders and exclude_folders limit where it lives, and folders " +
+			"alone lists a folder's notes. fields returns those frontmatter fields with each note. " +
+			"Example: {\"tags\": [\"project\"], \"frontmatter_key\": \"status\", \"frontmatter_value\": \"active\"}, or " +
+			"{\"folders\": [\"Projects\", \"Areas\"], \"max_tags\": 2, \"fields\": [\"summary\"]}. " +
 			"There is no query parameter: use search_notes for words in the text.",
 	}, s.findNotes)
 
