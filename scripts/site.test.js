@@ -161,13 +161,28 @@ const setupSection = () => html.slice(html.indexOf('id="setup"'), html.indexOf('
 
 const placeholders = s => s.replace(/<[^<>\n]+>/g, '<…>');
 
+const fencedLines = markdown =>
+  new Set(
+    [...markdown.matchAll(/^```[^\n]*\n([\s\S]*?)^```/gm)]
+      .flatMap(m => m[1].split('\n'))
+      .map(l => placeholders(l.trim()))
+      .filter(Boolean)
+  );
+
+test('fencedLines keeps whole lines from code blocks only', () => {
+  const lines = fencedLines('Prose with } and FOO= in it.\n\n```sh\ndocker run -e FOO=<x> \\\n  img\n```\n');
+  assert.deepStrictEqual([...lines], ['docker run -e FOO=<…> \\', 'img']);
+  assert.ok(!lines.has('}'));
+  assert.ok(!lines.has('FOO='));
+});
+
 test('every setup command appears verbatim in the README', () => {
-  const readme = placeholders(read('README.md'));
+  const readme = fencedLines(read('README.md'));
   const blocks = codeBlocks(setupSection());
   assert.ok(blocks.length >= 6, `expected at least 6 code blocks, found ${blocks.length}`);
   for (const b of blocks)
     for (const line of b.split('\n').filter(l => l.trim() && !l.trim().startsWith('#')))
-      assert.ok(readme.includes(placeholders(line.trim())), `not in README: ${line}`);
+      assert.ok(readme.has(placeholders(line.trim())), `not a README code line: ${line}`);
 });
 
 test('setup has four numbered steps', () => {
