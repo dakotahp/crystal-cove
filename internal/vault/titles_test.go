@@ -25,12 +25,9 @@ func newTitleVault(t *testing.T, paths ...string) *Vault {
 func TestMatchTitlesFindsNoteByName(t *testing.T) {
 	v := newTitleVault(t, "Areas/Bike Maintenance/Bike Maintenance.md", "Inbox/today.md")
 
-	got, truncated, err := v.MatchTitles("Bike Maintenance", false, 0)
+	got, err := v.MatchTitles("Bike Maintenance", false)
 	if err != nil {
 		t.Fatal(err)
-	}
-	if truncated {
-		t.Error("truncated = true")
 	}
 	want := []string{"Areas/Bike Maintenance/Bike Maintenance.md"}
 	if !slices.Equal(got, want) {
@@ -41,7 +38,7 @@ func TestMatchTitlesFindsNoteByName(t *testing.T) {
 func TestMatchTitlesIgnoresCaseByDefault(t *testing.T) {
 	v := newTitleVault(t, "Projects/Harbor Bridge/Harbor Bridge.md")
 
-	got, _, err := v.MatchTitles("harbor bridge", false, 0)
+	got, err := v.MatchTitles("harbor bridge", false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -49,7 +46,7 @@ func TestMatchTitlesIgnoresCaseByDefault(t *testing.T) {
 		t.Fatalf("MatchTitles = %q, want one match", got)
 	}
 
-	got, _, err = v.MatchTitles("harbor bridge", true, 0)
+	got, err = v.MatchTitles("harbor bridge", true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -61,7 +58,7 @@ func TestMatchTitlesIgnoresCaseByDefault(t *testing.T) {
 func TestMatchTitlesIgnoresExtensionAndHiddenEntries(t *testing.T) {
 	v := newTitleVault(t, "notes/plan.md", ".obsidian/plan.md", ".trash/plan.md")
 
-	got, _, err := v.MatchTitles("plan", false, 0)
+	got, err := v.MatchTitles("plan", false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -70,26 +67,14 @@ func TestMatchTitlesIgnoresExtensionAndHiddenEntries(t *testing.T) {
 		t.Errorf("MatchTitles = %q, want %q", got, want)
 	}
 
-	if got, _, err := v.MatchTitles(`plan\.md`, false, 0); err != nil || len(got) != 0 {
+	if got, err := v.MatchTitles(`plan\.md`, false); err != nil || len(got) != 0 {
 		t.Errorf("MatchTitles matched the extension: %q, %v", got, err)
-	}
-}
-
-func TestMatchTitlesRespectsLimit(t *testing.T) {
-	v := newTitleVault(t, "a/plan.md", "b/plan.md", "c/plan.md")
-
-	got, truncated, err := v.MatchTitles("plan", false, 2)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(got) != 2 || !truncated {
-		t.Errorf("MatchTitles = %q, truncated = %v; want 2 and true", got, truncated)
 	}
 }
 
 func TestMatchTitlesRejectsBadPattern(t *testing.T) {
 	v := newTitleVault(t, "a/plan.md")
-	if _, _, err := v.MatchTitles("([", false, 0); err == nil {
+	if _, err := v.MatchTitles("([", false); err == nil {
 		t.Error("MatchTitles accepted an invalid pattern")
 	}
 }
@@ -97,14 +82,14 @@ func TestMatchTitlesRejectsBadPattern(t *testing.T) {
 func TestMatchTitlesSkipsFilesThatAreNotNotes(t *testing.T) {
 	v := newTitleVault(t, "Bike.md", "Bike.png", "Bike.canvas")
 
-	got, _, err := v.MatchTitles("bike", false, 0)
+	got, err := v.MatchTitles("bike", false)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if want := []string{"Bike.md"}; !slices.Equal(got, want) {
 		t.Errorf("MatchTitles = %q, want %q", got, want)
 	}
-	got, _, err = v.MatchTitleWords([]string{"bike"}, false, 0)
+	got, err = v.MatchTitleWords([]string{"bike"}, false)
 	if err != nil {
 		t.Fatal(err)
 	}

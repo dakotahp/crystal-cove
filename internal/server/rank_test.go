@@ -137,9 +137,9 @@ func TestSearchRanksBeforeLimiting(t *testing.T) {
 	}
 	s := rankServer(t, notes)
 
-	res := search1(t, s, searchNotesInput{Query: "bike", MaxResults: 5})
-	if len(res.Files) != 5 || !res.Truncated {
-		t.Fatalf("got %d notes, Truncated=%v; want 5 and true", len(res.Files), res.Truncated)
+	res := search1(t, s, searchNotesInput{Query: "bike", Limit: 5})
+	if len(res.Files) != 5 || res.NextOffset != 5 {
+		t.Fatalf("got %d notes, next %d; want 5 and a next page", len(res.Files), res.NextOffset)
 	}
 	if res.Files[0].Path != "Inbox/z.md" {
 		t.Errorf("Files[0] = %q, want the best match even though it sorts last by path", res.Files[0].Path)
@@ -153,7 +153,7 @@ func TestSearchTotalMatchesCountsTheNotesReturned(t *testing.T) {
 		"Inbox/c.md": strings.Repeat("bike\n", 7),
 	})
 
-	res := search1(t, s, searchNotesInput{Query: "bike", MaxResults: 2})
+	res := search1(t, s, searchNotesInput{Query: "bike", Limit: 2})
 	if res.TotalMatches != 10 {
 		t.Errorf("TotalMatches = %d, want 10 across the two notes returned", res.TotalMatches)
 	}

@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func TestMaxResultsCountsNotesNotLines(t *testing.T) {
+func TestLimitCountsNotesNotLines(t *testing.T) {
 	s := requireRipgrep(t)
 	notes := map[string]string{}
 	for i := range 5 {
@@ -18,12 +18,11 @@ func TestMaxResultsCountsNotesNotLines(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	res.Limit(2)
-	if len(res.Files) != 2 {
-		t.Errorf("files = %d, want 2 notes", len(res.Files))
+	if err := res.Page(0, 2); err != nil {
+		t.Fatal(err)
 	}
-	if !res.Truncated {
-		t.Error("Truncated = false, want true when notes were left out")
+	if len(res.Files) != 2 || res.Total != 5 || res.NextOffset != 2 {
+		t.Errorf("files = %d, total %d, next %d; want 2 notes of 5 and a next page", len(res.Files), res.Total, res.NextOffset)
 	}
 }
 

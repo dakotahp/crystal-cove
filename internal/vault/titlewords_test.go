@@ -13,12 +13,9 @@ func TestMatchTitleWordsNeedsEveryWordInAnyOrder(t *testing.T) {
 	)
 
 	for _, words := range [][]string{{"bike", "maintenance"}, {"maintenance", "bike"}} {
-		got, truncated, err := v.MatchTitleWords(words, false, 0)
+		got, err := v.MatchTitleWords(words, false)
 		if err != nil {
 			t.Fatal(err)
-		}
-		if truncated {
-			t.Error("truncated = true")
 		}
 		want := []string{"Areas/Bike Maintenance/Bike Maintenance.md"}
 		if !slices.Equal(got, want) {
@@ -30,7 +27,7 @@ func TestMatchTitleWordsNeedsEveryWordInAnyOrder(t *testing.T) {
 func TestMatchTitleWordsHonoursCaseSensitivity(t *testing.T) {
 	v := newTitleVault(t, "Areas/Bike Maintenance.md")
 
-	got, _, err := v.MatchTitleWords([]string{"bike"}, true, 0)
+	got, err := v.MatchTitleWords([]string{"bike"}, true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -38,7 +35,7 @@ func TestMatchTitleWordsHonoursCaseSensitivity(t *testing.T) {
 		t.Errorf("case-sensitive match = %q, want none", got)
 	}
 
-	got, _, err = v.MatchTitleWords([]string{"Bike"}, true, 0)
+	got, err = v.MatchTitleWords([]string{"Bike"}, true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -47,22 +44,10 @@ func TestMatchTitleWordsHonoursCaseSensitivity(t *testing.T) {
 	}
 }
 
-func TestMatchTitleWordsRespectsLimit(t *testing.T) {
-	v := newTitleVault(t, "a/plan notes.md", "b/plan notes.md", "c/plan notes.md")
-
-	got, truncated, err := v.MatchTitleWords([]string{"plan", "notes"}, false, 2)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(got) != 2 || !truncated {
-		t.Errorf("got %q, truncated = %v; want 2 and true", got, truncated)
-	}
-}
-
 func TestMatchTitleWordsSkipsHiddenEntries(t *testing.T) {
 	v := newTitleVault(t, ".trash/plan notes.md", "Inbox/plan notes.md")
 
-	got, _, err := v.MatchTitleWords([]string{"plan"}, false, 0)
+	got, err := v.MatchTitleWords([]string{"plan"}, false)
 	if err != nil {
 		t.Fatal(err)
 	}

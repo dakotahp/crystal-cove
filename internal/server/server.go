@@ -133,7 +133,9 @@ func (s *Server) MCPServer() *mcp.Server {
 			"reading. Only Markdown notes are searched. Results are ranked: notes named after the query first, " +
 			"flagged title_match, then notes with more matching lines. A note whose name matches is a result even when " +
 			"no line in it matches; it reports total_matches 0. glob limits name matches as well as content matches. Case-insensitive unless " +
-			"case_sensitive is set. max_results counts notes, and each note returns at most 5 matching lines unless max_lines_per_note says otherwise; every note reports its own total_matches. " +
+			"case_sensitive is set. limit counts notes, and each note returns at most 5 matching lines unless max_lines_per_note says otherwise; every note reports its own total_matches. " +
+			"Results come in pages: total counts every matching note, and next_offset, passed as offset, gives the next page. " +
+			"When the first page holds nothing useful, a better query usually beats the next page. " +
 			"A line longer than 500 characters is cut to a window around the match and flagged text_truncated. " +
 			"output files leaves the lines out, which is the cheap way to learn which notes match before reading one.",
 	}, s.searchNotes)

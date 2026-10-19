@@ -103,8 +103,9 @@ Key invariants:
   query a regex. `mode` overrides the guess. The all-words check reads every matching line, not only the
   lines a note returns. Ranking lives in `server/rank.go`: name match, then
   match count, then path order. `search.Search` returns every matching note;
-  the handler ranks them and only then applies `max_results` with
-  `Result.Limit`, so a good match late in path order is not cut. Search and
+  the handler ranks them and only then takes one page with `Result.Page`
+  (`offset` and `limit`), so a good match late in path order is not cut and
+  every page comes from the same ranked list. Search and
   name matching cover Markdown notes only.
 - **`search_notes` covers names as well as content.** A note's name is
   usually its subject, so a content-only search misses the note a person

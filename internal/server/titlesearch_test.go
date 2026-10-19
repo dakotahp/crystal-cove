@@ -140,29 +140,58 @@ func TestSearchCountsOnlyTitleMatchesInsideTheGlobAgainstMaxResults(t *testing.T
 	s := titleSearchServer(t, "A/Monday one.md", "B/Monday two.md")
 
 	_, res, err := s.searchNotes(context.Background(), &mcp.CallToolRequest{}, searchNotesInput{
-		Vault:      "Personal",
-		Query:      "Monday",
-		Glob:       "B/**",
-		MaxResults: 1,
+		Vault: "Personal",
+		Query: "Monday",
+		Glob:  "B/**",
+		Limit: 1,
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(res.Files) != 1 || res.Files[0].Path != "B/Monday two.md" || res.Truncated {
-		t.Errorf("Files = %+v, Truncated = %v, want only B/Monday two.md, not truncated", res.Files, res.Truncated)
+	if len(res.Files) != 1 || res.Files[0].Path != "B/Monday two.md" || res.Total != 1 || res.NextOffset != -1 {
+		t.Errorf("Files = %+v, total %d, next %d; want only B/Monday two.md and no next page", res.Files, res.Total, res.NextOffset)
 	}
 
 	_, res, err = s.searchNotes(context.Background(), &mcp.CallToolRequest{}, searchNotesInput{
-		Vault:      "Personal",
-		Query:      "Monday",
-		Glob:       "*.md",
-		MaxResults: 1,
+		Vault: "Personal",
+		Query: "Monday",
+		Glob:  "*.md",
+		Limit: 1,
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(res.Files) != 1 || !res.Truncated {
-		t.Errorf("Files = %+v, Truncated = %v, want one note and truncated", res.Files, res.Truncated)
+	if len(res.Files) != 1 || res.Total != 2 || res.NextOffset != 1 {
+		t.Errorf("Files = %+v, total %d, next %d; want one note of 2 and a next page", res.Files, res.Total, res.NextOffset)
+	}
+}
+
+func TestSearchPagesReachEveryTitleMatch(t *testing.T) {
+	s := titleSearchServer(t, "Monday a.md", "Monday b.md", "Monday c.md")
+
+	var seen []string
+	offset := 0
+	for offset != -1 {
+		_, res, err := s.searchNotes(context.Background(), &mcp.CallToolRequest{}, searchNotesInput{
+			Query: "Monday", Limit: 1, Offset: offset,
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if res.Total != 3 {
+			t.Fatalf("total = %d, want 3 on every page", res.Total)
+		}
+		for _, f := range res.Files {
+			seen = append(seen, f.Path)
+		}
+		offset = res.NextOffset
+	}
+	if want := []string{"Monday a.md", "Monday b.md", "Monday c.md"}; !slices.Equal(seen, want) {
+		t.Errorf("pages gave %q, want %q", seen, want)
+	}
+
+	if _, _, err := s.searchNotes(context.Background(), &mcp.CallToolRequest{}, searchNotesInput{Query: "Monday", Offset: 4}); err == nil {
+		t.Error("offset past the end accepted")
 	}
 }
 

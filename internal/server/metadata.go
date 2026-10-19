@@ -64,7 +64,7 @@ func (s *Server) listTags(_ context.Context, _ *mcp.CallToolRequest, in listTags
 		}
 		return tags[i].Tag < tags[j].Tag
 	})
-	page, next, err := pageOf(tags, in.Offset, in.Limit)
+	page, next, err := pageOf(tags, in.Offset, in.Limit, DefaultListLimit)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -72,12 +72,12 @@ func (s *Server) listTags(_ context.Context, _ *mcp.CallToolRequest, in listTags
 }
 
 type findNotesInput struct {
-	Vault string   `json:"vault,omitempty" jsonschema:"the vault to search; optional when the server holds one vault"`
-	Tags  []string `json:"tags,omitempty" jsonschema:"notes must carry every tag listed"`
-	Key   string   `json:"frontmatter_key,omitempty" jsonschema:"notes must carry this frontmatter field"`
-	Value string   `json:"frontmatter_value,omitempty" jsonschema:"the field must equal this value; omit to match any value"`
-	// MaxResults caps the notes returned; zero means DefaultNoteResults.
-	MaxResults int `json:"max_results,omitempty" jsonschema:"maximum notes to return"`
+	Vault  string   `json:"vault,omitempty" jsonschema:"the vault to search; optional when the server holds one vault"`
+	Tags   []string `json:"tags,omitempty" jsonschema:"notes must carry every tag listed"`
+	Key    string   `json:"frontmatter_key,omitempty" jsonschema:"notes must carry this frontmatter field"`
+	Value  string   `json:"frontmatter_value,omitempty" jsonschema:"the field must equal this value; omit to match any value"`
+	Offset int      `json:"offset,omitempty" jsonschema:"note to start from; use next_offset from the previous page"`
+	Limit  int      `json:"limit,omitempty" jsonschema:"maximum notes to return (default 50, max 1000)"`
 }
 
 // NoteMeta identifies one matching note.
@@ -91,8 +91,8 @@ type NoteList struct {
 	Notes []NoteMeta `json:"notes"`
 	// NotesScanned is how many notes were read.
 	NotesScanned int `json:"notes_scanned"`
-	// Truncated reports whether MaxResults cut the list off.
-	Truncated bool `json:"truncated"`
+	Total        int `json:"total" jsonschema:"notes that match, across every page"`
+	NextOffset   int `json:"next_offset" jsonschema:"offset of the next page; -1 when this is the last page"`
 }
 
 func (s *Server) findNotes(_ context.Context, _ *mcp.CallToolRequest, in findNotesInput) (*mcp.CallToolResult, *NoteList, error) {
@@ -103,32 +103,26 @@ func (s *Server) findNotes(_ context.Context, _ *mcp.CallToolRequest, in findNot
 	if len(in.Tags) == 0 && in.Key == "" {
 		return nil, nil, errors.New("give tags, frontmatter_key, or both: find_notes queries metadata, and search_notes searches text")
 	}
-	limit := in.MaxResults
-	if limit <= 0 {
-		limit = DefaultNoteResults
-	}
-
-	out := &NoteList{Notes: []NoteMeta{}}
+	matches := []NoteMeta{}
 	scanned, err := eachNote(v, func(path string, n *notes.Note) error {
 		if !matchesTags(n, in.Tags) || !matchesField(n, in.Key, in.Value) {
-			return nil
-		}
-		if len(out.Notes) == limit {
-			out.Truncated = true
 			return nil
 		}
 		tags := n.Tags
 		if tags == nil {
 			tags = []string{}
 		}
-		out.Notes = append(out.Notes, NoteMeta{Path: path, Tags: tags})
+		matches = append(matches, NoteMeta{Path: path, Tags: tags})
 		return nil
 	})
 	if err != nil {
 		return nil, nil, err
 	}
-	out.NotesScanned = scanned
-	return nil, out, nil
+	page, next, err := pageOf(matches, in.Offset, in.Limit, DefaultNoteResults)
+	if err != nil {
+		return nil, nil, err
+	}
+	return nil, &NoteList{Notes: page, NotesScanned: scanned, Total: len(matches), NextOffset: next}, nil
 }
 
 func matchesTags(n *notes.Note, want []string) bool {

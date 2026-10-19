@@ -46,7 +46,7 @@ func TestUnknownArgumentErrorListsTheToolsParameters(t *testing.T) {
 	session := testSession(t, newTestServer(t))
 
 	got := toolError(t, session, "find_notes", map[string]any{"vault": "Work", "query": "plan"})
-	for _, want := range []string{`"query"`, "frontmatter_key", "frontmatter_value", "max_results", "tags", "vault"} {
+	for _, want := range []string{`"query"`, "frontmatter_key", "frontmatter_value", "limit", "offset", "tags", "vault"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("error lacks %q:\n%s", want, got)
 		}
