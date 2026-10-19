@@ -153,44 +153,66 @@ func parseLink(embed bool, inner string) Link {
 // reports false for a destination outside the vault, such as a web address,
 // and for a link to a heading in the same note.
 func parseMarkdownLink(embed bool, text, dest string) (Link, bool) {
-	dest = strings.TrimSpace(dest)
-	if inner, ok := strings.CutPrefix(dest, "<"); ok {
-		dest, _, _ = strings.Cut(inner, ">")
-	} else if i := strings.IndexAny(dest, "\"'"); i > 0 && (dest[i-1] == ' ' || dest[i-1] == '\t') {
-		dest = dest[:i]
-	}
-	if urlScheme.MatchString(dest) {
+	start, end, _ := markdownDest(dest)
+	raw := dest[start:end]
+	if urlScheme.MatchString(raw) {
 		return Link{}, false
 	}
-	link := Link{Embed: embed, Markdown: true, Alias: strings.TrimSpace(text)}
-	if target, heading, ok := strings.Cut(dest, "#"); ok {
-		dest = target
-		link.Heading = heading
+	target, heading, _ := strings.Cut(raw, "#")
+	heading, _, _ = strings.Cut(heading, "^")
+	link := Link{
+		Target:   strings.TrimSpace(unescape(target)),
+		Heading:  unescape(heading),
+		Alias:    strings.TrimSpace(text),
+		Embed:    embed,
+		Markdown: true,
 	}
-	if unescaped, err := url.PathUnescape(dest); err == nil {
-		dest = unescaped
-	}
-	if i := strings.Index(link.Heading, "^"); i >= 0 {
-		link.Heading = link.Heading[:i]
-	}
-	if unescaped, err := url.PathUnescape(link.Heading); err == nil {
-		link.Heading = unescaped
-	}
-	link.Target = strings.TrimSpace(dest)
 	return link, link.Target != ""
 }
 
-// RewriteLinks returns doc with the target of every wikilink replaced by what
+// markdownDest returns where the destination of a Markdown link sits in
+// dest, the text between its parentheses: without the angle brackets that
+// may wrap it and without a quoted title after it.
+func markdownDest(dest string) (start, end int, angle bool) {
+	start = len(dest) - len(strings.TrimLeft(dest, " \t"))
+	end = len(strings.TrimRight(dest, " \t"))
+	if strings.HasPrefix(dest[start:], "<") {
+		start++
+		if i := strings.IndexByte(dest[start:end], '>'); i >= 0 {
+			end = start + i
+		}
+		return start, end, true
+	}
+	rest := dest[start:end]
+	if i := strings.IndexAny(rest, "\"'"); i > 0 && (rest[i-1] == ' ' || rest[i-1] == '\t') {
+		end = start + len(strings.TrimRight(rest[:i], " \t"))
+	}
+	return start, end, false
+}
+
+func unescape(s string) string {
+	if unescaped, err := url.PathUnescape(s); err == nil {
+		return unescaped
+	}
+	return s
+}
+
+// RewriteLinks returns doc with the target of every link replaced by what
 // rewrite returns for it, and how many links it changed. Headings, block
-// references, aliases and the embed marker stay as written. rewrite reports
-// false to leave a link alone. Links inside code are never passed to it,
-// because those are examples.
+// references, aliases, titles and the embed marker stay as written. A
+// Markdown link keeps its form: inside angle brackets the new target is
+// written as is, and otherwise its spaces become %20. rewrite reports false
+// to leave a link alone. Links inside code are never passed to it, because
+// those are examples.
 func RewriteLinks(doc string, rewrite func(Link) (string, bool)) (string, int) {
-	var out strings.Builder
-	changed, last := 0, 0
-	for _, m := range wikilink.FindAllStringSubmatchIndex(maskCode(doc), -1) {
-		start, end := m[4], m[5]
-		inner := doc[start:end]
+	type edit struct {
+		start, end int
+		text       string
+	}
+	var edits []edit
+	masked := maskCode(doc)
+	for _, m := range wikilink.FindAllStringSubmatchIndex(masked, -1) {
+		inner := doc[m[4]:m[5]]
 		link := parseLink(m[3] > m[2], inner)
 		if link.Target == "" {
 			continue
@@ -203,16 +225,39 @@ func RewriteLinks(doc string, rewrite func(Link) (string, bool)) (string, int) {
 		if targetEnd < 0 {
 			targetEnd = len(inner)
 		}
-		out.WriteString(doc[last:start])
-		out.WriteString(target)
-		last = start + targetEnd
-		changed++
+		edits = append(edits, edit{m[4], m[4] + targetEnd, target})
 	}
-	if changed == 0 {
+	for _, m := range markdownLink.FindAllStringSubmatchIndex(masked, -1) {
+		dest := doc[m[6]:m[7]]
+		link, ok := parseMarkdownLink(m[3] > m[2], doc[m[4]:m[5]], dest)
+		if !ok {
+			continue
+		}
+		target, ok := rewrite(link)
+		if !ok {
+			continue
+		}
+		start, end, angle := markdownDest(dest)
+		file, _, _ := strings.Cut(dest[start:end], "#")
+		if !angle {
+			target = strings.ReplaceAll(target, " ", "%20")
+		}
+		edits = append(edits, edit{m[6] + start, m[6] + start + len(strings.TrimRight(file, " \t")), target})
+	}
+	if len(edits) == 0 {
 		return doc, 0
 	}
+	sort.Slice(edits, func(i, j int) bool { return edits[i].start < edits[j].start })
+
+	var out strings.Builder
+	last := 0
+	for _, e := range edits {
+		out.WriteString(doc[last:e.start])
+		out.WriteString(e.text)
+		last = e.end
+	}
 	out.WriteString(doc[last:])
-	return out.String(), changed
+	return out.String(), len(edits)
 }
 
 // maskCode returns text with fenced code blocks and inline code spans

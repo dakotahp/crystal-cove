@@ -147,6 +147,59 @@ func TestMoveNoteToAnotherFolderKeepsNameLinks(t *testing.T) {
 	}
 }
 
+func TestMoveNoteUpdatesMarkdownLinksInTheirOwnStyle(t *testing.T) {
+	s, v := metaServer(t, map[string]string{
+		"Projects/Plan.md": "body\n",
+		"Ideas/Bridge.md": "[r](../Projects/Plan.md) [v](Projects/Plan.md#Goals) [a](</Projects/Plan.md>) " +
+			"[n](Plan.md) [w](https://example.com/Plan.md) [[Plan]]\n",
+		"Projects/Sibling.md": "[s](./Plan.md)\n",
+	})
+
+	out := move(t, s, moveNoteInput{Path: "Projects/Plan.md", NewPath: "Archive/Plan 2025.md", UpdateLinks: true})
+
+	want := "[r](../Archive/Plan%202025.md) [v](Archive/Plan%202025.md#Goals) [a](</Archive/Plan 2025.md>) " +
+		"[n](Plan%202025.md) [w](https://example.com/Plan.md) [[Plan 2025]]\n"
+	if got := readFile(t, v, "Ideas/Bridge.md"); got != want {
+		t.Errorf("Bridge.md =\n%q, want\n%q", got, want)
+	}
+	if got := readFile(t, v, "Projects/Sibling.md"); got != "[s](../Archive/Plan%202025.md)\n" {
+		t.Errorf("Sibling.md = %q", got)
+	}
+	if !slices.Equal(out.LinksUpdatedIn, []string{"Ideas/Bridge.md", "Projects/Sibling.md"}) {
+		t.Errorf("LinksUpdatedIn = %q", out.LinksUpdatedIn)
+	}
+}
+
+func TestMoveNoteKeepsTheMovedNotesRelativeLinksWorking(t *testing.T) {
+	s, v := metaServer(t, map[string]string{
+		"Projects/Plan.md":       "[d](./Specs/Data.md) [o](../Other.md) [[./Specs/Data]] [n](Other.md) [[Other]]\n",
+		"Projects/Specs/Data.md": "body\n",
+		"Other.md":               "body\n",
+	})
+
+	out := move(t, s, moveNoteInput{Path: "Projects/Plan.md", NewPath: "Archive/2025/Plan.md", UpdateLinks: true})
+
+	want := "[d](../../Projects/Specs/Data.md) [o](../../Other.md) [[../../Projects/Specs/Data]] [n](Other.md) [[Other]]\n"
+	if got := readFile(t, v, "Archive/2025/Plan.md"); got != want {
+		t.Errorf("Plan.md =\n%q, want\n%q", got, want)
+	}
+	if !slices.Equal(out.LinksUpdatedIn, []string{"Archive/2025/Plan.md"}) {
+		t.Errorf("LinksUpdatedIn = %q", out.LinksUpdatedIn)
+	}
+}
+
+func TestMoveNoteLeavesTheMovedNotesRelativeLinksWhenItsFolderStays(t *testing.T) {
+	s, v := metaServer(t, map[string]string{
+		"Projects/Plan.md": "[d](./Data.md)\n",
+		"Projects/Data.md": "body\n",
+	})
+
+	out := move(t, s, moveNoteInput{Path: "Projects/Plan.md", NewPath: "Projects/Plan 2.md", UpdateLinks: true})
+	if got := readFile(t, v, "Projects/Plan 2.md"); got != "[d](./Data.md)\n" || len(out.LinksUpdatedIn) != 0 {
+		t.Errorf("Plan 2.md = %q, updated in %q; want nothing rewritten", got, out.LinksUpdatedIn)
+	}
+}
+
 func TestMoveNoteIntoOrOutOfTheTrashUpdatesNoLinks(t *testing.T) {
 	s, v := metaServer(t, map[string]string{
 		"Plan.md":    "body\n",
