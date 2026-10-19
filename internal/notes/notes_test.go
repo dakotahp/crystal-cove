@@ -177,3 +177,13 @@ func TestUpdateFrontmatterWritesADateStringUnquoted(t *testing.T) {
 		t.Errorf("got %q, want %q", got, want)
 	}
 }
+
+func TestTagsSkipALongerFenceHoldingShorterFences(t *testing.T) {
+	n, err := Parse([]byte("````markdown\n```\n```\n#notatag\n````\n~~~\n#alsonot\n~~~\n#real\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(n.Tags) != 1 || n.Tags[0] != "real" {
+		t.Errorf("Tags = %q, want only the tag after the fences", n.Tags)
+	}
+}

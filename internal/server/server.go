@@ -176,6 +176,24 @@ func (s *Server) MCPServer() *mcp.Server {
 	}, s.getBacklinks)
 
 	addTool(srv, params, &mcp.Tool{
+		Name: "unresolved_links",
+		Description: "List links across the vault that point at no file, which is how to find dead links without " +
+			"calling get_links on every note. Links resolve the way Obsidian resolves them: by name or by the end " +
+			"of a path, ignoring case, to notes and to any other file such as images, canvases and bases. A link " +
+			"without an extension reaches only a note, so [[Board]] does not reach Board.canvas. Wikilinks, " +
+			"Markdown links to files, and wikilinks in frontmatter count; links in code do not. folders and " +
+			"exclude_folders limit which notes are checked. Example: {\"exclude_folders\": [\"Templates\"], \"limit\": 100}.",
+	}, s.unresolvedLinks)
+
+	addTool(srv, params, &mcp.Tool{
+		Name: "orphans",
+		Description: "List notes that no other note links to, as Obsidian's orphans do, with how many files each " +
+			"links to. unlinked keeps only notes that link to nothing either. Links resolve as in unresolved_links, " +
+			"and a note linking to itself does not count. folders and exclude_folders choose which notes are " +
+			"reported; links from every note still count. Example: {\"folders\": [\"Projects\"], \"unlinked\": true}.",
+	}, s.orphans)
+
+	addTool(srv, params, &mcp.Tool{
 		Name: "get_frontmatter",
 		Description: "Read one note's frontmatter fields and its tags, without its body. Fields are listed " +
 			"alphabetically; read_note shows their order in the file.",

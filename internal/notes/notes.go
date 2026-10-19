@@ -138,14 +138,10 @@ func collectTags(fm map[string]any, body string) []string {
 // a CSS colour inside one is not read as a tag.
 func stripCodeFences(body string) string {
 	var out strings.Builder
-	inFence := false
-	for line := range strings.SplitSeq(body, "\n") {
-		if strings.HasPrefix(strings.TrimSpace(line), "```") {
-			inFence = !inFence
-			continue
-		}
-		if !inFence {
-			out.WriteString(line)
+	lines := strings.Split(body, "\n")
+	for i, fenced := range fencedLines(lines) {
+		if !fenced {
+			out.WriteString(lines[i])
 			out.WriteByte('\n')
 		}
 	}

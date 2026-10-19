@@ -35,6 +35,25 @@ func TestNotesListsMarkdownOnlyAndSkipsHidden(t *testing.T) {
 	}
 }
 
+func TestFilesListsEveryVisibleFile(t *testing.T) {
+	v := newNotesVault(t, "Inbox/today.md", "Areas/photo.png", "Board.canvas", ".trash/gone.md", ".obsidian/app.md")
+
+	got, err := v.Files()
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"Areas/photo.png", "Board.canvas", "Inbox/today.md"}
+	if !slices.Equal(got, want) {
+		t.Errorf("Files = %q, want %q", got, want)
+	}
+}
+
+func TestFilesReportsAMissingRoot(t *testing.T) {
+	if _, err := New("Personal", filepath.Join(t.TempDir(), "gone")).Files(); err == nil {
+		t.Error("Files accepted a missing vault root")
+	}
+}
+
 func TestReadAllAndUpdateRoundTrip(t *testing.T) {
 	v := newNotesVault(t, "Inbox/today.md")
 
