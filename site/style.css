@@ -323,7 +323,7 @@ main { background: linear-gradient(180deg, #0a0f2b 0, #0c0a26 900px, #0d0a24 100
   position: relative; border-radius: 14px; background: rgb(5 4 11 / 0.7); border: 1px solid var(--line);
   box-shadow: 0 1px 0 rgb(255 255 255 / 0.04) inset;
 }
-.code pre { margin: 0; padding: 20px 22px; overflow-x: auto; font-family: var(--font-mono); font-size: .875rem; line-height: 1.7; color: #ddd6fe; }
+.code pre { margin: 0; padding: 20px 22px; overflow-x: auto; tab-size: 4; font-family: var(--font-mono); font-size: .875rem; line-height: 1.7; color: #ddd6fe; }
 .code pre code { font-family: inherit; }
 .limits { margin: 28px 0 0; color: var(--text-2); }
 .limits a { color: var(--facet-2); text-decoration-color: rgb(169 139 250 / 0.4); text-underline-offset: 4px; }
@@ -334,6 +334,63 @@ main { background: linear-gradient(180deg, #0a0f2b 0, #0c0a26 900px, #0d0a24 100
   .rings { max-width: 360px; }
   .layer-list li { padding-left: 52px; }
   .layer-list li::before { left: 16px; }
+}
+
+/* 04 Setup */
+.steps { list-style: none; margin: 0; padding: 0; position: relative; display: grid; gap: 18px; }
+.steps::before {
+  content: ""; position: absolute; left: 21px; top: 24px; bottom: 24px; width: 2px;
+  background: linear-gradient(180deg, var(--facet-2), rgb(124 77 255 / 0.15));
+  border-radius: 2px;
+}
+.step { position: relative; display: grid; grid-template-columns: 44px minmax(0, 1fr); column-gap: 28px; }
+.step-head { display: contents; }
+.step-num {
+  grid-row: 1 / span 2; align-self: start; position: relative; z-index: 1;
+  display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%;
+  font-family: var(--font-mono); font-weight: 500; color: #140d33;
+  background: radial-gradient(circle at 35% 30%, var(--facet-1), var(--facet-3));
+  box-shadow: 0 0 0 6px #0c0a26, 0 0 28px rgb(155 123 255 / 0.65);
+}
+.step h3 { grid-column: 2; margin: 8px 0 6px; font-size: 1.375rem; letter-spacing: -0.015em; }
+.step h3 code, .step-body p code { font-family: var(--font-mono); font-size: .9em; color: var(--facet-1); }
+.step-body { grid-column: 2; padding-bottom: 28px; max-width: 820px; }
+.step-body > p { margin: 0 0 12px; color: var(--text-2); }
+.step-body .code { margin-bottom: 20px; }
+.step-body .note { font-size: .9375rem; }
+.step-body a, .setup-foot a:not(.btn) { color: var(--facet-2); text-underline-offset: 4px; }
+
+.connector {
+  max-width: 440px; padding: 20px; border-radius: 16px;
+  background: linear-gradient(180deg, rgb(48 36 110 / 0.4), rgb(20 15 51 / 0.4)); border: 1px solid var(--line);
+}
+.connector p { margin: 0; }
+.connector-title { font-weight: 600; margin-bottom: 14px !important; }
+.field { display: grid; gap: 4px; margin-bottom: 12px !important; font-size: .8125rem; color: #8f84bd; }
+.field b { font-weight: 400; font-size: .9375rem; color: var(--text); padding: 9px 12px; border-radius: 8px; background: rgb(5 4 11 / 0.55); border: 1px solid var(--line); }
+.connector-ok { display: flex; align-items: center; gap: 8px; font-size: .875rem; color: #8ee6b5; }
+.connector-ok .dot { width: 8px; height: 8px; border-radius: 50%; background: #5fd49a; box-shadow: 0 0 10px #5fd49a; }
+
+.setup-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; margin-top: 28px; padding: 24px 28px; border-radius: 16px; border: 1px dashed var(--line); }
+.setup-foot p { margin: 0; color: var(--text-2); }
+
+.copy {
+  position: absolute; top: 10px; right: 10px;
+  font: 500 .75rem var(--font-sans); letter-spacing: .02em; color: var(--text-2); cursor: pointer;
+  padding: 6px 10px; border-radius: 8px; background: rgb(17 12 44 / 0.9); border: 1px solid var(--line);
+  transition: color .2s, border-color .2s;
+}
+.copy:hover { color: var(--text); border-color: var(--ring); }
+.copy[data-state="copied"] { color: #8ee6b5; border-color: rgb(95 212 154 / 0.5); }
+.code:has(.copy) pre { padding-right: 84px; }
+
+@media (max-width: 600px) {
+  .step { grid-template-columns: 36px minmax(0, 1fr); column-gap: 16px; }
+  .step-num { width: 36px; height: 36px; font-size: .875rem; }
+  .steps::before { left: 17px; }
+  .step h3 { margin-top: 4px; font-size: 1.1875rem; }
+  .code pre { font-size: .8125rem; }
+  .code:has(.copy) pre { padding-top: 48px; padding-right: 22px; }
 }
 
 /* Reveal on scroll */

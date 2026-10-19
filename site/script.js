@@ -97,6 +97,26 @@ if (security && !reducedMotion.matches && 'IntersectionObserver' in window) {
   securityObserver.observe(security);
 }
 
+document.querySelectorAll('pre > code[data-copy]').forEach(code => {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'copy';
+  button.textContent = 'Copy';
+  let reset;
+  button.addEventListener('click', async () => {
+    const result = await window.CrystalCove.copyText(code.textContent, navigator.clipboard);
+    button.dataset.state = result;
+    button.textContent = result === 'copied' ? 'Copied' : 'Select and copy';
+    if (result === 'manual') getSelection().selectAllChildren(code);
+    clearTimeout(reset);
+    reset = setTimeout(() => {
+      button.textContent = 'Copy';
+      delete button.dataset.state;
+    }, 2000);
+  });
+  code.closest('.code').append(button);
+});
+
 const layers = [...document.querySelectorAll('.hero .parallax')];
 let ticking = false;
 const parallax = () => {

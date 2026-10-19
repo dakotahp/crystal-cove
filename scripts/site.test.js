@@ -157,4 +157,29 @@ test('five security layers, outermost first', () => {
   assert.deepStrictEqual(items, ['1', '2', '3', '4', '5']);
 });
 
+const setupSection = () => html.slice(html.indexOf('id="setup"'), html.indexOf('id="tools"'));
+
+const placeholders = s => s.replace(/<[^<>\n]+>/g, '<…>');
+
+test('every setup command appears verbatim in the README', () => {
+  const readme = placeholders(read('README.md'));
+  const blocks = codeBlocks(setupSection());
+  assert.ok(blocks.length >= 6, `expected at least 6 code blocks, found ${blocks.length}`);
+  for (const b of blocks)
+    for (const line of b.split('\n').filter(l => l.trim() && !l.trim().startsWith('#')))
+      assert.ok(readme.includes(placeholders(line.trim())), `not in README: ${line}`);
+});
+
+test('setup has four numbered steps', () => {
+  assert.strictEqual((setupSection().match(/<li class="step"/g) || []).length, 4);
+});
+
+test('copyText reports manual when the clipboard is missing or refuses', async () => {
+  const { copyText } = require('../site/site.js');
+  assert.strictEqual(await copyText('x', undefined), 'manual');
+  assert.strictEqual(await copyText('x', { writeText: () => Promise.reject(new Error('denied')) }), 'manual');
+  assert.strictEqual(await copyText('x', { writeText: () => { throw new Error('sync throw'); } }), 'manual');
+  assert.strictEqual(await copyText('x', { writeText: () => Promise.resolve() }), 'copied');
+});
+
 module.exports = { codeBlocks, attr };

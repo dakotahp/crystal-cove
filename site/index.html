@@ -289,7 +289,94 @@
         <p class="limits">We list the known limits too. <a href="https://github.com/dakotahp/crystal-cove/blob/master/docs/SECURITY.md#known-limits">Read them in SECURITY.md <span aria-hidden="true">→</span></a></p>
       </div>
     </section>
-    <section id="setup" class="reveal"></section>
+    <section id="setup" class="section reveal">
+      <div class="wrap">
+        <header class="section-head">
+          <p class="kicker"><span>04</span> Setup</p>
+          <h2>Running in <em class="accent">four steps.</em></h2>
+          <p class="lead">You need an Obsidian Sync subscription, Docker, and a server with a domain name. Every command is here.</p>
+        </header>
+
+        <ol class="steps">
+          <li class="step">
+            <div class="step-head">
+              <span class="step-num">1</span>
+              <h3>Download and sign in</h3>
+            </div>
+            <div class="step-body">
+              <p>Make a folder and download the compose file.</p>
+              <div class="code"><pre><code data-copy>mkdir crystal-cove &amp;&amp; cd crystal-cove
+curl -O https://raw.githubusercontent.com/dakotahp/crystal-cove/master/docker-compose.yml</code></pre></div>
+              <p>Sign in to Obsidian Sync. It asks for your email, password, and MFA code, then prints a token.</p>
+              <div class="code"><pre><code data-copy>docker run --rm -it ghcr.io/dakotahp/crystal-cove:latest \
+  sh -c 'ob login &amp;&amp; cat ~/.config/obsidian-headless/auth_token'</code></pre></div>
+              <p>List your vaults to get the name, exactly as Obsidian Sync spells it.</p>
+              <div class="code"><pre><code data-copy>docker run --rm -e OBSIDIAN_AUTH_TOKEN=&lt;your token&gt; \
+  ghcr.io/dakotahp/crystal-cove:latest ob sync-list-remote</code></pre></div>
+            </div>
+          </li>
+
+          <li class="step">
+            <div class="step-head">
+              <span class="step-num">2</span>
+              <h3>Fill in <code>.env</code></h3>
+            </div>
+            <div class="step-body">
+              <p>Create a <code>.env</code> file next to <code>docker-compose.yml</code>.</p>
+              <div class="code"><pre><code data-copy># The token from step 1.
+OBSIDIAN_AUTH_TOKEN=
+
+# The vault name from step 1.
+OBSIDIAN_VAULTS=Personal
+
+# The address your apps will use. HTTPS, with no path.
+MCP_PUBLIC_URL=https://obsidian.example.com
+
+# The password you enter when you connect. 16 characters or more.
+MCP_OWNER_PASSWORD=</code></pre></div>
+              <p class="note">End-to-end encrypted vault? Also set <code>OBSIDIAN_VAULT_PASSWORD</code>. The <a href="https://github.com/dakotahp/crystal-cove/blob/master/.env.example">example file</a> lists every option.</p>
+            </div>
+          </li>
+
+          <li class="step">
+            <div class="step-head">
+              <span class="step-num">3</span>
+              <h3>Add HTTPS and start</h3>
+            </div>
+            <div class="step-body">
+              <p>Put an HTTPS proxy in front of the container. With <a href="https://caddyserver.com">Caddy</a>, this is the whole configuration. Any reverse proxy or a Cloudflare Tunnel works too.</p>
+              <div class="code"><pre><code data-copy>obsidian.example.com {
+	reverse_proxy localhost:8080
+}</code></pre></div>
+              <p>Start it, and wait for “Fully synced”.</p>
+              <div class="code"><pre><code data-copy>docker compose up -d
+docker compose logs -f          # wait for "Fully synced", then Ctrl-C</code></pre></div>
+            </div>
+          </li>
+
+          <li class="step">
+            <div class="step-head">
+              <span class="step-num">4</span>
+              <h3>Connect</h3>
+            </div>
+            <div class="step-body">
+              <p>In Claude or ChatGPT, add a custom connector with your URL. A Crystal Cove sign-in page opens. Enter your password, and you are back in the chat, connected.</p>
+              <div class="connector" aria-hidden="true">
+                <p class="connector-title">Add custom connector</p>
+                <p class="field"><span>Name</span><b>Crystal Cove</b></p>
+                <p class="field"><span>URL</span><b>https://obsidian.example.com/</b></p>
+                <p class="connector-ok"><span class="dot"></span>Connected</p>
+              </div>
+            </div>
+          </li>
+        </ol>
+
+        <div class="setup-foot">
+          <p>Only want it on your laptop? It runs locally too.</p>
+          <a class="btn btn-ghost" href="https://github.com/dakotahp/crystal-cove#installation">Full setup guide <span aria-hidden="true">→</span></a>
+        </div>
+      </div>
+    </section>
     <section id="tools" class="reveal"></section>
     <section id="closing" class="reveal"></section>
   </main>
