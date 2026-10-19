@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.18.0](https://github.com/dakotahp/crystal-cove/compare/v0.17.0...v0.18.0) (2026-10-19)
+
+
+### Features
+
+* add add_tags and remove_tags to update_frontmatter ([49421b4](https://github.com/dakotahp/crystal-cove/commit/49421b4db71773bcd2caf4f85b42ae8a7bd04fd9))
+* add folder, missing-field, tag-count and field filters to find_notes ([cf9cb31](https://github.com/dakotahp/crystal-cove/commit/cf9cb31df892f91bfa060d3e4babc89a7bad239e))
+* add max_chars to read_notes for skimming many notes ([c768c02](https://github.com/dakotahp/crystal-cove/commit/c768c0272854519357f22d5dd7243e3734a619d4))
+* add unresolved_links and orphans, and resolve links as Obsidian does ([f21ed7b](https://github.com/dakotahp/crystal-cove/commit/f21ed7b69e37f3a228becb298788faac3e746985))
+* vault-wide link checks, tag merging, find_notes filters, read_notes previews ([7e792f7](https://github.com/dakotahp/crystal-cove/commit/7e792f7d0059b71c53c746d621b4a48eaecb784d))
+
+
+### Bug Fixes
+
+* update Markdown links and relative links when move_note updates links ([0b21e05](https://github.com/dakotahp/crystal-cove/commit/0b21e05c2569deeb8455f5f6a1e668bcefe692c3))
+
 ## [0.17.0](https://github.com/dakotahp/crystal-cove/compare/v0.16.0...v0.17.0) (2026-10-19)
 
 
