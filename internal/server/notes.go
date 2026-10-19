@@ -29,8 +29,8 @@ type listNotesInput struct {
 	Order     string `json:"order,omitempty" jsonschema:"asc (the default) lists in path order; desc reverses it, so notes named by date, such as session logs, come newest first"`
 }
 
-// DefaultListLimit and MaxListLimit bound one page of list_notes, so a
-// recursive listing of a large vault cannot fill a model's context.
+// DefaultListLimit and MaxListLimit bound one page of list_notes and
+// list_tags, so a listing of a large vault cannot fill a model's context.
 const (
 	DefaultListLimit = 200
 	MaxListLimit     = 1000
@@ -62,20 +62,28 @@ func (s *Server) listNotes(_ context.Context, _ *mcp.CallToolRequest, in listNot
 	if in.Order == "desc" {
 		slices.Reverse(entries)
 	}
-	total := len(entries)
-	if in.Offset < 0 || in.Offset > total {
-		return nil, listNotesOutput{}, fmt.Errorf("offset %d is out of range: the listing has %d entries", in.Offset, total)
+	page, next, err := pageOf(entries, in.Offset, in.Limit)
+	if err != nil {
+		return nil, listNotesOutput{}, err
 	}
-	limit := in.Limit
+	return nil, listNotesOutput{Entries: page, Total: len(entries), NextOffset: next}, nil
+}
+
+// pageOf returns one page of items starting at offset, and the offset of the
+// next page, or -1 when this is the last.
+func pageOf[T any](items []T, offset, limit int) ([]T, int, error) {
+	total := len(items)
+	if offset < 0 || offset > total {
+		return nil, -1, fmt.Errorf("offset %d is out of range: the listing has %d entries", offset, total)
+	}
 	if limit <= 0 {
 		limit = DefaultListLimit
 	}
-	end := min(in.Offset+min(limit, MaxListLimit), total)
-	out := listNotesOutput{Entries: entries[in.Offset:end], Total: total, NextOffset: -1}
+	end := min(offset+min(limit, MaxListLimit), total)
 	if end < total {
-		out.NextOffset = end
+		return items[offset:end], end, nil
 	}
-	return nil, out, nil
+	return items[offset:end], -1, nil
 }
 
 type readNoteInput struct {

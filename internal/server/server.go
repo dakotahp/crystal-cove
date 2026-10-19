@@ -148,7 +148,8 @@ func (s *Server) MCPServer() *mcp.Server {
 	addTool(srv, params, &mcp.Tool{
 		Name: "list_tags",
 		Description: "List every tag used in a vault with the number of notes carrying it, most used first. Tags come " +
-			"from the frontmatter tags field and from inline hashtags. Use it to learn what a vault is about before searching.",
+			"from the frontmatter tags field and from inline hashtags. Use it to learn what a vault is about before searching; " +
+			"a small limit, such as 20, gives the main topics. Long lists come in pages: pass next_offset as offset for the next one.",
 	}, s.listTags)
 
 	addTool(srv, params, &mcp.Tool{
