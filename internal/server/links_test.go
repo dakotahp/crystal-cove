@@ -44,6 +44,36 @@ func TestGetLinksFollowsAPathLink(t *testing.T) {
 	}
 }
 
+func TestLinkToolsResolveAttachmentsPartialPathsAndFrontmatter(t *testing.T) {
+	s, _ := metaServer(t, map[string]string{
+		"Inbox/a.md":                    "---\nup: \"[[Method]]\"\n---\n![[chart.png]] [[Comp Analysis/Method]] [m](../Areas/Comp%20Analysis/Method.md)\n",
+		"Areas/Comp Analysis/Method.md": "body\n",
+		"Assets/chart.png":              "png",
+	})
+	ctx := context.Background()
+
+	_, links, err := s.getLinks(ctx, &mcp.CallToolRequest{}, noteRef{Path: "Inbox/a.md"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, l := range links.Links {
+		if !l.Resolved {
+			t.Errorf("link %+v is unresolved", l)
+		}
+	}
+	if len(links.Links) != 4 || links.Links[1].Path != "Assets/chart.png" {
+		t.Errorf("links = %+v", links.Links)
+	}
+
+	_, back, err := s.getBacklinks(ctx, &mcp.CallToolRequest{}, noteRef{Path: "Areas/Comp Analysis/Method.md"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(back.Backlinks) != 1 || len(back.Backlinks[0].Links) != 3 {
+		t.Errorf("backlinks = %+v, want all three links from a.md", back.Backlinks)
+	}
+}
+
 func TestGetBacklinksFindsEveryLinkingNote(t *testing.T) {
 	s, _ := metaServer(t, map[string]string{
 		"Areas/Bike Maintenance.md": "body\n",

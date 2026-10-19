@@ -38,6 +38,40 @@ func TestRewriteLinksCoversFrontmatter(t *testing.T) {
 	}
 }
 
+func TestRewriteLinksRewritesMarkdownLinksInTheirOwnStyle(t *testing.T) {
+	rename := func(l Link) (string, bool) {
+		if !l.Markdown || l.Target != "Projects/Plan.md" {
+			return "", false
+		}
+		return "Archive/Plan 2025.md", true
+	}
+	doc := "[a](Projects/Plan.md) [b](Projects/Plan.md#Goals) [c](<Projects/Plan.md>)\n" +
+		"[d](Projects/Plan.md \"title\") ![e](Projects/Plan.md) [f](https://x.com/Projects/Plan.md)\n" +
+		"`[g](Projects/Plan.md)` [[Projects/Plan.md]]\n"
+
+	got, n := RewriteLinks(doc, rename)
+	want := "[a](Archive/Plan%202025.md) [b](Archive/Plan%202025.md#Goals) [c](<Archive/Plan 2025.md>)\n" +
+		"[d](Archive/Plan%202025.md \"title\") ![e](Archive/Plan%202025.md) [f](https://x.com/Projects/Plan.md)\n" +
+		"`[g](Projects/Plan.md)` [[Projects/Plan.md]]\n"
+	if got != want || n != 5 {
+		t.Errorf("RewriteLinks =\n%q, %d; want\n%q, 5", got, n, want)
+	}
+}
+
+func TestRewriteLinksMatchesAnEscapedMarkdownTarget(t *testing.T) {
+	rename := func(l Link) (string, bool) {
+		if l.Target != "My Plan.md" {
+			return "", false
+		}
+		return "New Plan.md", true
+	}
+
+	got, n := RewriteLinks("[a](My%20Plan.md) and [[My Plan]]\n", rename)
+	if got != "[a](New%20Plan.md) and [[My Plan]]\n" || n != 1 {
+		t.Errorf("RewriteLinks = %q, %d", got, n)
+	}
+}
+
 func TestRewriteLinksWithNothingToChange(t *testing.T) {
 	doc := "[[Other]] and text\n"
 

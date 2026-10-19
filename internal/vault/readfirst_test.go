@@ -37,3 +37,19 @@ func TestReadFirst(t *testing.T) {
 		t.Error("read a missing note")
 	}
 }
+
+func TestReadFirstFuncSizesThePageFromTheContent(t *testing.T) {
+	v := newTestVault(t)
+	mustWrite(t, v, "a.md", "head|rest of the note")
+
+	got, err := v.ReadFirstFunc("a.md", func(data []byte) int { return strings.IndexByte(string(data), '|') + 1 })
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Content != "head|" || got.NextOffset != 5 {
+		t.Errorf("got %q, next %d", got.Content, got.NextOffset)
+	}
+	if _, err := v.ReadFirstFunc("missing.md", func([]byte) int { return 1 }); err == nil {
+		t.Error("read a missing note")
+	}
+}

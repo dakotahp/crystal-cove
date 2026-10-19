@@ -72,18 +72,25 @@ func (s *Server) listTags(_ context.Context, _ *mcp.CallToolRequest, in listTags
 }
 
 type findNotesInput struct {
-	Vault  string   `json:"vault,omitempty" jsonschema:"the vault to search; optional when the server holds one vault"`
-	Tags   []string `json:"tags,omitempty" jsonschema:"notes must carry every tag listed"`
-	Key    string   `json:"frontmatter_key,omitempty" jsonschema:"notes must carry this frontmatter field"`
-	Value  string   `json:"frontmatter_value,omitempty" jsonschema:"the field must equal this value; omit to match any value"`
-	Offset int      `json:"offset,omitempty" jsonschema:"note to start from; use next_offset from the previous page"`
-	Limit  int      `json:"limit,omitempty" jsonschema:"maximum notes to return (default 50, max 1000)"`
+	Vault string   `json:"vault,omitempty" jsonschema:"the vault to search; optional when the server holds one vault"`
+	Tags  []string `json:"tags,omitempty" jsonschema:"notes must carry every tag listed"`
+	Key   string   `json:"frontmatter_key,omitempty" jsonschema:"notes must carry this frontmatter field"`
+	Value string   `json:"frontmatter_value,omitempty" jsonschema:"the field must equal this value; omit to match any value"`
+	folderFilter
+	MissingKey string   `json:"missing_key,omitempty" jsonschema:"notes must not have this frontmatter field"`
+	MinTags    *int     `json:"min_tags,omitempty" jsonschema:"notes must carry at least this many tags, counted as list_tags counts them"`
+	MaxTags    *int     `json:"max_tags,omitempty" jsonschema:"notes must carry at most this many tags; 0 finds untagged notes"`
+	Fields     []string `json:"fields,omitempty" jsonschema:"frontmatter fields to return for each note, so a check needs no extra read"`
+	Offset     int      `json:"offset,omitempty" jsonschema:"note to start from; use next_offset from the previous page"`
+	Limit      int      `json:"limit,omitempty" jsonschema:"maximum notes to return (default 50, max 1000)"`
 }
 
 // NoteMeta identifies one matching note.
 type NoteMeta struct {
 	Path string   `json:"path"`
 	Tags []string `json:"tags"`
+	// Fields holds the asked frontmatter fields the note has.
+	Fields map[string]any `json:"fields,omitempty"`
 }
 
 // NoteList is the outcome of find_notes.
@@ -100,19 +107,28 @@ func (s *Server) findNotes(_ context.Context, _ *mcp.CallToolRequest, in findNot
 	if err != nil {
 		return nil, nil, err
 	}
-	if len(in.Tags) == 0 && in.Key == "" {
-		return nil, nil, errors.New("give tags, frontmatter_key, or both: find_notes queries metadata, and search_notes searches text")
+	if len(in.Tags) == 0 && in.Key == "" && in.MissingKey == "" && in.MinTags == nil && in.MaxTags == nil &&
+		len(in.Folders) == 0 && len(in.ExcludeFolders) == 0 {
+		return nil, nil, errors.New("give at least one filter, such as tags, frontmatter_key, missing_key, " +
+			"max_tags or folders: find_notes queries metadata, and search_notes searches text")
+	}
+	if (in.MinTags != nil && *in.MinTags < 0) || (in.MaxTags != nil && *in.MaxTags < 0) {
+		return nil, nil, errors.New("min_tags and max_tags cannot be negative")
 	}
 	matches := []NoteMeta{}
 	scanned, err := eachNote(v, func(path string, n *notes.Note) error {
-		if !matchesTags(n, in.Tags) || !matchesField(n, in.Key, in.Value) {
+		if !in.includes(path) || !matchesTags(n, in.Tags) || !matchesField(n, in.Key, in.Value) ||
+			!in.matchesTagCount(len(n.Tags)) {
+			return nil
+		}
+		if _, ok := n.Frontmatter[in.MissingKey]; ok && in.MissingKey != "" {
 			return nil
 		}
 		tags := n.Tags
 		if tags == nil {
 			tags = []string{}
 		}
-		matches = append(matches, NoteMeta{Path: path, Tags: tags})
+		matches = append(matches, NoteMeta{Path: path, Tags: tags, Fields: pickFields(n, in.Fields)})
 		return nil
 	})
 	if err != nil {
@@ -123,6 +139,25 @@ func (s *Server) findNotes(_ context.Context, _ *mcp.CallToolRequest, in findNot
 		return nil, nil, err
 	}
 	return nil, &NoteList{Notes: page, NotesScanned: scanned, Total: len(matches), NextOffset: next}, nil
+}
+
+func (in findNotesInput) matchesTagCount(count int) bool {
+	return (in.MinTags == nil || count >= *in.MinTags) && (in.MaxTags == nil || count <= *in.MaxTags)
+}
+
+// pickFields returns the named frontmatter fields the note has, or nil when
+// it has none of them.
+func pickFields(n *notes.Note, keys []string) map[string]any {
+	var fields map[string]any
+	for _, key := range keys {
+		if value, ok := n.Frontmatter[key]; ok {
+			if fields == nil {
+				fields = map[string]any{}
+			}
+			fields[key] = value
+		}
+	}
+	return fields
 }
 
 func matchesTags(n *notes.Note, want []string) bool {
@@ -188,10 +223,12 @@ func (s *Server) getFrontmatter(_ context.Context, _ *mcp.CallToolRequest, in no
 }
 
 type updateFrontmatterInput struct {
-	Vault  string         `json:"vault,omitempty" jsonschema:"the vault holding the note; optional when the server holds one vault"`
-	Path   string         `json:"path" jsonschema:"vault-relative path of the note"`
-	Set    map[string]any `json:"set,omitempty" jsonschema:"fields to add or replace"`
-	Remove []string       `json:"remove,omitempty" jsonschema:"field names to delete"`
+	Vault      string         `json:"vault,omitempty" jsonschema:"the vault holding the note; optional when the server holds one vault"`
+	Path       string         `json:"path" jsonschema:"vault-relative path of the note"`
+	Set        map[string]any `json:"set,omitempty" jsonschema:"fields to add or replace"`
+	Remove     []string       `json:"remove,omitempty" jsonschema:"field names to delete"`
+	AddTags    []string       `json:"add_tags,omitempty" jsonschema:"tags to merge into the tags field, kept in order and not repeated; a leading # is optional"`
+	RemoveTags []string       `json:"remove_tags,omitempty" jsonschema:"tags to take out of the tags field; inline hashtags in the body stay"`
 }
 
 func (s *Server) updateFrontmatter(_ context.Context, _ *mcp.CallToolRequest, in updateFrontmatterInput) (*mcp.CallToolResult, *Frontmatter, error) {
@@ -199,11 +236,18 @@ func (s *Server) updateFrontmatter(_ context.Context, _ *mcp.CallToolRequest, in
 	if err != nil {
 		return nil, nil, err
 	}
-	if len(in.Set) == 0 && len(in.Remove) == 0 {
-		return nil, nil, errors.New("give set, remove, or both: update_frontmatter changes nothing otherwise")
+	changesTags := len(in.AddTags) > 0 || len(in.RemoveTags) > 0
+	if len(in.Set) == 0 && len(in.Remove) == 0 && !changesTags {
+		return nil, nil, errors.New("give set, remove, add_tags or remove_tags: update_frontmatter changes nothing otherwise")
+	}
+	if _, setsTags := in.Set["tags"]; changesTags && (setsTags || slices.Contains(in.Remove, "tags")) {
+		return nil, nil, errors.New("give tags through set or remove, or through add_tags and remove_tags, not both")
 	}
 	updated, err := v.Update(in.Path, func(old []byte) ([]byte, error) {
 		updated, err := notes.UpdateFrontmatter(old, in.Set, in.Remove)
+		if err == nil && changesTags {
+			updated, err = notes.ChangeTags(updated, in.AddTags, in.RemoveTags)
+		}
 		if err != nil {
 			return nil, fmt.Errorf("updating %q: %w", in.Path, err)
 		}

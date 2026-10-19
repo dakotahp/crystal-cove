@@ -112,7 +112,8 @@ func (s *Server) MCPServer() *mcp.Server {
 			"returns its first page of up to %d characters with its version, in the order asked, and the call returns "+
 			"at most %d characters in all. A note cut short by either limit reports truncated and next_offset: continue "+
 			"it with read_note. A note that cannot be read reports only its path and error, and the others are still "+
-			"returned. At most %d paths.",
+			"returned. At most %d paths. max_chars returns only the start of each body, after the whole frontmatter, "+
+			"to skim notes cheaply: {\"paths\": [\"Ideas/a.md\", \"Ideas/b.md\"], \"max_chars\": 500}.",
 			vault.ReadPageSize, MaxReadNotesChars, MaxReadNotes),
 	}
 	if schema := readNotesOutputSchema(); schema != nil {
@@ -156,10 +157,14 @@ func (s *Server) MCPServer() *mcp.Server {
 
 	addTool(srv, params, &mcp.Tool{
 		Name: "find_notes",
-		Description: "Find notes by metadata rather than text. Give tags, frontmatter_key, or both: tags is a list, " +
-			"and a note must carry every tag in it; frontmatter_key names a frontmatter field the note must have, and " +
-			"frontmatter_value, when given, is the value that field must hold (a list field matches when any item does). " +
-			"Example: {\"tags\": [\"project\"], \"frontmatter_key\": \"status\", \"frontmatter_value\": \"active\"}. " +
+		Description: "Find notes by metadata rather than text. Give at least one filter; a note must pass all of them. " +
+			"tags is a list, and a note must carry every tag in it; frontmatter_key names a frontmatter field the note " +
+			"must have, and frontmatter_value, when given, is the value that field must hold (a list field matches when " +
+			"any item does); missing_key names a field the note must not have; min_tags and max_tags bound how many tags " +
+			"it carries, counted as list_tags counts them; folders and exclude_folders limit where it lives, and folders " +
+			"alone lists a folder's notes. fields returns those frontmatter fields with each note. " +
+			"Example: {\"tags\": [\"project\"], \"frontmatter_key\": \"status\", \"frontmatter_value\": \"active\"}, or " +
+			"{\"folders\": [\"Projects\", \"Areas\"], \"max_tags\": 2, \"fields\": [\"summary\"]}. " +
 			"There is no query parameter: use search_notes for words in the text.",
 	}, s.findNotes)
 
@@ -174,6 +179,24 @@ func (s *Server) MCPServer() *mcp.Server {
 		Description: "List the notes that link to a note, with the links they use. This is how notes relate to each " +
 			"other in Obsidian, so use it to find the context around a note rather than searching for its name.",
 	}, s.getBacklinks)
+
+	addTool(srv, params, &mcp.Tool{
+		Name: "unresolved_links",
+		Description: "List links across the vault that point at no file, which is how to find dead links without " +
+			"calling get_links on every note. Links resolve the way Obsidian resolves them: by name or by the end " +
+			"of a path, ignoring case, to notes and to any other file such as images, canvases and bases. A link " +
+			"without an extension reaches only a note, so [[Board]] does not reach Board.canvas. Wikilinks, " +
+			"Markdown links to files, and wikilinks in frontmatter count; links in code do not. folders and " +
+			"exclude_folders limit which notes are checked. Example: {\"exclude_folders\": [\"Templates\"], \"limit\": 100}.",
+	}, s.unresolvedLinks)
+
+	addTool(srv, params, &mcp.Tool{
+		Name: "orphans",
+		Description: "List notes that no other note links to, as Obsidian's orphans do, with how many files each " +
+			"links to. unlinked keeps only notes that link to nothing either. Links resolve as in unresolved_links, " +
+			"and a note linking to itself does not count. folders and exclude_folders choose which notes are " +
+			"reported; links from every note still count. Example: {\"folders\": [\"Projects\"], \"unlinked\": true}.",
+	}, s.orphans)
 
 	addTool(srv, params, &mcp.Tool{
 		Name: "get_frontmatter",
@@ -209,8 +232,11 @@ func (s *Server) addWriteTools(srv *mcp.Server, params map[string]string) {
 	addTool(srv, params, &mcp.Tool{
 		Name: "update_frontmatter",
 		Description: "Add, replace or delete frontmatter fields on one note. Fields that are not mentioned keep their " +
-			"value and order, and the note's body is left untouched. Returns the note's fields after the change, " +
-			"listed alphabetically; read_note shows their order in the file.",
+			"value and order, and the note's body is left untouched. add_tags and remove_tags change the tags field " +
+			"without sending the whole list, so a tag added on another device is not lost: tags compare without case " +
+			"or #, new ones go at the end, a list keeps its style, and a tags field written as text becomes a list. " +
+			"Example: {\"path\": \"Ideas/Bridge.md\", \"add_tags\": [\"design\"], \"remove_tags\": [\"draft\"]}. " +
+			"Returns the note's fields after the change, listed alphabetically; read_note shows their order in the file.",
 	}, s.updateFrontmatter)
 
 	addTool(srv, params, &mcp.Tool{
@@ -235,8 +261,10 @@ func (s *Server) addWriteTools(srv *mcp.Server, params map[string]string) {
 	addTool(srv, params, &mcp.Tool{
 		Name: "move_note",
 		Description: "Move or rename a note within a vault. Fails if the destination already exists. A new name breaks " +
-			"[[links]] to the note unless update_links is set, which rewrites them in every note: a [[Name]] link " +
-			"stays a bare name unless another note shares the new name, and a [[folder/Name]] link gets the new path. " +
+			"links to the note unless update_links is set, which rewrites wikilinks and Markdown links in every note, " +
+			"each in its own form: a [[Name]] link stays a bare name unless another note shares the new name, a " +
+			"[[folder/Name]] link gets the new path, and a ./ or ../ link stays relative. Relative links inside the " +
+			"moved note are rewritten so they still reach their files. " +
 			"links_updated in the result says whether links were rewritten. It also restores " +
 			"a deleted note: pass its path inside .trash, and leave new_path out to put it back where it was deleted " +
 			"from. Use list_notes with dir \".trash\" and recursive to see deleted notes.",

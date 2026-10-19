@@ -177,3 +177,26 @@ func TestUpdateFrontmatterWritesADateStringUnquoted(t *testing.T) {
 		t.Errorf("got %q, want %q", got, want)
 	}
 }
+
+func TestFrontmatterChars(t *testing.T) {
+	for doc, want := range map[string]int{
+		"---\ntitle: é\n---\nbody\n": 17,
+		"---\n---\nbody\n":           8,
+		"no block\n":                 0,
+		"---\nunclosed\n":            0,
+	} {
+		if got := FrontmatterChars([]byte(doc)); got != want {
+			t.Errorf("FrontmatterChars(%q) = %d, want %d", doc, got, want)
+		}
+	}
+}
+
+func TestTagsSkipALongerFenceHoldingShorterFences(t *testing.T) {
+	n, err := Parse([]byte("````markdown\n```\n```\n#notatag\n````\n~~~\n#alsonot\n~~~\n#real\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(n.Tags) != 1 || n.Tags[0] != "real" {
+		t.Errorf("Tags = %q, want only the tag after the fences", n.Tags)
+	}
+}

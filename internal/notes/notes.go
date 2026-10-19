@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+	"unicode/utf8"
 
 	"gopkg.in/yaml.v3"
 )
@@ -75,6 +76,17 @@ func isDate(node *yaml.Node) bool {
 	return node.Kind == yaml.ScalarNode && node.ShortTag() == "!!timestamp"
 }
 
+// FrontmatterChars returns how many characters the note's frontmatter
+// block takes, fences included, or 0 when it has none.
+func FrontmatterChars(data []byte) int {
+	doc := string(data)
+	_, body, ok := splitFrontmatter(doc)
+	if !ok {
+		return 0
+	}
+	return utf8.RuneCountInString(doc) - utf8.RuneCountInString(body)
+}
+
 // splitFrontmatter returns the YAML block and the body that follows it. The
 // block counts only when the note opens with a fence line and a closing
 // fence follows, which is Obsidian's own rule.
@@ -138,14 +150,10 @@ func collectTags(fm map[string]any, body string) []string {
 // a CSS colour inside one is not read as a tag.
 func stripCodeFences(body string) string {
 	var out strings.Builder
-	inFence := false
-	for line := range strings.SplitSeq(body, "\n") {
-		if strings.HasPrefix(strings.TrimSpace(line), "```") {
-			inFence = !inFence
-			continue
-		}
-		if !inFence {
-			out.WriteString(line)
+	lines := strings.Split(body, "\n")
+	for i, fenced := range fencedLines(lines) {
+		if !fenced {
+			out.WriteString(lines[i])
 			out.WriteByte('\n')
 		}
 	}
@@ -158,15 +166,11 @@ func stripCodeFences(body string) string {
 // no block gets one when set is non-empty; removing every field drops the
 // block again.
 func UpdateFrontmatter(data []byte, set map[string]any, remove []string) ([]byte, error) {
-	block, body, hadBlock := splitFrontmatter(string(data))
-
-	var doc yaml.Node
-	if strings.TrimSpace(block) != "" {
-		if err := yaml.Unmarshal([]byte(block), &doc); err != nil {
-			return nil, fmt.Errorf("parsing frontmatter: %w", err)
-		}
+	fm, err := readFrontmatter(data)
+	if err != nil {
+		return nil, err
 	}
-	mapping := mappingNode(&doc)
+	mapping := fm.mapping
 
 	for _, key := range remove {
 		deleteKey(mapping, key)
@@ -181,10 +185,37 @@ func UpdateFrontmatter(data []byte, set map[string]any, remove []string) ([]byte
 		}
 		setKey(mapping, key, &valueNode)
 	}
+	return fm.write()
+}
 
+// frontmatter is a note split into its parsed frontmatter mapping and the
+// rest, ready to be changed and written back.
+type frontmatter struct {
+	data     []byte
+	mapping  *yaml.Node
+	body     string
+	hadBlock bool
+}
+
+func readFrontmatter(data []byte) (*frontmatter, error) {
+	block, body, hadBlock := splitFrontmatter(string(data))
+	var doc yaml.Node
+	if strings.TrimSpace(block) != "" {
+		if err := yaml.Unmarshal([]byte(block), &doc); err != nil {
+			return nil, fmt.Errorf("parsing frontmatter: %w", err)
+		}
+	}
+	return &frontmatter{data: data, mapping: mappingNode(&doc), body: body, hadBlock: hadBlock}, nil
+}
+
+// write returns the whole note with the changed mapping. A note that never
+// had a block and still has no fields comes back unchanged, and emptying
+// the mapping drops the block.
+func (fm *frontmatter) write() ([]byte, error) {
+	mapping, body := fm.mapping, fm.body
 	if len(mapping.Content) == 0 {
-		if !hadBlock {
-			return data, nil
+		if !fm.hadBlock {
+			return fm.data, nil
 		}
 		return []byte(body), nil
 	}
