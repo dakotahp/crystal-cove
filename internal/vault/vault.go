@@ -207,11 +207,17 @@ func (v *Vault) Read(rel string, offset int) (*ReadResult, error) {
 // and never more than ReadPageSize. Callers reading several notes use it to
 // share one budget between them.
 func (v *Vault) ReadFirst(rel string, limit int) (*ReadResult, error) {
+	return v.ReadFirstFunc(rel, func([]byte) int { return limit })
+}
+
+// ReadFirstFunc is ReadFirst with the limit worked out from the note's
+// content, which is read once, so the page and its version always agree.
+func (v *Vault) ReadFirstFunc(rel string, limit func(data []byte) int) (*ReadResult, error) {
 	data, err := v.ReadAll(rel)
 	if err != nil {
 		return nil, err
 	}
-	return pageOf(data, 0, min(limit, ReadPageSize), "note")
+	return pageOf(data, 0, min(limit(data), ReadPageSize), "note")
 }
 
 // page returns up to ReadPageSize characters of text starting at the

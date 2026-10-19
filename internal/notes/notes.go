@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+	"unicode/utf8"
 
 	"gopkg.in/yaml.v3"
 )
@@ -73,6 +74,17 @@ func datesAsText(node *yaml.Node) {
 
 func isDate(node *yaml.Node) bool {
 	return node.Kind == yaml.ScalarNode && node.ShortTag() == "!!timestamp"
+}
+
+// FrontmatterChars returns how many characters the note's frontmatter
+// block takes, fences included, or 0 when it has none.
+func FrontmatterChars(data []byte) int {
+	doc := string(data)
+	_, body, ok := splitFrontmatter(doc)
+	if !ok {
+		return 0
+	}
+	return utf8.RuneCountInString(doc) - utf8.RuneCountInString(body)
 }
 
 // splitFrontmatter returns the YAML block and the body that follows it. The

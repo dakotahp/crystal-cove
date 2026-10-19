@@ -112,7 +112,8 @@ func (s *Server) MCPServer() *mcp.Server {
 			"returns its first page of up to %d characters with its version, in the order asked, and the call returns "+
 			"at most %d characters in all. A note cut short by either limit reports truncated and next_offset: continue "+
 			"it with read_note. A note that cannot be read reports only its path and error, and the others are still "+
-			"returned. At most %d paths.",
+			"returned. At most %d paths. max_chars returns only the start of each body, after the whole frontmatter, "+
+			"to skim notes cheaply: {\"paths\": [\"Ideas/a.md\", \"Ideas/b.md\"], \"max_chars\": 500}.",
 			vault.ReadPageSize, MaxReadNotesChars, MaxReadNotes),
 	}
 	if schema := readNotesOutputSchema(); schema != nil {
