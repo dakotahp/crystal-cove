@@ -1,0 +1,496 @@
+<!doctype html>
+<html lang="en" class="no-js">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Crystal Cove — Your Obsidian vault in Claude and ChatGPT</title>
+  <meta name="description" content="Claude and ChatGPT read and write your Obsidian notes on your phone, on the web, and on every computer. One self-hosted container, with sync, sign-in, and note tools built in.">
+  <meta name="theme-color" content="#110c2c">
+  <meta name="color-scheme" content="dark">
+  <link rel="canonical" href="https://crystalcove.dakotahpena.studio/">
+  <link rel="icon" href="images/favicon.svg" type="image/svg+xml">
+  <link rel="preload" href="fonts/inter-400.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="fonts/inter-700.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="fonts/instrument-serif-400-italic.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="style.css">
+
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Crystal Cove">
+  <meta property="og:title" content="Crystal Cove — Your vault, in every Claude app">
+  <meta property="og:description" content="Claude and ChatGPT read and write your Obsidian notes on your phone, on the web, and on every computer. One container, with sync, sign-in, and note tools built in.">
+  <meta property="og:url" content="https://crystalcove.dakotahpena.studio/">
+  <meta property="og:image" content="https://crystalcove.dakotahpena.studio/images/social-preview.png">
+  <meta property="og:image:width" content="1280">
+  <meta property="og:image:height" content="640">
+  <meta property="og:image:alt" content="Crystal Cove: a purple crystal rises from a moonlit sea cove.">
+  <meta name="twitter:card" content="summary_large_image">
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "Crystal Cove",
+    "description": "A self-hosted MCP server that puts your Obsidian vault in Claude and ChatGPT, with native Obsidian Sync, built-in sign-in, and tools that understand notes.",
+    "applicationCategory": "DeveloperApplication",
+    "operatingSystem": "Docker",
+    "license": "https://opensource.org/licenses/MIT",
+    "codeRepository": "https://github.com/dakotahp/crystal-cove",
+    "url": "https://crystalcove.dakotahpena.studio/",
+    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
+  }
+  </script>
+  <script src="site.js" defer></script>
+  <script src="script.js" defer></script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <svg class="sprite" width="0" height="0" aria-hidden="true" focusable="false">
+    <defs>
+      <linearGradient id="g-sky" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#110c2c"/>
+        <stop offset=".55" stop-color="#231a52"/>
+        <stop offset=".76" stop-color="#33256f"/>
+      </linearGradient>
+      <linearGradient id="g-water" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#1d2858"/>
+        <stop offset="1" stop-color="#0a0f2b"/>
+      </linearGradient>
+      <radialGradient id="g-halo">
+        <stop offset="0" stop-color="#9b7bff" stop-opacity=".7"/>
+        <stop offset=".4" stop-color="#7c4dff" stop-opacity=".22"/>
+        <stop offset="1" stop-color="#7c4dff" stop-opacity="0"/>
+      </radialGradient>
+      <radialGradient id="g-moon-halo">
+        <stop offset="0" stop-color="#f6ebc6" stop-opacity=".28"/>
+        <stop offset="1" stop-color="#f6ebc6" stop-opacity="0"/>
+      </radialGradient>
+      <linearGradient id="g-sheen" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0" stop-color="#fff" stop-opacity="0"/>
+        <stop offset=".5" stop-color="#fff" stop-opacity=".85"/>
+        <stop offset="1" stop-color="#fff" stop-opacity="0"/>
+      </linearGradient>
+      <linearGradient id="g-fade-down" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#fff" stop-opacity=".5"/>
+        <stop offset="1" stop-color="#fff" stop-opacity="0"/>
+      </linearGradient>
+      <mask id="m-reflection" maskUnits="userSpaceOnUse" x="0" y="760" width="1600" height="340">
+        <rect x="0" y="760" width="1600" height="260" fill="url(#g-fade-down)"/>
+      </mask>
+      <mask id="m-crescent" maskUnits="userSpaceOnUse" x="1300" y="160" width="180" height="180">
+        <rect x="1300" y="160" width="180" height="180" fill="#fff"/>
+        <circle cx="1414" cy="232" r="40" fill="#000"/>
+      </mask>
+      <symbol id="crystal" viewBox="0 0 100 220" preserveAspectRatio="none">
+        <polygon fill="#e4dcff" points="50,0 0,72 50,84"/>
+        <polygon fill="#a98bfa" points="50,0 50,84 100,72"/>
+        <polygon fill="#8b5cf6" points="0,72 50,84 34,220"/>
+        <polygon fill="#5b21b6" points="50,84 100,72 66,220"/>
+        <polygon fill="#7c3aed" points="50,84 34,220 66,220"/>
+      </symbol>
+    </defs>
+  </svg>
+
+  <header class="nav">
+    <div class="wrap nav-inner">
+      <a class="brand" href="#top">
+        <img src="images/favicon.svg" alt="" width="28" height="28">
+        <span>Crystal Cove</span>
+      </a>
+      <nav aria-label="Sections">
+        <a href="#nothing-missing">Features</a>
+        <a href="#security">Security</a>
+        <a href="#setup">Setup</a>
+        <a href="https://github.com/dakotahp/crystal-cove/tree/master/docs">Docs</a>
+      </nav>
+      <a class="star-pill btn-star" href="https://github.com/dakotahp/crystal-cove">Star<span class="star-count"></span></a>
+    </div>
+  </header>
+
+  <main id="main">
+    <section id="top" class="hero">
+      <svg class="hero-scene" viewBox="0 0 1600 1000" preserveAspectRatio="xMidYMax slice" aria-hidden="true" focusable="false">
+        <rect width="1600" height="1000" fill="url(#g-sky)"/>
+        <g class="parallax" data-depth="0.35">
+          <g class="stars">
+            <circle class="t1" cx="0" cy="571" r="1.2"/><circle class="t2" cx="337" cy="452" r="1.5"/><circle class="t3" cx="527" cy="466" r="1.9"/><circle class="t1" cx="869" cy="424" r="1.7"/><circle class="t2" cx="1307" cy="150" r="1.3"/><circle class="t3" cx="1133" cy="433" r="0.9"/><circle class="t1" cx="1094" cy="290" r="2.1"/><circle class="t2" cx="1292" cy="76" r="1.5"/><circle class="t3" cx="1477" cy="427" r="1.7"/><circle class="t1" cx="924" cy="565" r="2.1"/><circle class="t2" cx="596" cy="208" r="2.0"/><circle class="t3" cx="532" cy="95" r="1.2"/><circle class="t1" cx="686" cy="183" r="2.1"/><circle class="t2" cx="892" cy="452" r="2.0"/><circle class="t3" cx="94" cy="170" r="1.6"/><circle class="t1" cx="814" cy="261" r="1.1"/><circle class="t2" cx="1454" cy="34" r="1.3"/><circle class="t3" cx="551" cy="412" r="2.1"/><circle class="t1" cx="824" cy="103" r="1.4"/><circle class="t2" cx="454" cy="226" r="1.4"/><circle class="t3" cx="532" cy="330" r="1.7"/><circle class="t1" cx="373" cy="562" r="1.4"/><circle class="t2" cx="1381" cy="394" r="1.7"/><circle class="t3" cx="826" cy="313" r="1.8"/><circle class="t1" cx="1503" cy="246" r="1.8"/><circle class="t2" cx="402" cy="364" r="1.3"/><circle class="t3" cx="529" cy="243" r="1.9"/><circle class="t1" cx="1404" cy="69" r="1.9"/><circle class="t2" cx="124" cy="252" r="1.0"/><circle class="t3" cx="125" cy="618" r="1.1"/><circle class="t1" cx="1012" cy="89" r="1.4"/><circle class="t2" cx="949" cy="85" r="2.1"/><circle class="t3" cx="1415" cy="552" r="2.0"/><circle class="t1" cx="1452" cy="472" r="1.2"/><circle class="t2" cx="17" cy="154" r="0.9"/><circle class="t3" cx="3" cy="382" r="1.1"/><circle class="t1" cx="1186" cy="303" r="1.8"/><circle class="t2" cx="381" cy="547" r="1.1"/><circle class="t3" cx="598" cy="554" r="1.0"/><circle class="t1" cx="783" cy="2" r="2.1"/><circle class="t2" cx="1019" cy="572" r="0.8"/><circle class="t3" cx="1440" cy="117" r="2.2"/><circle class="t1" cx="904" cy="421" r="1.2"/><circle class="t2" cx="356" cy="130" r="1.6"/><circle class="t3" cx="84" cy="477" r="1.8"/><circle class="t1" cx="1143" cy="309" r="0.8"/>
+          </g>
+        </g>
+        <g class="parallax" data-depth="0.2">
+          <circle cx="1390" cy="250" r="150" fill="url(#g-moon-halo)"/>
+          <circle cx="1390" cy="250" r="46" fill="#f6ebc6" mask="url(#m-crescent)"/>
+        </g>
+        <circle class="glow" cx="1130" cy="610" r="420" fill="url(#g-halo)"/>
+        <path d="M0 760 L0 692 L240 682 L460 664 L640 636 L760 598 L820 548 L860 478 L902 462 L944 486 L992 590 L1046 760 Z" fill="#05040b"/>
+        <path d="M1226 760 L1262 668 L1330 590 L1396 498 L1470 452 L1540 436 L1600 430 L1600 760 Z" fill="#05040b"/>
+        <rect y="760" width="1600" height="240" fill="url(#g-water)"/>
+        <rect y="759" width="1600" height="2" fill="#3a4a8c" opacity=".5"/>
+        <g class="reflection" mask="url(#m-reflection)">
+          <use href="#crystal" x="1065" y="-1100" width="130" height="340" transform="scale(1 -1)"/>
+        </g>
+        <g class="shimmer" stroke="#c4b5fd" stroke-linecap="round">
+          <line x1="1088" y1="792" x2="1172" y2="792" stroke-width="2"/>
+          <line x1="1104" y1="826" x2="1156" y2="826" stroke-width="2"/>
+          <line x1="1112" y1="866" x2="1148" y2="866" stroke-width="1.6"/>
+        </g>
+        <g class="float">
+          <use href="#crystal" x="1065" y="420" width="130" height="340"/>
+          <polygon class="sheen" points="1130,420 1065,531 1130,550" fill="url(#g-sheen)"/>
+        </g>
+        <g class="waves" fill="none" stroke="#5b6fb5" stroke-width="2.4" stroke-linecap="round">
+          <path class="w1" d="M120 830 q20 -10 40 0 t40 0"/>
+          <path class="w2" d="M430 900 q20 -10 40 0 t40 0"/>
+          <path class="w3" d="M760 846 q20 -10 40 0 t40 0"/>
+          <path class="w1" d="M1320 820 q20 -10 40 0 t40 0"/>
+          <path class="w2" d="M1460 920 q20 -10 40 0 t40 0"/>
+          <path class="w3" d="M250 960 q20 -10 40 0 t40 0"/>
+          <path class="w1" d="M960 950 q20 -10 40 0 t40 0"/>
+        </g>
+      </svg>
+
+      <div class="wrap hero-copy">
+        <p class="eyebrow">Obsidian MCP server · self-hosted</p>
+        <h1>Your vault, in <em class="accent">every</em> Claude app.</h1>
+        <p class="hero-sub">Claude and ChatGPT read and write your Obsidian notes on your phone, on the web, and on every computer. One container, with sync, sign-in, and note tools built in.</p>
+        <div class="actions">
+          <a class="btn btn-primary" href="#setup">Get started <span aria-hidden="true">→</span></a>
+          <a class="btn btn-ghost btn-star" href="https://github.com/dakotahp/crystal-cove">Star on GitHub</a>
+        </div>
+      </div>
+    </section>
+
+    <section id="nothing-missing" class="section reveal">
+      <div class="wrap">
+        <header class="section-head">
+          <p class="kicker"><span>01</span> Why Crystal Cove</p>
+          <h2>Everything a vault needs. <em class="accent">Nothing missing.</em></h2>
+          <p class="lead">An assistant needs three things at once to work well in a vault. Most setups give you two. Crystal Cove puts all three in one container.</p>
+        </header>
+        <div class="pillars">
+          <article class="pillar">
+            <svg class="facet" viewBox="0 0 60 60" aria-hidden="true"><polygon points="30,4 6,40 30,46" fill="#e4dcff"/><polygon points="30,4 30,46 54,40" fill="#a98bfa" opacity=".55"/></svg>
+            <h3>Native sync</h3>
+            <p>Obsidian's official headless client keeps the vault current. The assistant's edits reach your phone and laptop like any other edit.</p>
+            <p class="without"><span>Without it</span> a copy that drifts, or a desktop app that must stay awake.</p>
+          </article>
+          <article class="pillar">
+            <svg class="facet" viewBox="0 0 60 60" aria-hidden="true"><polygon points="6,14 30,20 22,56" fill="#8b5cf6"/><polygon points="30,20 54,14 38,56" fill="#5b21b6" opacity=".7"/></svg>
+            <h3>Secure sign-in</h3>
+            <p>OAuth, the sign-in flow Claude and ChatGPT connectors expect. Paste your URL, enter one password, and you are connected.</p>
+            <p class="without"><span>Without it</span> the vault stays on your laptop.</p>
+          </article>
+          <article class="pillar">
+            <svg class="facet" viewBox="0 0 60 60" aria-hidden="true"><polygon points="30,4 6,40 30,46" fill="#7c3aed" opacity=".55"/><polygon points="22,56 30,20 38,56" fill="#7c3aed"/><polygon points="30,4 30,46 54,40" fill="#5b21b6"/></svg>
+            <h3>Tools that understand notes</h3>
+            <p>Names, tags, links, backlinks, sections, and frontmatter. The assistant finds the right note and edits one part of it, with fewer tokens than reading raw files.</p>
+            <p class="without"><span>Without them</span> an assistant that greps a folder.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="every-app" class="section reveal">
+      <div class="wrap">
+        <header class="section-head">
+          <p class="kicker"><span>02</span> In every app</p>
+          <h2>Ask from anywhere. <em class="accent">It lands in Obsidian.</em></h2>
+          <p class="lead">Your phone, a browser, a laptop that isn't yours. The assistant works in the same vault you do, and its edits sync like yours.</p>
+        </header>
+
+        <div id="demo" class="demo" data-state="done">
+          <div class="phone" role="group" aria-label="Example chat with an assistant">
+            <div class="phone-notch" aria-hidden="true"></div>
+            <div class="chat">
+              <p class="bubble user" data-step="1">Add “call the landlord” to my to-do note.</p>
+              <p class="tool" data-step="2" data-tool="search_notes"><code>search_notes</code> <span>“to-do”</span> <b>1 note</b></p>
+              <p class="tool" data-step="3" data-tool="append_note"><code>append_note</code> <span>To-do.md</span> <b>done</b></p>
+              <p class="bubble assistant" data-step="4">Added it to your To-do note. It's already on your other devices.</p>
+            </div>
+            <div class="composer" aria-hidden="true"><span>Reply…</span></div>
+          </div>
+
+          <div class="beam" aria-hidden="true"><span></span></div>
+
+          <div class="note-window" role="group" aria-label="The same note in Obsidian">
+            <div class="window-bar" aria-hidden="true"><i></i><i></i><i></i><span>To-do.md</span></div>
+            <div class="note-body">
+              <p class="note-title">To-do</p>
+              <ul class="tasks">
+                <li><span class="box"></span>Renew passport</li>
+                <li class="checked"><span class="box"></span>Book the dentist</li>
+                <li><span class="box"></span>Return library books</li>
+                <li class="new" data-step="5"><span class="box"></span>Call the landlord</li>
+              </ul>
+            </div>
+            <p class="synced" data-step="5"><span class="dot"></span>Synced</p>
+          </div>
+        </div>
+
+        <div class="demo-foot">
+          <p>Works in claude.ai, the Claude apps, Claude Code, and ChatGPT.</p>
+          <button type="button" class="replay" hidden>Replay</button>
+        </div>
+      </div>
+    </section>
+    <section id="security" class="section reveal">
+      <div class="wrap">
+        <header class="section-head">
+          <p class="kicker"><span>03</span> Security</p>
+          <h2>Your notes on the internet. <em class="accent">Locked down.</em></h2>
+          <p class="lead">This server holds your whole knowledge base on a machine that faces the internet. Every design decision starts there.</p>
+        </header>
+
+        <div class="layers">
+          <div class="rings" aria-hidden="true">
+            <svg viewBox="0 0 520 520">
+              <circle class="ring" data-layer="1" cx="260" cy="260" r="246"/>
+              <circle class="ring" data-layer="2" cx="260" cy="260" r="204"/>
+              <circle class="ring" data-layer="3" cx="260" cy="260" r="162"/>
+              <circle class="ring" data-layer="4" cx="260" cy="260" r="120"/>
+              <circle class="ring" data-layer="5" cx="260" cy="260" r="78"/>
+              <circle cx="260" cy="260" r="70" fill="url(#g-halo)"/>
+              <use href="#crystal" x="236" y="200" width="48" height="120"/>
+            </svg>
+          </div>
+
+          <ol class="layer-list">
+            <li data-layer="1" tabindex="0">
+              <h3>Sign-in, always</h3>
+              <p>Every request needs a token. There is no open mode. OAuth with PKCE, rotating refresh tokens, and a lockout after wrong passwords.</p>
+            </li>
+            <li data-layer="2" tabindex="0">
+              <h3>The vault and nothing else</h3>
+              <p>Paths cannot escape the vault, and symlinks cannot lead out of it. Tools touch notes only, never Obsidian's settings.</p>
+            </li>
+            <li data-layer="3" tabindex="0">
+              <h3>Notes stay intact</h3>
+              <p>Writes never overwrite a sync change, and they wait while you type on another device. Deletes go to the trash. A read-only mode removes every write tool.</p>
+            </li>
+            <li data-layer="4" tabindex="0">
+              <h3>A locked-down container</h3>
+              <p>It runs as a non-root user, with a read-only filesystem and every Linux capability dropped.</p>
+            </li>
+            <li data-layer="5" tabindex="0">
+              <h3>Checked before it ships</h3>
+              <p>Static analysis, fuzzing, secret scanning, and an image vulnerability scan run on every code change. Every published image is signed.</p>
+            </li>
+          </ol>
+        </div>
+
+        <div class="verify">
+          <p class="verify-caption">Check that an image came from this repo before you run it.</p>
+          <div class="code">
+            <pre><code data-copy>cosign verify ghcr.io/dakotahp/crystal-cove:latest \
+  --certificate-identity-regexp '^https://github.com/dakotahp/crystal-cove/\.github/workflows/(ci|release-please)\.yml@' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com</code></pre>
+          </div>
+        </div>
+
+        <p class="limits">We list the known limits too. <a href="https://github.com/dakotahp/crystal-cove/blob/master/docs/SECURITY.md#known-limits">Read them in SECURITY.md <span aria-hidden="true">→</span></a></p>
+      </div>
+    </section>
+    <section id="setup" class="section reveal">
+      <div class="wrap">
+        <header class="section-head">
+          <p class="kicker"><span>04</span> Setup</p>
+          <h2>Running in <em class="accent">four steps.</em></h2>
+          <p class="lead">You need an Obsidian Sync subscription, Docker, and a server with a domain name. Every command is here.</p>
+        </header>
+
+        <ol class="steps">
+          <li class="step">
+            <div class="step-head">
+              <span class="step-num">1</span>
+              <h3>Download and sign in</h3>
+            </div>
+            <div class="step-body">
+              <p>Make a folder and download the compose file.</p>
+              <div class="code"><pre><code data-copy>mkdir crystal-cove &amp;&amp; cd crystal-cove
+curl -O https://raw.githubusercontent.com/dakotahp/crystal-cove/master/docker-compose.yml</code></pre></div>
+              <p>Sign in to Obsidian Sync, on the machine where the container will run. It asks for your email, password, and MFA code if you have one, then prints a token.</p>
+              <div class="code"><pre><code data-copy>docker run --rm -it ghcr.io/dakotahp/crystal-cove:latest \
+  sh -c 'ob login &amp;&amp; cat ~/.config/obsidian-headless/auth_token'</code></pre></div>
+              <p>List your vaults to get the name, exactly as Obsidian Sync spells it.</p>
+              <div class="code"><pre><code data-copy>docker run --rm -e OBSIDIAN_AUTH_TOKEN=&lt;your token&gt; \
+  ghcr.io/dakotahp/crystal-cove:latest ob sync-list-remote</code></pre></div>
+            </div>
+          </li>
+
+          <li class="step">
+            <div class="step-head">
+              <span class="step-num">2</span>
+              <h3>Fill in <code>.env</code></h3>
+            </div>
+            <div class="step-body">
+              <p>Create a <code>.env</code> file next to <code>docker-compose.yml</code>.</p>
+              <div class="code"><pre><code data-copy># The token from step 1.
+OBSIDIAN_AUTH_TOKEN=
+
+# The vault name from step 1.
+OBSIDIAN_VAULTS=Personal
+
+# The address your apps will use. HTTPS, with no path.
+MCP_PUBLIC_URL=https://obsidian.example.com
+
+# The password you enter when you connect. 16 characters or more.
+MCP_OWNER_PASSWORD=</code></pre></div>
+              <p class="note">End-to-end encrypted vault? Also set <code>OBSIDIAN_VAULT_PASSWORD</code>. The <a href="https://github.com/dakotahp/crystal-cove/blob/master/.env.example">example file</a> lists every option.</p>
+            </div>
+          </li>
+
+          <li class="step">
+            <div class="step-head">
+              <span class="step-num">3</span>
+              <h3>Add HTTPS and start</h3>
+            </div>
+            <div class="step-body">
+              <p>Put an HTTPS proxy in front of the container. With <a href="https://caddyserver.com">Caddy</a>, this is the whole configuration. Any reverse proxy or a Cloudflare Tunnel works too.</p>
+              <div class="code"><pre><code data-copy>obsidian.example.com {
+	reverse_proxy localhost:8080
+}</code></pre></div>
+              <p>Start it, and wait for “Fully synced”.</p>
+              <div class="code"><pre><code data-copy>docker compose up -d
+docker compose logs -f          # wait for "Fully synced", then Ctrl-C</code></pre></div>
+            </div>
+          </li>
+
+          <li class="step">
+            <div class="step-head">
+              <span class="step-num">4</span>
+              <h3>Connect</h3>
+            </div>
+            <div class="step-body">
+              <p>In Claude or ChatGPT, add a custom connector with your URL. A Crystal Cove sign-in page opens. Enter your password, and you are back in the chat, connected.</p>
+              <div class="connector" aria-hidden="true">
+                <p class="connector-title">Add custom connector</p>
+                <p class="field"><span>Name</span><b>Crystal Cove</b></p>
+                <p class="field"><span>URL</span><b>https://obsidian.example.com/</b></p>
+                <p class="connector-ok"><span class="dot"></span>Connected</p>
+              </div>
+            </div>
+          </li>
+        </ol>
+
+        <div class="setup-foot">
+          <p>Only want it on your laptop? It runs locally too.</p>
+          <a class="btn btn-ghost" href="https://github.com/dakotahp/crystal-cove#installation">Full setup guide <span aria-hidden="true">→</span></a>
+        </div>
+      </div>
+    </section>
+    <section id="tools" class="section reveal">
+      <div class="wrap">
+        <header class="section-head">
+          <p class="kicker"><span>05</span> Tools</p>
+          <h2>Tools that read notes <em class="accent">the way you do.</em></h2>
+          <p class="lead">Not raw files and folders. Names, sections, tags, and links, so the assistant asks for exactly what it needs.</p>
+        </header>
+
+        <div class="tool-grid">
+          <div class="tool-group">
+            <h3>Read</h3>
+            <dl>
+              <dt><code>read_note</code></dt><dd>Read a note, a page at a time.</dd>
+              <dt><code>read_notes</code></dt><dd>Read up to 20 notes in one call.</dd>
+              <dt><code>get_section</code></dt><dd>Read one heading's section.</dd>
+              <dt><code>get_frontmatter</code></dt><dd>A note's fields and tags, without its body.</dd>
+              <dt><code>list_notes</code></dt><dd>Browse folders, or the trash.</dd>
+              <dt><code>recent_notes</code></dt><dd>What changed most recently.</dd>
+            </dl>
+          </div>
+          <div class="tool-group">
+            <h3>Find</h3>
+            <dl>
+              <dt><code>search_notes</code></dt><dd>Search names and content, ranked.</dd>
+              <dt><code>find_notes</code></dt><dd>Filter by tags and frontmatter.</dd>
+              <dt><code>list_tags</code></dt><dd>Every tag, most used first.</dd>
+              <dt><code>get_links</code></dt><dd>The notes a note links to.</dd>
+              <dt><code>get_backlinks</code></dt><dd>The notes that link to it.</dd>
+              <dt><code>unresolved_links</code></dt><dd>Links anywhere in the vault that lead nowhere.</dd>
+              <dt><code>orphans</code></dt><dd>Notes that no other note links to.</dd>
+            </dl>
+          </div>
+          <div class="tool-group">
+            <h3>Write</h3>
+            <dl>
+              <dt><code>create_note</code></dt><dd>Make a new note. Never overwrites one.</dd>
+              <dt><code>append_note</code></dt><dd>Add lines to the end of a note.</dd>
+              <dt><code>edit_note</code></dt><dd>Exact find and replace.</dd>
+              <dt><code>edit_section</code></dt><dd>Change one heading's section.</dd>
+              <dt><code>update_frontmatter</code></dt><dd>Set or remove fields, keeping the rest.</dd>
+              <dt><code>move_note</code></dt><dd>Rename or move, and can update links. Also restores from the trash.</dd>
+              <dt><code>delete_note</code></dt><dd>Move a note to the trash.</dd>
+            </dl>
+          </div>
+        </div>
+
+        <p class="tools-foot">Want read-only? One setting removes every write tool. <a href="https://github.com/dakotahp/crystal-cove/blob/master/docs/tools.md">Every tool in detail <span aria-hidden="true">→</span></a></p>
+      </div>
+    </section>
+    <section id="closing" class="closing">
+      <svg class="underwater" viewBox="0 0 1200 700" preserveAspectRatio="xMidYMin slice" aria-hidden="true" focusable="false">
+        <defs>
+          <filter id="f-ripple" x="-20%" y="-5%" width="140%" height="110%">
+            <feTurbulence type="fractalNoise" baseFrequency="0.012 0.06" numOctaves="2" seed="4"/>
+            <feDisplacementMap in="SourceGraphic" scale="9"/>
+          </filter>
+          <linearGradient id="g-deep" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#1d2858"/>
+            <stop offset=".55" stop-color="#121a42"/>
+            <stop offset="1" stop-color="#0a0f2b"/>
+          </linearGradient>
+          <linearGradient id="g-fade-deep" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#fff" stop-opacity=".9"/>
+            <stop offset=".7" stop-color="#fff" stop-opacity="0"/>
+          </linearGradient>
+          <mask id="m-deep" maskUnits="userSpaceOnUse" x="0" y="0" width="1200" height="700">
+            <rect width="1200" height="700" fill="url(#g-fade-deep)"/>
+          </mask>
+        </defs>
+        <rect width="1200" height="700" fill="url(#g-deep)"/>
+        <rect width="1200" height="2" fill="#3a4a8c" opacity=".6"/>
+        <g class="deep-glow"><ellipse cx="600" cy="40" rx="420" ry="220" fill="url(#g-halo)"/></g>
+        <g class="deep-reflection" mask="url(#m-deep)" filter="url(#f-ripple)">
+          <use href="#crystal" x="520" y="-560" width="160" height="560" transform="scale(1 -1)"/>
+        </g>
+        <g class="shimmer" stroke="#c4b5fd" stroke-linecap="round">
+          <line x1="530" y1="60" x2="670" y2="60" stroke-width="2"/>
+          <line x1="555" y1="120" x2="645" y2="120" stroke-width="2"/>
+          <line x1="575" y1="190" x2="625" y2="190" stroke-width="1.6"/>
+        </g>
+        <g class="bubbles" fill="none" stroke="#a98bfa" stroke-opacity=".5">
+          <circle cx="380" cy="520" r="4"/><circle cx="410" cy="600" r="2.5"/><circle cx="820" cy="560" r="3.5"/><circle cx="790" cy="640" r="2"/><circle cx="640" cy="620" r="3"/>
+        </g>
+      </svg>
+      <div class="wrap closing-inner reveal">
+        <img class="closing-mark" src="images/favicon.svg" alt="" width="72" height="72">
+        <h2>Your vault, <em class="accent">everywhere you ask.</em></h2>
+        <p class="lead">Free and open source, under the MIT License. If it earns a place on your server, a star helps other Obsidian users find it.</p>
+        <div class="actions">
+          <a class="btn btn-primary btn-star" href="https://github.com/dakotahp/crystal-cove">Star on GitHub</a>
+          <a class="btn btn-ghost" href="#setup">Get started <span aria-hidden="true">→</span></a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="wrap footer-inner">
+      <div class="footer-brand">
+        <a class="brand" href="#top"><img src="images/favicon.svg" alt="" width="28" height="28"><span>Crystal Cove</span></a>
+        <p>Your Obsidian vault, in Claude and ChatGPT.</p>
+        <p class="footer-small">MIT License · Made by Dakotah Pena</p>
+      </div>
+      <nav class="footer-links" aria-label="Project links">
+        <a href="https://github.com/dakotahp/crystal-cove">GitHub</a>
+        <a href="https://github.com/dakotahp/crystal-cove/tree/master/docs">Docs</a>
+        <a href="https://github.com/dakotahp/crystal-cove/blob/master/docs/SECURITY.md">Security</a>
+        <a href="https://github.com/dakotahp/crystal-cove/blob/master/CHANGELOG.md">Changelog</a>
+        <a href="https://github.com/dakotahp/crystal-cove/releases">Releases</a>
+        <a href="https://github.com/dakotahp/crystal-cove/blob/master/LICENSE">License</a>
+      </nav>
+    </div>
+  </footer>
+
+  <p id="copy-status" class="sr-only" aria-live="polite"></p>
+</body>
+</html>
