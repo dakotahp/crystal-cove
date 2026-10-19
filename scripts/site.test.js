@@ -195,7 +195,8 @@ test('formatStars', () => {
   const { formatStars } = require('../site/site.js');
   assert.strictEqual(formatStars(null), '');
   assert.strictEqual(formatStars(undefined), '');
-  assert.strictEqual(formatStars(0), '0');
+  assert.strictEqual(formatStars(0), '', 'a zero count stays hidden');
+  assert.strictEqual(formatStars(1), '1');
   assert.strictEqual(formatStars(987), '987');
   assert.strictEqual(formatStars(1234), '1.2k');
   assert.strictEqual(formatStars(12000), '12k');

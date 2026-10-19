@@ -110,7 +110,7 @@ a { color: inherit; }
 .btn:hover { transform: translateY(-1px); }
 .btn-primary {
   color: #140d33;
-  background: linear-gradient(180deg, #c4b1ff, #8b5cf6);
+  background: linear-gradient(180deg, #c9b8ff, #9a72fa);
   box-shadow: 0 0 0 1px rgb(255 255 255 / 0.18) inset, 0 10px 40px -8px rgb(139 92 246 / 0.75), 0 0 60px -10px rgb(155 123 255 / 0.6);
 }
 .btn-primary:hover { box-shadow: 0 0 0 1px rgb(255 255 255 / 0.3) inset, 0 14px 48px -6px rgb(139 92 246 / 0.9), 0 0 80px -6px rgb(155 123 255 / 0.75); }
@@ -243,7 +243,7 @@ main { background: linear-gradient(180deg, #0a0f2b 0, #0c0a26 900px, #0d0a24 100
 }
 .tool code { font-family: var(--font-mono); color: var(--facet-2); font-size: .8125rem; }
 .tool b { font-weight: 500; color: #8ee6b5; }
-.composer { margin-top: 8px; padding: 11px 16px; border-radius: 999px; background: rgb(255 255 255 / 0.05); border: 1px solid var(--line); color: #7d73a8; font-size: .875rem; }
+.composer { margin-top: 8px; padding: 11px 16px; border-radius: 999px; background: rgb(255 255 255 / 0.05); border: 1px solid var(--line); color: #8f84bd; font-size: .875rem; }
 
 .beam { position: relative; height: 2px; margin-inline: 8px; background: linear-gradient(90deg, transparent, rgb(196 181 253 / 0.35), transparent); }
 .beam span {

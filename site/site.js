@@ -2,7 +2,7 @@
   const CrystalCove = {};
 
   CrystalCove.formatStars = count => {
-    if (typeof count !== 'number') return '';
+    if (typeof count !== 'number' || count < 1) return '';
     if (count < 1000) return String(count);
     return `${(count / 1000).toFixed(1).replace(/\.0$/, '')}k`;
   };
