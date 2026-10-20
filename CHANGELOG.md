@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.19.0](https://github.com/dakotahp/crystal-cove/compare/v0.18.0...v0.19.0) (2026-10-20)
+
+
+### Features
+
+* **server:** add move_folder to move a whole folder with its links ([c5ded84](https://github.com/dakotahp/crystal-cove/commit/c5ded84276a5198982cf2d58374b371b0a50a6ff))
+
 ## [0.18.0](https://github.com/dakotahp/crystal-cove/compare/v0.17.0...v0.18.0) (2026-10-19)
 
 
