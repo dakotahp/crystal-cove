@@ -97,6 +97,24 @@ func TestWriteDoesNotWaitAfterCreatingOrMovingANote(t *testing.T) {
 	}
 }
 
+func TestWriteDoesNotWaitAfterMovingTheFolderOfANote(t *testing.T) {
+	v, slept := guardedVault(t, time.Minute, nil)
+	v.now = time.Now
+
+	if err := v.Create("Inbox/Project/new.md", "new\n"); err != nil {
+		t.Fatal(err)
+	}
+	if err := v.MoveFolder("Inbox/Project", "Archive/Project"); err != nil {
+		t.Fatal(err)
+	}
+	if err := v.Append("Archive/Project/new.md", "after move\n"); err != nil {
+		t.Fatal(err)
+	}
+	if len(*slept) != 0 {
+		t.Errorf("slept %v, want no wait on a note only this server wrote", *slept)
+	}
+}
+
 func TestWriteIsRefusedWhileANoteKeepsChangingElsewhere(t *testing.T) {
 	var v *Vault
 	typing := func(now time.Time) {

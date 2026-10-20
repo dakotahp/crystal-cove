@@ -369,6 +369,47 @@ func countReplacements(content string, e Replacement, rel string) (int, error) {
 func (v *Vault) Move(from, to string) error {
 	v.writes.Lock()
 	defer v.writes.Unlock()
+	return v.move(from, to)
+}
+
+// MoveFolder moves a folder and every file in it, of any type and hidden
+// ones included, keeping their layout. It fails if the destination already
+// exists, lies inside the folder, or either path is the vault root.
+func (v *Vault) MoveFolder(from, to string) error {
+	v.writes.Lock()
+	defer v.writes.Unlock()
+	src, err := v.resolve(from)
+	if err != nil {
+		return err
+	}
+	dst, err := v.resolve(to)
+	if err != nil {
+		return err
+	}
+	if src == "." || dst == "." {
+		return errors.New("the vault root cannot be moved, and a folder cannot become the vault root")
+	}
+	if dst == src || strings.HasPrefix(dst, src+string(filepath.Separator)) {
+		return fmt.Errorf("cannot move folder %q into itself", from)
+	}
+	root, err := v.openRoot()
+	if err != nil {
+		return err
+	}
+	defer root.Close()
+	info, err := root.Stat(src)
+	switch {
+	case errors.Is(err, fs.ErrNotExist):
+		return fmt.Errorf("no folder at %q in vault %q: %w", from, v.name, err)
+	case err != nil:
+		return fmt.Errorf("moving %q: %w", from, err)
+	case !info.IsDir():
+		return fmt.Errorf("%q is not a folder: use move_note for a note", from)
+	}
+	return v.move(from, to)
+}
+
+func (v *Vault) move(from, to string) error {
 	dst, err := v.resolve(to)
 	if err != nil {
 		return err

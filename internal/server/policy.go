@@ -53,6 +53,22 @@ func requireVisibleDir(dir string) error {
 	return nil
 }
 
+// requireMovableFolder rejects the vault root and any hidden folder, the
+// trash included: a folder move is for the vault's own content, and moving
+// Obsidian's config or trash would break Obsidian rather than reorganize.
+func requireMovableFolder(dir string) error {
+	clean := path.Clean(filepath.ToSlash(dir))
+	if clean == "." || clean == "/" {
+		return fmt.Errorf("give a folder path: the vault root cannot be moved, and a folder cannot become the vault root")
+	}
+	for part := range strings.SplitSeq(clean, "/") {
+		if strings.HasPrefix(part, ".") && part != ".." {
+			return fmt.Errorf("folder %q is or is inside a hidden folder such as %s: move_folder moves visible folders only", dir, vault.TrashDir)
+		}
+	}
+	return nil
+}
+
 func inHiddenFolder(slashPath string) bool {
 	for _, part := range strings.Split(slashPath, "/") {
 		if strings.HasPrefix(part, ".") && part != vault.TrashDir {

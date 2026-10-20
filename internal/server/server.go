@@ -267,8 +267,18 @@ func (s *Server) addWriteTools(srv *mcp.Server, params map[string]string) {
 			"moved note are rewritten so they still reach their files. " +
 			"links_updated in the result says whether links were rewritten. It also restores " +
 			"a deleted note: pass its path inside .trash, and leave new_path out to put it back where it was deleted " +
-			"from. Use list_notes with dir \".trash\" and recursive to see deleted notes.",
+			"from. Use list_notes with dir \".trash\" and recursive to see deleted notes. To move every note in a " +
+			"folder, use move_folder instead: one move_note per note leaves the emptied folders behind.",
 	}, s.moveNote)
+
+	addTool(srv, params, &mcp.Tool{
+		Name: "move_folder",
+		Description: "Move or rename a folder with everything in it: notes, attachments and other files of any type, " +
+			"and its subfolders, keeping their layout. Use it to archive or reorganize a whole folder in one call. " +
+			"Fails if new_path exists, if new_path is inside path, or if either is the vault root or a hidden folder " +
+			"such as .trash. update_links rewrites links to every moved file with the same rules as move_note, and " +
+			"keeps relative links inside the moved notes working. The parent folders it leaves are kept, even when empty.",
+	}, s.moveFolder)
 
 	addTool(srv, params, &mcp.Tool{
 		Name:        "delete_note",

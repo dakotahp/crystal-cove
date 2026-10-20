@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"path"
+	"path/filepath"
 	"strings"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -12,42 +13,50 @@ import (
 	"github.com/dakotahp/crystal-cove/internal/vault"
 )
 
-// updateLinks rewrites every link that pointed at the note at from so it
-// points at the note's new path, to, and returns the notes it changed. A
-// relative link inside the moved note is rewritten too when the move changes
-// its folder, so it still reaches the same file. before lists every file as
-// it was before the move, which is what the old links resolved against.
+// updateLinks rewrites every link that pointed at a file moved from the
+// path from, a note or a folder, so it points at the file's new path under
+// to, and returns the notes it changed. A relative link inside a moved note
+// is rewritten too when the move changes its folder, so it still reaches the
+// same file. before lists every file as it was before the move, which is
+// what the old links resolved against.
 func updateLinks(v *vault.Vault, from, to string, before []string) ([]string, error) {
+	from, to = path.Clean(filepath.ToSlash(from)), path.Clean(filepath.ToSlash(to))
 	resolver := notes.NewResolver(before)
-	after, err := v.Notes()
+	newPath := map[string]string{}
+	for _, p := range before {
+		if moved, ok := movedPath(p, from, to); ok {
+			newPath[p] = moved
+		}
+	}
+	after, err := v.Files()
 	if err != nil {
 		return nil, err
 	}
-	name := strings.TrimSuffix(path.Base(to), path.Ext(to))
-	nameIsUnique := true
+	names := map[string]int{}
 	for _, p := range after {
-		if p != to && strings.EqualFold(strings.TrimSuffix(path.Base(p), path.Ext(p)), name) {
-			nameIsUnique = false
-		}
+		names[strings.ToLower(path.Base(p))]++
 	}
 
 	changed := []string{}
 	for _, p := range after {
-		oldSource := p
-		if p == to {
-			oldSource = from
+		if !strings.EqualFold(path.Ext(p), vault.NoteExtension) {
+			continue
+		}
+		oldSource, sourceMoved := movedPath(p, to, from)
+		if !sourceMoved {
+			oldSource = p
 		}
 		rewrite := func(l notes.Link) (string, bool) {
 			dest, ok := resolver.Resolve(l.Target, oldSource)
-			switch {
-			case !ok:
-				return "", false
-			case dest == from:
-				dest = to
-			case p != to || !isRelative(l.Target):
+			if !ok {
 				return "", false
 			}
-			t := linkText(l.Target, p, dest, nameIsUnique)
+			if moved, ok := newPath[dest]; ok {
+				dest = moved
+			} else if !sourceMoved || !isRelative(l.Target) {
+				return "", false
+			}
+			t := linkText(l.Target, p, dest, names[strings.ToLower(path.Base(dest))] <= 1)
 			return t, t != l.Target
 		}
 		var n int
@@ -64,6 +73,18 @@ func updateLinks(v *vault.Vault, from, to string, before []string) ([]string, er
 		}
 	}
 	return changed, nil
+}
+
+// movedPath returns where the file at p went when the note or folder at from
+// moved to to, and false when the move did not include p.
+func movedPath(p, from, to string) (string, bool) {
+	if p == from {
+		return to, true
+	}
+	if rest, ok := strings.CutPrefix(p, from+"/"); ok {
+		return to + "/" + rest, true
+	}
+	return "", false
 }
 
 func isRelative(target string) bool {
@@ -109,11 +130,12 @@ func relativePath(dir, dest string) string {
 	return up + strings.Join(to[shared:], "/")
 }
 
-// moveWithLinks moves a note and, when asked, points the links to it at its
-// new path, reporting whether it did. A note moved into or out of the trash
-// keeps its links as they are: a deleted note is not a link target, and
-// links to it resolve again by name once it is back.
-func moveWithLinks(v *vault.Vault, from, to string, update bool) (changed []string, updated bool, err error) {
+// moveWithLinks moves a note or folder with move and, when asked, points the
+// links to what moved at its new path, reporting whether it did. A note
+// moved into or out of the trash keeps its links as they are: a deleted note
+// is not a link target, and links to it resolve again by name once it is
+// back.
+func moveWithLinks(v *vault.Vault, move func(from, to string) error, from, to string, update bool) (changed []string, updated bool, err error) {
 	update = update && !inTrash(from) && !inTrash(to)
 	var before []string
 	if update {
@@ -121,7 +143,7 @@ func moveWithLinks(v *vault.Vault, from, to string, update bool) (changed []stri
 			return nil, false, err
 		}
 	}
-	if err := v.Move(from, to); err != nil {
+	if err := move(from, to); err != nil {
 		return nil, false, err
 	}
 	if !update {
