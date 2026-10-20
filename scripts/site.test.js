@@ -68,10 +68,24 @@ const thirdPartyRequests = (page, styles, scripts) =>
     ...(page.match(/<link\b[^>]*>/g) || []).filter(t => !/rel="canonical"/.test(t)).flatMap(t => attr(t, 'link', 'href')),
     ...cssUrls(styles),
     ...[...scripts.matchAll(/fetch\(\s*['"`]([^'"`]+)/g)].map(m => m[1]),
-  ].filter(u => /^https?:/.test(u) && new URL(u).host !== 'api.github.com');
+  ].filter(u => /^https?:/.test(u) && !ALLOWED_HOSTS.includes(new URL(u).host));
 
-test('the page requests nothing from other hosts except the GitHub API', () => {
+const ALLOWED_HOSTS = ['api.github.com', 'analytics.dakotahpena.dev'];
+
+test('the page requests nothing from other hosts except the GitHub API and the owner analytics', () => {
   assert.deepStrictEqual(thirdPartyRequests(html, css, js), []);
+});
+
+test('the Umami analytics tag loads deferred with the site id', () => {
+  assert.match(
+    html,
+    /<script defer src="https:\/\/analytics\.dakotahpena\.dev\/script\.js" data-website-id="e8383f4e-1683-4a8a-a8e1-9ca5b67d10d7"><\/script>/
+  );
+});
+
+test('the page offers an SVG favicon and a touch icon', () => {
+  assert.match(html, /<link rel="icon" href="images\/favicon\.svg" type="image\/svg\+xml">/);
+  assert.match(html, /<link rel="apple-touch-icon" href="images\/apple-touch-icon\.png">/);
 });
 
 test('the third-party check catches scripts, stylesheets, fonts, and fetches', () => {
