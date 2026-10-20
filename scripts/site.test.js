@@ -152,7 +152,9 @@ test('the demo names only real tools', () => {
 });
 
 test('the demo uses no vendor logos', () => {
-  assert.doesNotMatch(html, /anthropic|openai/i);
+  const demo = html.slice(html.indexOf('id="every-app"'), html.indexOf('id="security"'));
+  assert.ok(demo.length > 0);
+  assert.doesNotMatch(demo, /anthropic|openai/i);
 });
 
 test('the cosign command matches SECURITY.md exactly', () => {
@@ -256,7 +258,15 @@ test('the security highlight makes one pass, then stops', () => {
 test('footer links and attribution', () => {
   for (const p of ['/blob/master/LICENSE', '/blob/master/CHANGELOG.md', '/releases', '/blob/master/docs/SECURITY.md'])
     assert.match(html, new RegExp(`href="https://github\\.com/dakotahp/crystal-cove${p.replace(/\./g, '\\.')}"`));
-  assert.match(html, /Made by Dakotah Pena/);
+  assert.match(
+    html,
+    /Made by <a href="https:\/\/dakotahpena\.dev\/\?utm_source=crystal-cove&amp;utm_medium=referral&amp;utm_content=footer">Dakotah Peña<\/a>/
+  );
+});
+
+test('the footer says the project is independent of Obsidian, Anthropic, and OpenAI', () => {
+  const footer = html.slice(html.indexOf('<footer'));
+  assert.match(footer, /not affiliated with or endorsed by Obsidian \(Dynalist Inc\.\), Anthropic, or OpenAI\./);
 });
 
 test('the closing section offers Star on GitHub and Get started', () => {
