@@ -281,11 +281,53 @@ func (s *Server) moveNote(_ context.Context, _ *mcp.CallToolRequest, in moveNote
 	if err := requireWritableNote(to); err != nil {
 		return nil, moveNoteOutput{}, err
 	}
-	changed, updated, err := moveWithLinks(v, in.Path, to, in.UpdateLinks)
+	changed, updated, err := moveWithLinks(v, v.Move, in.Path, to, in.UpdateLinks)
 	if err != nil {
 		return nil, moveNoteOutput{}, err
 	}
 	return nil, moveNoteOutput{OK: true, MovedTo: to, LinksUpdated: updated, LinksUpdatedIn: changed}, nil
+}
+
+type moveFolderInput struct {
+	Vault       string `json:"vault,omitempty" jsonschema:"name of the vault; optional when the server holds one vault"`
+	Path        string `json:"path" jsonschema:"current vault-relative path of the folder"`
+	NewPath     string `json:"new_path" jsonschema:"destination vault-relative path; must not exist yet"`
+	UpdateLinks bool   `json:"update_links,omitempty" jsonschema:"also rewrite links to every moved file, and relative links inside the moved notes, so they keep working"`
+}
+
+type moveFolderOutput struct {
+	OK             bool     `json:"ok"`
+	MovedTo        string   `json:"moved_to" jsonschema:"vault-relative path the folder now has"`
+	FilesMoved     int      `json:"files_moved" jsonschema:"visible files of any type now inside the moved folder"`
+	LinksUpdated   bool     `json:"links_updated" jsonschema:"whether links were rewritten; false unless update_links was set"`
+	LinksUpdatedIn []string `json:"links_updated_in" jsonschema:"notes whose links were rewritten to the new paths"`
+}
+
+func (s *Server) moveFolder(_ context.Context, _ *mcp.CallToolRequest, in moveFolderInput) (*mcp.CallToolResult, moveFolderOutput, error) {
+	v, err := s.vault(in.Vault)
+	if err != nil {
+		return nil, moveFolderOutput{}, err
+	}
+	for _, dir := range []string{in.Path, in.NewPath} {
+		if err := requireMovableFolder(dir); err != nil {
+			return nil, moveFolderOutput{}, err
+		}
+	}
+	changed, updated, err := moveWithLinks(v, v.MoveFolder, in.Path, in.NewPath, in.UpdateLinks)
+	if err != nil {
+		return nil, moveFolderOutput{}, err
+	}
+	entries, err := v.List(in.NewPath, true)
+	if err != nil {
+		return nil, moveFolderOutput{}, fmt.Errorf("moved %q to %q, but counting the moved files failed: %w", in.Path, in.NewPath, err)
+	}
+	files := 0
+	for _, e := range entries {
+		if !e.IsDir {
+			files++
+		}
+	}
+	return nil, moveFolderOutput{OK: true, MovedTo: in.NewPath, FilesMoved: files, LinksUpdated: updated, LinksUpdatedIn: changed}, nil
 }
 
 type deleteNoteInput struct {

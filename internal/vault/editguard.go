@@ -2,7 +2,10 @@ package vault
 
 import (
 	"fmt"
+	"maps"
 	"os"
+	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -63,14 +66,22 @@ func (v *Vault) remember(clean string, data []byte) {
 }
 
 // remembered moves the record of what this server wrote from one path to
-// another, for a note it moved.
+// another, for a note it moved, or for every note inside a folder it moved.
 func (v *Vault) remembered(from, to string) {
 	v.writtenMu.Lock()
 	defer v.writtenMu.Unlock()
-	if version, ok := v.written[from]; ok {
-		delete(v.written, from)
-		v.written[to] = version
+	moved := map[string]string{}
+	for p, version := range v.written {
+		if p == from {
+			moved[to] = version
+		} else if rest, ok := strings.CutPrefix(p, from+string(filepath.Separator)); ok {
+			moved[filepath.Join(to, rest)] = version
+		} else {
+			continue
+		}
+		delete(v.written, p)
 	}
+	maps.Copy(v.written, moved)
 }
 
 func (v *Vault) wroteLast(clean string, data []byte) bool {
