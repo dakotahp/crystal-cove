@@ -258,7 +258,10 @@ test('the security highlight makes one pass, then stops', () => {
 test('footer links and attribution', () => {
   for (const p of ['/blob/master/LICENSE', '/blob/master/CHANGELOG.md', '/releases', '/blob/master/docs/SECURITY.md'])
     assert.match(html, new RegExp(`href="https://github\\.com/dakotahp/crystal-cove${p.replace(/\./g, '\\.')}"`));
-  assert.match(html, /Made by Dakotah Peña/);
+  assert.match(
+    html,
+    /Made by <a href="https:\/\/dakotahpena\.dev\/\?utm_source=crystal-cove&amp;utm_medium=referral&amp;utm_content=footer">Dakotah Peña<\/a>/
+  );
 });
 
 test('the footer says the project is independent of Obsidian, Anthropic, and OpenAI', () => {

@@ -438,6 +438,8 @@ main { background: linear-gradient(180deg, #0a0f2b 0, #0c0a26 900px, #0d0a24 100
 .footer-inner { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 32px; }
 .footer-brand p { margin: 10px 0 0; color: var(--text-2); font-size: .9375rem; }
 .footer-brand .footer-small { font-size: .8125rem; color: #8f84bd; }
+.footer-small a { color: var(--text-2); text-decoration-color: rgb(196 181 253 / 0.35); text-underline-offset: 3px; }
+.footer-small a:hover { color: var(--text); }
 .footer-brand .footer-legal { max-width: 460px; margin-top: 14px; font-size: .75rem; line-height: 1.55; color: #8f84bd; }
 .footer-links { display: grid; grid-template-columns: repeat(3, auto); gap: 10px 36px; align-content: start; font-size: .9375rem; }
 .footer-links a { color: var(--text-2); text-decoration: none; }
