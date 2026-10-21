@@ -261,8 +261,9 @@ Conventions:
   `env GOCACHE=/private/tmp/claude/gocache go test ./...`. `go mod tidy`
   also fails there, because it needs to download modules and write the
   module cache; edit `go.mod` by hand or run it outside the sandbox. The
-  `cmd/crystal-cove` tests fail in the sandbox because it blocks their
-  local ports; CI runs them.
+  `cmd/crystal-cove` tests bind loopback ports. They pass in the sandbox
+  when it allows local ports; where it blocks them they fail with a listen
+  error, and CI still runs them.
 
 ## Reference material (not committed)
 
