@@ -4,9 +4,9 @@ on:
   push:
     branches: [master]
     tags: ["v*"]
-    paths-ignore: ["site/**", "docs/superpowers/**"]
+    paths-ignore: ["site/**"]
   pull_request:
-    paths-ignore: ["site/**", "docs/superpowers/**"]
+    paths-ignore: ["site/**"]
   # A weekly rebuild picks up Alpine, Node and Go security patches that
   # land without any change to this repository.
   schedule:
