@@ -57,8 +57,9 @@ func (p positionedHeading) Close(n ast.Node, reader text.Reader, pc parser.Conte
 	}
 }
 
-func markdownSections(source []byte) []section {
-	// Parse after YAML frontmatter without changing the original file's offsets.
+// frontmatterEnd returns the offset where a note's body starts, after any
+// YAML frontmatter.
+func frontmatterEnd(source []byte) int {
 	base := 0
 	lines := bytes.SplitAfter(source, []byte("\n"))
 	if len(lines) > 0 && strings.TrimSpace(string(lines[0])) == "---" {
@@ -71,6 +72,38 @@ func markdownSections(source []byte) []section {
 			}
 		}
 	}
+	return base
+}
+
+// Passage is the text directly under one heading, without its subsections,
+// or the text before a note's first heading when HeadingPath is empty.
+type Passage struct {
+	HeadingPath []string
+	Text        string
+}
+
+// Passages splits a note's body at its headings, leaving out frontmatter
+// and the heading lines themselves. Headings inside code blocks do not split.
+func Passages(source []byte) []Passage {
+	base := frontmatterEnd(source)
+	sections := markdownSections(source)
+	firstHeading := len(source)
+	if len(sections) > 0 {
+		firstHeading = sections[0].start
+	}
+	var out []Passage
+	if lead := string(source[base:firstHeading]); strings.TrimSpace(lead) != "" {
+		out = append(out, Passage{Text: lead})
+	}
+	for _, s := range sections {
+		out = append(out, Passage{HeadingPath: s.path, Text: string(source[s.body:s.ownEnd])})
+	}
+	return out
+}
+
+func markdownSections(source []byte) []section {
+	// Parse after YAML frontmatter without changing the original file's offsets.
+	base := frontmatterEnd(source)
 	blocks := parser.DefaultBlockParsers()
 	for i, b := range blocks {
 		// The standard heading parsers have distinctive trigger sets.

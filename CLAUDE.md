@@ -51,6 +51,11 @@ Deliberate MVP boundaries (do not "fix" these without being asked):
   deletion, which includes deleting inside `.trash`, needs
   `MCP_ALLOW_PERMANENT_DELETE=true`. `MCP_READ_ONLY=true` registers no write
   tools at all (`Server.addWriteTools`); a new write tool belongs there.
+- Semantic search is beta and opt-in (`MCP_SEMANTIC_SEARCH=true`). Its tools,
+  `semantic_search` and `related_notes`, are separate from `search_notes` on
+  purpose: fuzzy results never replace exact matches. Other tools mention
+  them only when they are registered (`Server.semanticHint`). Inference stays
+  inside the container; there is no external embedding service.
 - `read_note` returns at most 10,240 characters per call
   (`vault.ReadPageSize`) with `offset`/`next_offset` paging — chosen
   deliberately for LLM context-window hygiene.
@@ -84,6 +89,12 @@ internal/search/       ripgrep runner; parses `rg --json` events; hidden dirs
                        (.obsidian, .trash) excluded because rg skips hidden
                        files by default; --no-ignore so stray ignore files
                        can't hide notes
+internal/semantic/     opt-in search by meaning (MCP_SEMANTIC_SEARCH): chunks
+                       notes at headings (small sections joined, template
+                       lines repeated across many notes dropped), embeds them
+                       through a supervised llama-server child on loopback,
+                       caches vectors by text hash in ~/.crystal-cove/semantic,
+                       and compares every vector per query (no vector DB)
 internal/oidcauth/     OIDC bearer-token validation for any compliant IdP:
                        discovery (with internal-issuer override), JWKS via
                        go-oidc, audience check with Keycloak-style azp
@@ -174,10 +185,12 @@ The Docker image is three stages: Go builder → `alpine` stage with apk
 `headless/` (better-sqlite3 has
 no musl prebuilds, so a node-gyp toolchain is installed there and build
 intermediates stripped) → bare `alpine` runtime with apk `nodejs`, `ripgrep`,
-`tini`, running as a non-root user. The build and runtime stages must share
+`tini`, `llama-server`, and the checksum-pinned `nomic-embed-text-v1.5` Q8 GGUF
+model, running as a non-root user. The build and runtime stages must share
 one Alpine release: the sqlite addon only loads under the Node it was
 compiled for, which `scripts/smoke-test.sh` checks by opening a database. Keep the runtime stage minimal; the
-image-size target is "as small as possible" (~142MB today).
+image-size target is "as small as possible" (~295MB today, of which the
+embedding model is about 146MB).
 
 ## Methodology
 

@@ -34,6 +34,8 @@ A call on a note that does not exist fails with `not_found: no note at "<path>" 
 | `move_note` | Move or rename a note. With `update_links: true`, rewrites the `[[links]]` to it in every note (headings, aliases and embeds kept, code left alone) and lists the notes it changed in `links_updated_in`. A bare `[[Name]]` link stays bare unless another note shares the new name; a `[[folder/Name]]` link gets the new path. `links_updated` says whether links were rewritten at all. Also restores a deleted note: pass its path inside `.trash`, and leave `new_path` out to put it back where it was deleted from. To move every note in a folder, use `move_folder`: one `move_note` per note leaves the emptied folders behind. |
 | `move_folder` | Move or rename a folder with everything in it: notes, attachments and other files of any type, and its subfolders, keeping their layout. Fails if `new_path` exists, if `new_path` is inside `path`, or if either is the vault root or a hidden folder such as `.trash`. With `update_links: true`, rewrites links to every moved file with the same rules as `move_note`, and keeps relative links inside the moved notes working. Reports `files_moved` and `links_updated_in`. Parent folders it leaves stay, even when empty. |
 | `delete_note` | Move a note to the vault's `.trash`, keeping its folder (`Projects/Plan.md` goes to `.trash/Projects/Plan.md`) so `move_note` can put it back where it was. A note trashed by Obsidian itself, which keeps only the file name, goes back to the vault root. With `MCP_ALLOW_PERMANENT_DELETE=true`, `permanent: true` removes it outright. |
+| `semantic_search` | Beta, with `MCP_SEMANTIC_SEARCH=true`. Find notes by meaning instead of exact words. Each note reports the section that matched best as `heading_path`, an `excerpt`, and a `score`. Supports `folders` and `exclude_folders`. Pages at 10 notes with `offset`/`next_offset`. See [Semantic search](#semantic-search-beta). |
+| `related_notes` | Beta, with `MCP_SEMANTIC_SEARCH=true`. The notes closest in meaning to one note, compared section by section. `linked` marks notes that already link to or from it, and `unlinked: true` leaves those out. Pages like `semantic_search`. |
 
 With `MCP_READ_ONLY=true`, the server leaves out every tool that changes a note.
 
@@ -61,6 +63,18 @@ A vault without it uses Obsidian's defaults: the vault root and `YYYY-MM-DD`.
 These differ from the CLI on purpose: reading never creates the note, and the
 CLI has no `date`. Like `append_note`, an append adds a line break only when
 the note does not already end with one.
+
+## Semantic search (beta)
+
+`search_notes` finds the words you give it. `semantic_search` finds notes about the same topic, even when they use other words: "feeling burned out" can find a note about low energy. `related_notes` uses the same idea to find notes connected to one note, including notes it never links to.
+
+Turn it on with `MCP_SEMANTIC_SEARCH=true`. The server then runs a small embedding model, `nomic-embed-text-v1.5`, inside the container with `llama-server`. No note text leaves the server.
+
+- **Index.** Each note is split at its headings. Short sections join their neighbors, and long ones split at paragraphs. Lines that repeat across many notes, such as a daily-note template, are left out. The vectors are saved under `~/.crystal-cove/semantic`, so a restart does not start over.
+- **Freshness.** The server checks the vault every 5 minutes and embeds only the sections that changed.
+- **First build.** Embedding runs on the CPU at about 2 sections a second, so the first index of a 2,000-note vault (about 8,000 sections) takes close to an hour. It happens once: later checks embed only what changed. The tools work while the first index builds, and `index` in each result reports how many notes are done. Before any note is indexed, the tools return an error that says the index is still being built.
+- **Results.** Results always list the nearest notes, even when none is truly relevant. Compare scores within one result, not with a fixed scale.
+- **Cost.** The embedding server uses about 150 MB of memory, plus the vectors (about 25 MB for 8,000 sections). Queries take tens of milliseconds. The image includes the model either way. With the setting off, nothing starts and the tools do not appear.
 
 ## Edits and sync
 

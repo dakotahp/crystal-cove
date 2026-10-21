@@ -117,6 +117,11 @@ type Config struct {
 	WriteMaxWait time.Duration
 	// Timezone decides which day is today for the daily note tools.
 	Timezone *time.Location
+	// SemanticSearch runs a local embedding model and adds the tools that
+	// find notes by meaning.
+	SemanticSearch bool
+	// SemanticDir holds each vault's saved semantic index.
+	SemanticDir string
 }
 
 // Getenv is the subset of os.Getenv needed by Load, injectable for tests.
@@ -191,6 +196,10 @@ func Load(getenv Getenv, randSource io.Reader) (*Config, error) {
 	if cfg.AllowPermanentDelete, err = parseBool(getenv, "MCP_ALLOW_PERMANENT_DELETE"); err != nil {
 		return nil, err
 	}
+	if cfg.SemanticSearch, err = parseBool(getenv, "MCP_SEMANTIC_SEARCH"); err != nil {
+		return nil, err
+	}
+	cfg.SemanticDir = filepath.Join(cfg.AuthStoreDir, "semantic")
 
 	if cfg.WriteQuiet, err = parseSeconds(getenv, "MCP_WRITE_QUIET_SECONDS", 10); err != nil {
 		return nil, err

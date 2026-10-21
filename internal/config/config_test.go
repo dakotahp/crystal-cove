@@ -146,6 +146,30 @@ func TestLoadToolPolicy(t *testing.T) {
 	}
 }
 
+func TestLoadSemanticSearch(t *testing.T) {
+	cfg, err := Load(env(validEnv()), rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.SemanticSearch {
+		t.Error("semantic search on by default")
+	}
+
+	m := validEnv()
+	m["MCP_SEMANTIC_SEARCH"] = "true"
+	if cfg, err = Load(env(m), rand.Reader); err != nil {
+		t.Fatal(err)
+	}
+	if !cfg.SemanticSearch || cfg.SemanticDir != "/home/test/.crystal-cove/semantic" {
+		t.Errorf("SemanticSearch=%v SemanticDir=%q", cfg.SemanticSearch, cfg.SemanticDir)
+	}
+
+	m["MCP_SEMANTIC_SEARCH"] = "maybe"
+	if _, err := Load(env(m), rand.Reader); err == nil || !strings.Contains(err.Error(), "MCP_SEMANTIC_SEARCH") {
+		t.Errorf("err = %v, want one naming MCP_SEMANTIC_SEARCH", err)
+	}
+}
+
 func TestLoadWriteGuard(t *testing.T) {
 	cfg, err := Load(env(validEnv()), rand.Reader)
 	if err != nil {

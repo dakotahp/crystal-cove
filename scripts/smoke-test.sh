@@ -27,6 +27,23 @@ run 'ob --help >/dev/null'
 echo "==> ripgrep, which search_notes shells out to"
 run 'rg --version | head -1'
 
+echo "==> llama-server loads the embedding model and embeds a sentence"
+run '
+  llama-server -m /opt/crystal-cove/nomic-embed-text-v1.5.Q8_0.gguf --embedding --host 127.0.0.1 --port 8099 \
+    -c 2048 -b 2048 -ub 2048 -np 1 >/tmp/llama.log 2>&1 &
+  for i in $(seq 120); do
+    wget -q -O /dev/null http://127.0.0.1:8099/health 2>/dev/null && break
+    sleep 1
+  done
+  out=$(wget -q -O - --header "Content-Type: application/json" \
+    --post-data "{\"input\": [\"search_query: a quiet walk in the garden\"]}" http://127.0.0.1:8099/v1/embeddings) \
+    || { tail -20 /tmp/llama.log; exit 1; }
+  case "$out" in
+    *\"embedding\"*) echo "embedded $(echo "$out" | tr , "\n" | wc -l) numbers" ;;
+    *) echo "unexpected answer: $out"; tail -20 /tmp/llama.log; exit 1 ;;
+  esac
+'
+
 echo "==> the server binary runs and refuses an empty configuration"
 output=$(docker run --rm $hardened --entrypoint crystal-cove "$image" 2>&1 || true)
 echo "$output" | head -1

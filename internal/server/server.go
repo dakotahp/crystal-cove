@@ -12,6 +12,7 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"github.com/dakotahp/crystal-cove/internal/search"
+	"github.com/dakotahp/crystal-cove/internal/semantic"
 	"github.com/dakotahp/crystal-cove/internal/vault"
 )
 
@@ -41,6 +42,8 @@ type Server struct {
 	// timezone decides which day is today for the daily note tools.
 	timezone *time.Location
 	now      func() time.Time
+	// semantic holds each vault's index when semantic search is on.
+	semantic map[string]*semantic.Index
 }
 
 // Policy limits what the tools may do to a vault.
@@ -148,7 +151,8 @@ func (s *Server) MCPServer() *mcp.Server {
 			"Results come in pages: total counts every matching note, and next_offset, passed as offset, gives the next page. " +
 			"When the first page holds nothing useful, a better query usually beats the next page. " +
 			"A line longer than 500 characters is cut to a window around the match and flagged text_truncated. " +
-			"output files leaves the lines out, which is the cheap way to learn which notes match before reading one.",
+			"output files leaves the lines out, which is the cheap way to learn which notes match before reading one." +
+			s.semanticHint(searchNotesSemanticHint),
 	}, s.searchNotes)
 
 	addTool(srv, params, &mcp.Tool{
@@ -187,7 +191,8 @@ func (s *Server) MCPServer() *mcp.Server {
 	addTool(srv, params, &mcp.Tool{
 		Name: "get_backlinks",
 		Description: "List the notes that link to a note, with the links they use. This is how notes relate to each " +
-			"other in Obsidian, so use it to find the context around a note rather than searching for its name.",
+			"other in Obsidian, so use it to find the context around a note rather than searching for its name." +
+			s.semanticHint(backlinksSemanticHint),
 	}, s.getBacklinks)
 
 	addTool(srv, params, &mcp.Tool{
@@ -233,6 +238,9 @@ func (s *Server) MCPServer() *mcp.Server {
 	}
 	addTool(srv, params, readDailyTool, s.readDailyNote)
 
+	if s.semantic != nil {
+		s.addSemanticTools(srv, params)
+	}
 	if !s.policy.ReadOnly {
 		s.addWriteTools(srv, params)
 	}

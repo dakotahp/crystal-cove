@@ -28,6 +28,8 @@ Add search by meaning to Crystal Cove. When an operator sets one environment var
 
 **Two tools, registered only when the flag is on.** `semantic_search` takes a question and returns notes with the best matching section and a short excerpt. `related_notes` takes a note and returns the notes whose sections are closest to any of its sections, marking the ones already linked. Both say in their descriptions that results are by meaning, not exact words, and point to `search_notes` for exact matches.
 
+**Descriptions cross-reference each other.** Agents choose tools from their descriptions and reach for `search_notes` out of habit. So when the flag is on, `search_notes` says to use `semantic_search` for a topic in other words or when it finds little, and `get_backlinks` points to `related_notes` for notes on the same topic that do not link. When the flag is off, neither mentions tools that do not exist.
+
 ## Key Decisions
 
 | Decision | Chose | Instead of | Why |
@@ -44,7 +46,7 @@ Add search by meaning to Crystal Cove. When an operator sets one environment var
 
 ## Affected Areas
 
-- `Dockerfile`: runtime stage adds `llama-server`; a new stage fetches the model and checks its checksum. The image grows from about 142 MB to roughly 330 MB.
+- `Dockerfile`: runtime stage adds `llama-server`; a new stage fetches the model and checks its checksum. The image grows from about 142 MB to 295 MB (measured).
 - `internal/config`: new `MCP_SEMANTIC_SEARCH` variable.
 - `internal/semantic` (new): chunking, embedder client, index, refresh loop, child-process supervision.
 - `internal/server`: two tool handlers, registered only when the feature is on; they use `s.note` for path policy like the other tools.
@@ -57,8 +59,8 @@ Add search by meaning to Crystal Cove. When an operator sets one environment var
 
 | Risk or unknown | Impact if wrong | How to resolve |
 |---|---|---|
-| CPU-only embedding is slower than Ollama on a Mac GPU | First index of a large vault takes much longer than 4 minutes | Time a first build in the container on the work machine; batch requests; tools already work during the build |
-| `llama-server` memory use | Adds a few hundred MB of resident memory on small hosts | Measure in the container; documented as the cost of opting in |
+| CPU-only embedding is slower than Ollama on a Mac GPU | Measured: 54 minutes for the 2,280-note test vault (about 2 sections a second), against 4 minutes on the Mac GPU. Four parallel slots gained only 17%. | Accepted as a one-time cost: vectors are saved and later refreshes embed only changes. A smaller model would be about 4 times faster at some cost in quality, if beta testers find the wait too long |
+| `llama-server` memory use | Measured: 143 MiB with one slot, 391 MiB with four | Kept at one slot; documented as the cost of opting in |
 | 8-bit model results differ from the Ollama F16 model | Results worse than the experiment | Compare the same queries against the experiment's output before beta |
 | Grype finds a fixable high CVE in llama.cpp | CI blocks publishing | Track Alpine updates; the package is in `community`, so updates may lag |
 | `llama-server` needs a writable path despite the read-only root | Child fails to start in production compose | Smoke test runs it with the same hardening |

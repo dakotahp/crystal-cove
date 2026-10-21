@@ -22,9 +22,29 @@ import (
 	"github.com/dakotahp/crystal-cove/internal/config"
 	"github.com/dakotahp/crystal-cove/internal/oidcauth"
 	"github.com/dakotahp/crystal-cove/internal/search"
+	"github.com/dakotahp/crystal-cove/internal/semantic"
 	"github.com/dakotahp/crystal-cove/internal/server"
 	"github.com/dakotahp/crystal-cove/internal/vault"
 )
+
+// startSemantic starts the embedding server and an index per vault, each
+// kept running until ctx ends. Searches work while the first build runs.
+func startSemantic(ctx context.Context, dir string, vaults []*vault.Vault, logger *slog.Logger, binary, model string) (map[string]*semantic.Index, error) {
+	engine, err := semantic.NewEngine(binary, model, logger)
+	if err != nil {
+		return nil, err
+	}
+	go engine.Run(ctx)
+	client := semantic.NewClient(engine.URL())
+	indexes := make(map[string]*semantic.Index, len(vaults))
+	for _, v := range vaults {
+		ix := semantic.NewIndex(v, client, semantic.StorePath(dir, v.Name()), logger)
+		go ix.Run(ctx)
+		indexes[v.Name()] = ix
+	}
+	logger.Info("semantic search enabled", "model", semantic.ModelName, "index_dir", dir)
+	return indexes, nil
+}
 
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
@@ -65,6 +85,13 @@ func run(ctx context.Context, getenv config.Getenv, logOut io.Writer, onReady fu
 	srv.SetPolicy(server.Policy{ReadOnly: cfg.ReadOnly, AllowPermanentDelete: cfg.AllowPermanentDelete})
 	srv.SetTimezone(cfg.Timezone)
 	logger.Info("tool policy", "read_only", cfg.ReadOnly, "permanent_delete", cfg.AllowPermanentDelete)
+	if cfg.SemanticSearch {
+		indexes, err := startSemantic(ctx, cfg.SemanticDir, vaults, logger, semantic.DefaultBinary, semantic.DefaultModel)
+		if err != nil {
+			return err
+		}
+		srv.SetSemantic(indexes)
+	}
 	srv.SetAuditLog(logger.With("audit", true))
 	logger.Info("vault instructions loaded", "characters", len(srv.Instructions()))
 
