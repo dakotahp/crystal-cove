@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.21.0](https://github.com/dakotahp/crystal-cove/compare/v0.20.0...v0.21.0) (2026-10-22)
+
+
+### Features
+
+* **semantic:** add opt-in semantic_search and related_notes ([30923bf](https://github.com/dakotahp/crystal-cove/commit/30923bf1bc2fa41db2b7a3a616e66bacd135a5fe))
+
 ## [0.20.0](https://github.com/dakotahp/crystal-cove/compare/v0.19.0...v0.20.0) (2026-10-22)
 
 
