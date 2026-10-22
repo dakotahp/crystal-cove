@@ -13,6 +13,9 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	// The runtime image ships no zoneinfo, so MCP_TIMEZONE needs the copy
+	// built into the binary.
+	_ "time/tzdata"
 )
 
 // DefaultPort is the HTTP port used when PORT is not set.
@@ -112,6 +115,8 @@ type Config struct {
 	// WriteMaxWait is the longest a write waits for that before it is
 	// refused.
 	WriteMaxWait time.Duration
+	// Timezone decides which day is today for the daily note tools.
+	Timezone *time.Location
 }
 
 // Getenv is the subset of os.Getenv needed by Load, injectable for tests.
@@ -192,6 +197,13 @@ func Load(getenv Getenv, randSource io.Reader) (*Config, error) {
 	}
 	if cfg.WriteMaxWait, err = parseSeconds(getenv, "MCP_WRITE_WAIT_SECONDS", 30); err != nil {
 		return nil, err
+	}
+
+	cfg.Timezone = time.UTC
+	if name := strings.TrimSpace(getenv("MCP_TIMEZONE")); name != "" {
+		if cfg.Timezone, err = time.LoadLocation(name); err != nil {
+			return nil, fmt.Errorf("MCP_TIMEZONE must be a time zone name such as America/New_York or Europe/Berlin, got %q", name)
+		}
 	}
 
 	cfg.Port = DefaultPort

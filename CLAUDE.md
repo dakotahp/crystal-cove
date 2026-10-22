@@ -77,6 +77,9 @@ internal/notes/        YAML frontmatter parsing, tag collection (frontmatter
                        reaches only a note. Checked against Obsidian's own
                        unresolved and orphan lists; Obsidian also hides
                        dangling links that look like daily-note dates
+internal/daily/        Obsidian's Daily notes plugin rules: its settings file,
+                       moment.js date formats (locale tokens refused, not
+                       guessed), template variables, and the `date` argument
 internal/search/       ripgrep runner; parses `rg --json` events; hidden dirs
                        (.obsidian, .trash) excluded because rg skips hidden
                        files by default; --no-ignore so stray ignore files

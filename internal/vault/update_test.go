@@ -113,7 +113,7 @@ func TestAppendDoesNotReplaceANoteCreatedMeanwhile(t *testing.T) {
 	target := filepath.Join(v.Root(), "log.md")
 
 	calls := 0
-	_, err := v.update("log.md", true, func(old []byte) ([]byte, error) {
+	_, created, err := v.update("log.md", noContent, func(old []byte) ([]byte, error) {
 		calls++
 		if calls == 1 {
 			if err := os.WriteFile(target, []byte("synced\n"), 0o644); err != nil {
@@ -127,5 +127,8 @@ func TestAppendDoesNotReplaceANoteCreatedMeanwhile(t *testing.T) {
 	}
 	if data, _ := os.ReadFile(target); string(data) != "synced\nlocal\n" {
 		t.Errorf("note = %q, want the synced note kept", data)
+	}
+	if created {
+		t.Error("created = true for a note sync created first")
 	}
 }

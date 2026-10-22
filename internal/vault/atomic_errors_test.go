@@ -54,7 +54,7 @@ func TestUpdateReportsAnUnwritableDirectory(t *testing.T) {
 func TestUpdateCreatesAMissingNoteWhenAllowed(t *testing.T) {
 	v := newNotesVault(t, "Inbox/today.md")
 
-	if _, err := v.update("Inbox/fresh.md", true, setTo("new\n")); err != nil {
+	if _, _, err := v.update("Inbox/fresh.md", noContent, setTo("new\n")); err != nil {
 		t.Fatal(err)
 	}
 	data, err := v.ReadAll("Inbox/fresh.md")

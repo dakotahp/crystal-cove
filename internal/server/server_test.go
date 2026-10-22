@@ -328,11 +328,11 @@ func TestEndToEndOverHTTP(t *testing.T) {
 	}
 	slices.Sort(names)
 	want := []string{
-		"append_note", "create_note", "delete_note", "edit_note", "edit_section", "find_notes",
-		"get_backlinks", "get_frontmatter", "get_links",
+		"append_daily_note", "append_note", "create_note", "daily_note_path", "delete_note", "edit_note",
+		"edit_section", "find_notes", "get_backlinks", "get_frontmatter", "get_links",
 		"get_section", "list_notes", "list_tags", "list_vaults",
-		"move_folder", "move_note", "orphans", "read_note", "read_notes", "recent_notes",
-		"search_notes", "unresolved_links", "update_frontmatter",
+		"move_folder", "move_note", "orphans", "prepend_daily_note", "read_daily_note", "read_note",
+		"read_notes", "recent_notes", "search_notes", "unresolved_links", "update_frontmatter",
 	}
 	if !slices.Equal(names, want) {
 		t.Errorf("tools = %v, want %v", names, want)

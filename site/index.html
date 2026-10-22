@@ -397,6 +397,8 @@ docker compose logs -f          # wait for "Fully synced", then Ctrl-C</code></p
               <dt><code>get_frontmatter</code></dt><dd>A note's fields and tags, without its body.</dd>
               <dt><code>list_notes</code></dt><dd>Browse folders, or the trash.</dd>
               <dt><code>recent_notes</code></dt><dd>What changed most recently.</dd>
+              <dt><code>read_daily_note</code></dt><dd>Today's daily note, or any day's.</dd>
+              <dt><code>daily_note_path</code></dt><dd>Where a day's daily note goes, and if it exists.</dd>
             </dl>
           </div>
           <div class="tool-group">
@@ -416,6 +418,8 @@ docker compose logs -f          # wait for "Fully synced", then Ctrl-C</code></p
             <dl>
               <dt><code>create_note</code></dt><dd>Make a new note. Never overwrites one.</dd>
               <dt><code>append_note</code></dt><dd>Add lines to the end of a note.</dd>
+              <dt><code>append_daily_note</code></dt><dd>Add to a day's daily note, made from your template.</dd>
+              <dt><code>prepend_daily_note</code></dt><dd>Add to the top of a day's daily note.</dd>
               <dt><code>edit_note</code></dt><dd>Exact find and replace.</dd>
               <dt><code>edit_section</code></dt><dd>Change one heading's section.</dd>
               <dt><code>update_frontmatter</code></dt><dd>Set or remove fields, keeping the rest.</dd>
