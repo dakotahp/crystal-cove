@@ -177,6 +177,30 @@ func TestLoadWriteGuard(t *testing.T) {
 	}
 }
 
+func TestLoadTimezone(t *testing.T) {
+	cfg, err := Load(env(validEnv()), rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Timezone != time.UTC {
+		t.Errorf("default Timezone = %v, want UTC", cfg.Timezone)
+	}
+
+	m := validEnv()
+	m["MCP_TIMEZONE"] = " America/Denver "
+	if cfg, err = Load(env(m), rand.Reader); err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Timezone.String() != "America/Denver" {
+		t.Errorf("Timezone = %v, want America/Denver", cfg.Timezone)
+	}
+
+	m["MCP_TIMEZONE"] = "Mars/Olympus"
+	if _, err := Load(env(m), rand.Reader); err == nil || !strings.Contains(err.Error(), "MCP_TIMEZONE") {
+		t.Errorf("err = %v, want an error naming MCP_TIMEZONE", err)
+	}
+}
+
 func TestLoadRejectsShortAuthToken(t *testing.T) {
 	m := validEnv()
 	m["MCP_AUTH_TOKEN"] = "change-me"

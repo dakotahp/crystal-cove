@@ -26,12 +26,41 @@ A call on a note that does not exist fails with `not_found: no note at "<path>" 
 | `update_frontmatter` | Add, replace or delete frontmatter fields. Untouched fields keep their value and order, and the body is unchanged. |
 | `create_note` | Create a new note; fails if it already exists. |
 | `append_note` | Append to a note, creating it if needed. The content starts on a new line. |
+| `daily_note_path` | The path of a day's daily note, and whether it `exists` yet. Never creates it. See [Daily notes](#daily-notes). |
+| `read_daily_note` | Read a day's daily note, paged like `read_note`. A note not created yet returns `exists: false` and its path, and stays uncreated. |
+| `append_daily_note` | Add `content` to the end of a day's daily note, on a new line unless `inline` is set. Creates the note from the daily note template when it is missing, and reports `created`. |
+| `prepend_daily_note` | Add `content` at the start of a day's daily note, below its frontmatter, followed by a line break unless `inline` is set. Creates a missing note as `append_daily_note` does. |
 | `edit_note` | Exact find/replace. `edits` is a list of `{find, replace, replace_all}` applied in order, each to the text the edits before it left, so several changes to one note take one call. Each snippet must be unique unless `replace_all` is set. If any edit fails, nothing is written and the error names the edit (`edit 2 of 3: text not found`). Takes an optional `version` and returns the new one. |
 | `move_note` | Move or rename a note. With `update_links: true`, rewrites the `[[links]]` to it in every note (headings, aliases and embeds kept, code left alone) and lists the notes it changed in `links_updated_in`. A bare `[[Name]]` link stays bare unless another note shares the new name; a `[[folder/Name]]` link gets the new path. `links_updated` says whether links were rewritten at all. Also restores a deleted note: pass its path inside `.trash`, and leave `new_path` out to put it back where it was deleted from. To move every note in a folder, use `move_folder`: one `move_note` per note leaves the emptied folders behind. |
 | `move_folder` | Move or rename a folder with everything in it: notes, attachments and other files of any type, and its subfolders, keeping their layout. Fails if `new_path` exists, if `new_path` is inside `path`, or if either is the vault root or a hidden folder such as `.trash`. With `update_links: true`, rewrites links to every moved file with the same rules as `move_note`, and keeps relative links inside the moved notes working. Reports `files_moved` and `links_updated_in`. Parent folders it leaves stay, even when empty. |
 | `delete_note` | Move a note to the vault's `.trash`, keeping its folder (`Projects/Plan.md` goes to `.trash/Projects/Plan.md`) so `move_note` can put it back where it was. A note trashed by Obsidian itself, which keeps only the file name, goes back to the vault root. With `MCP_ALLOW_PERMANENT_DELETE=true`, `permanent: true` removes it outright. |
 
 With `MCP_READ_ONLY=true`, the server leaves out every tool that changes a note.
+
+## Daily notes
+
+The daily note tools match the `daily:path`, `daily:read`, `daily:append` and
+`daily:prepend` commands of the Obsidian CLI. They find the note the way
+Obsidian's Daily notes core plugin does, from its settings in
+`.obsidian/daily-notes.json`: the folder, the date format of the name, and the
+template. Obsidian Sync carries that file by default, as core plugin settings.
+A vault without it uses Obsidian's defaults: the vault root and `YYYY-MM-DD`.
+
+- Every tool takes an optional `date`: `YYYY-MM-DD`, `today`, `yesterday` or
+  `tomorrow`. Without it, the tools use today in the server's time zone,
+  `MCP_TIMEZONE` (default UTC).
+- A new note starts from the template, with `{{title}}`, `{{date}}` and
+  `{{time}}` filled in for that day. A format after a colon works too, such as
+  `{{date:dddd}}`. Other template syntax, such as the Templater plugin's,
+  stays as written.
+- Date formats use moment.js tokens, with English month and weekday names.
+  Tokens that depend on a locale, such as `gggg` and `ww`, are refused with an
+  error instead of giving a different name than Obsidian would. ISO weeks
+  (`GGGG-[W]WW`) work.
+
+These differ from the CLI on purpose: reading never creates the note, and the
+CLI has no `date`. Like `append_note`, an append adds a line break only when
+the note does not already end with one.
 
 ## Edits and sync
 

@@ -24,35 +24,41 @@ var errChangedMeanwhile = errors.New("note changed while it was being written")
 // It returns the content now in the note; a change that alters nothing
 // writes nothing. A missing note is an error.
 func (v *Vault) Update(rel string, change func(old []byte) ([]byte, error)) ([]byte, error) {
-	return v.update(rel, false, change)
+	updated, _, err := v.update(rel, nil, change)
+	return updated, err
 }
 
-// update is Update, and when missingOK is set a missing note reaches change
-// as empty content and is created, never replacing a note that appears
-// meanwhile.
-func (v *Vault) update(rel string, missingOK bool, change func(old []byte) ([]byte, error)) ([]byte, error) {
+// update is Update, and when initial is set a missing note reaches change
+// with the content initial returns and is created, never replacing a note
+// that appears meanwhile. created reports whether the note was new.
+func (v *Vault) update(rel string, initial func() ([]byte, error), change func(old []byte) ([]byte, error)) (updated []byte, created bool, err error) {
 	root, clean, err := v.open(rel)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	defer root.Close()
 	if err := v.waitUntilQuiet(root, clean, rel); err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	v.writes.Lock()
 	defer v.writes.Unlock()
 	for range updateAttempts {
 		old, err := root.ReadFile(clean)
 		missing := errors.Is(err, fs.ErrNotExist)
-		if err != nil && !(missing && missingOK) {
-			return nil, v.noteError("reading", rel, err)
+		if err != nil && !(missing && initial != nil) {
+			return nil, false, v.noteError("reading", rel, err)
+		}
+		if missing {
+			if old, err = initial(); err != nil {
+				return nil, false, err
+			}
 		}
 		updated, err := change(old)
 		if err != nil {
-			return nil, err
+			return nil, false, err
 		}
 		if !missing && bytes.Equal(updated, old) {
-			return old, nil
+			return old, false, nil
 		}
 		if missing {
 			err = createAtomic(root, clean, updated)
@@ -66,12 +72,12 @@ func (v *Vault) update(rel string, missingOK bool, change func(old []byte) ([]by
 			continue
 		}
 		if err != nil {
-			return nil, err
+			return nil, false, err
 		}
 		v.remember(clean, updated)
-		return updated, nil
+		return updated, missing, nil
 	}
-	return nil, fmt.Errorf("note %q kept changing while it was being written, most likely from sync: try again", rel)
+	return nil, false, fmt.Errorf("note %q kept changing while it was being written, most likely from sync: try again", rel)
 }
 
 // replaceIfUnchanged puts data at rel in one step, but only when rel still

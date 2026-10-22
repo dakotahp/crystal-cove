@@ -3,14 +3,12 @@
 package vault
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"io/fs"
 	"os"
 	"path"
 	"path/filepath"
-	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -278,31 +276,33 @@ func (v *Vault) Create(rel, content string) error {
 // note does not end with a line break, one is added first, in the note's own
 // line-ending style.
 func (v *Vault) Append(rel, content string) error {
-	root, clean, err := v.open(rel)
-	if err != nil {
-		return err
-	}
-	defer root.Close()
-	if err := checkCase(root, clean, ""); err != nil {
-		return err
-	}
-	if err := root.MkdirAll(filepath.Dir(clean), 0o755); err != nil {
-		return fmt.Errorf("creating parent directories for %q: %w", rel, err)
-	}
-	_, err = v.update(rel, true, func(existing []byte) ([]byte, error) {
-		sep := ""
-		if len(existing) > 0 && content != "" && existing[len(existing)-1] != '\n' {
-			sep = "\n"
-			if bytes.Contains(existing, []byte("\r\n")) {
-				sep = "\r\n"
-			}
-		}
-		return slices.Concat(existing, []byte(sep), []byte(content)), nil
-	})
-	if err != nil {
+	if _, err := v.Upsert(rel, nil, Appending(content, false)); err != nil {
 		return fmt.Errorf("appending to %q: %w", rel, err)
 	}
 	return nil
+}
+
+// Upsert changes the note at rel as Update does, but creates it, with any
+// parent directories, when it does not exist: initial then supplies its
+// starting content, which change works on. initial runs only for a missing
+// note, and nil means empty content. created reports whether the note was new.
+func (v *Vault) Upsert(rel string, initial func() ([]byte, error), change func(old []byte) ([]byte, error)) (created bool, err error) {
+	root, clean, err := v.open(rel)
+	if err != nil {
+		return false, err
+	}
+	defer root.Close()
+	if err := checkCase(root, clean, ""); err != nil {
+		return false, err
+	}
+	if err := root.MkdirAll(filepath.Dir(clean), 0o755); err != nil {
+		return false, fmt.Errorf("creating parent directories for %q: %w", rel, err)
+	}
+	if initial == nil {
+		initial = func() ([]byte, error) { return nil, nil }
+	}
+	_, created, err = v.update(rel, initial, change)
+	return created, err
 }
 
 // Replacement is one find-and-replace within a note.

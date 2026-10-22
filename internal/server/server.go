@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
@@ -37,6 +38,9 @@ type Server struct {
 	syncReady func() bool
 	policy    Policy
 	audit     *slog.Logger
+	// timezone decides which day is today for the daily note tools.
+	timezone *time.Location
+	now      func() time.Time
 }
 
 // Policy limits what the tools may do to a vault.
@@ -51,6 +55,10 @@ type Policy struct {
 // SetPolicy sets what the tools may do. Call it before serving.
 func (s *Server) SetPolicy(p Policy) { s.policy = p }
 
+// SetTimezone sets the time zone the daily note tools take today from.
+// Call it before serving; without it, today is the UTC day.
+func (s *Server) SetTimezone(loc *time.Location) { s.timezone = loc }
+
 // New returns a Server over the given vaults.
 func New(vaults []*vault.Vault, searcher *search.Searcher, syncReady func() bool) *Server {
 	m := make(map[string]*vault.Vault, len(vaults))
@@ -62,6 +70,8 @@ func New(vaults []*vault.Vault, searcher *search.Searcher, syncReady func() bool
 		vaultList: vaults,
 		searcher:  searcher,
 		syncReady: syncReady,
+		timezone:  time.UTC,
+		now:       time.Now,
 	}
 }
 
@@ -204,6 +214,25 @@ func (s *Server) MCPServer() *mcp.Server {
 			"alphabetically; read_note shows their order in the file.",
 	}, s.getFrontmatter)
 
+	addTool(srv, params, &mcp.Tool{
+		Name: "daily_note_path",
+		Description: "Give the path of a day's daily note, and whether it exists yet, without creating it. The path " +
+			"follows the vault's Obsidian Daily notes settings: its folder and date format. date picks the day, as " +
+			"YYYY-MM-DD or today, yesterday or tomorrow; it defaults to today in the server's time zone.",
+	}, s.dailyNotePath)
+
+	readDailyTool := &mcp.Tool{
+		Name: "read_daily_note",
+		Description: fmt.Sprintf("Read a day's daily note, found from the vault's Obsidian Daily notes settings; "+
+			"date picks the day as in daily_note_path. A note not created yet returns exists false and its path, and "+
+			"is not created. Returns at most %d characters per call; continue with offset set to next_offset. version "+
+			"is the same one read_note gives, for edit_note.", vault.ReadPageSize),
+	}
+	if schema := readDailyNoteOutputSchema(); schema != nil {
+		readDailyTool.OutputSchema = schema
+	}
+	addTool(srv, params, readDailyTool, s.readDailyNote)
+
 	if !s.policy.ReadOnly {
 		s.addWriteTools(srv, params)
 	}
@@ -248,6 +277,20 @@ func (s *Server) addWriteTools(srv *mcp.Server, params map[string]string) {
 		Name:        "append_note",
 		Description: "Append content to the end of a note, creating it if it does not exist. The content starts on a new line.",
 	}, s.appendNote)
+
+	addTool(srv, params, &mcp.Tool{
+		Name: "append_daily_note",
+		Description: "Add content to the end of a day's daily note, on a new line unless inline is set. date picks the " +
+			"day as in daily_note_path, so a past or future day's note works too. A note that does not exist yet is " +
+			"created first, as Obsidian creates it: in the Daily notes folder, from the Daily notes template, with " +
+			"{{title}}, {{date}} and {{time}} filled in for that day. created in the result says whether it was new.",
+	}, s.appendDailyNote)
+
+	addTool(srv, params, &mcp.Tool{
+		Name: "prepend_daily_note",
+		Description: "Add content to the start of a day's daily note, below its frontmatter, followed by a line " +
+			"break unless inline is set. date and creating a missing note work as in append_daily_note.",
+	}, s.prependDailyNote)
 
 	addTool(srv, params, &mcp.Tool{
 		Name: "edit_note",

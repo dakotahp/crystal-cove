@@ -26,3 +26,4 @@ Crystal Cove reads all of its settings from environment variables. With Docker C
 | `MCP_ALLOW_PERMANENT_DELETE` | no | `true` lets `delete_note` remove notes outright, including notes already in `.trash`. Default `false`: deletes only move notes to `.trash`. |
 | `MCP_WRITE_QUIET_SECONDS` | no | How long a note must go unchanged by another device before a tool writes to it. Default `10`; `0` turns the wait off. See [Edits and sync](tools.md#edits-and-sync). |
 | `MCP_WRITE_WAIT_SECONDS` | no | The longest a write waits for that quiet period before it is refused. Default `30`. |
+| `MCP_TIMEZONE` | no | The time zone that decides which day is today for the [daily note tools](tools.md#daily-notes), as a name such as `America/New_York` or `Europe/Berlin`. Default `UTC`. |

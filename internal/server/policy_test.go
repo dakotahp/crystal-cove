@@ -48,9 +48,9 @@ func TestReadOnlyServerOffersNoWriteTools(t *testing.T) {
 	s.SetPolicy(Policy{ReadOnly: true})
 
 	want := []string{
-		"find_notes", "get_backlinks", "get_frontmatter", "get_links", "get_section",
-		"list_notes", "list_tags", "list_vaults", "orphans", "read_note", "read_notes", "recent_notes", "search_notes",
-		"unresolved_links",
+		"daily_note_path", "find_notes", "get_backlinks", "get_frontmatter", "get_links", "get_section",
+		"list_notes", "list_tags", "list_vaults", "orphans", "read_daily_note", "read_note", "read_notes",
+		"recent_notes", "search_notes", "unresolved_links",
 	}
 	if got := toolNames(listedTools(t, s)); !slices.Equal(got, want) {
 		t.Errorf("tools = %v, want %v", got, want)
