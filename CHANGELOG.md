@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.20.0](https://github.com/dakotahp/crystal-cove/compare/v0.19.0...v0.20.0) (2026-10-22)
+
+
+### Features
+
+* **server:** add daily note tools matching the Obsidian CLI ([c14241e](https://github.com/dakotahp/crystal-cove/commit/c14241e40b510870980251fb308c89bb043f3b54))
+* **server:** add daily note tools matching the Obsidian CLI ([c17a85b](https://github.com/dakotahp/crystal-cove/commit/c17a85b627ec6953310c45c12669f8052b72ee53))
+
 ## [0.19.0](https://github.com/dakotahp/crystal-cove/compare/v0.18.0...v0.19.0) (2026-10-20)
 
 
