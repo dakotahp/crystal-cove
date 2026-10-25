@@ -91,8 +91,12 @@ func TestEval(t *testing.T) {
 			hybrid[i] = r.Path
 		}
 		if os.Getenv("CRYSTAL_COVE_EVAL_DETAIL") != "" {
+			t.Logf("  %q", q.Query)
 			for i, r := range results[:min(evalTop*2, len(results))] {
-				t.Logf("    %2d %-24s %s", i+1, strings.Join(r.MatchedBy, "+"), r.Path)
+				t.Logf("    hybrid  %2d %-24s %s", i+1, strings.Join(r.MatchedBy, "+"), r.Path)
+			}
+			for i, p := range meaning[:min(evalTop*2, len(meaning))] {
+				t.Logf("    meaning %2d %s", i+1, p)
 			}
 		}
 
