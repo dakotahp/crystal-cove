@@ -74,7 +74,7 @@ the note does not already end with one.
 2. **Phrase.** Notes holding words in double quotes together, as written.
 3. **Key words.** Up to three notes with a section holding every key word of the query, chosen by BM25, the standard keyword ranking.
 
-Each group is in meaning order, and the rest of the notes follow in meaning order. A note that holds only some of the key words keeps its meaning place: a question in plain words shares ordinary words with many unrelated notes, and letting those words move notes up pushes the right note down.
+Each group is in meaning order, and the 50 notes closest in meaning follow. The list stops there, so `total` counts useful results rather than every note in the vault; past about the 50th note, closeness says little. A note that holds only some of the key words keeps its meaning place: a question in plain words shares ordinary words with many unrelated notes, and letting those words move notes up pushes the right note down.
 
 Key words are scored per section, and a note counts as its best section, so one matching section in a long note is not lost. Headings and the note's name count as words of each section. A word that few sections hold counts more than a word most hold, so "the" and "of" count for almost nothing in any language. Word forms do not match ("organize" does not find "organizing"); the meaning ranking covers those.
 

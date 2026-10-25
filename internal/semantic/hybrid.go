@@ -9,9 +9,9 @@ import (
 )
 
 const (
-	// meaningListSize is how many of the closest notes report meaning in
-	// MatchedBy. Every note has some closeness, so without a cut every note
-	// would claim it.
+	// meaningListSize is how many of the closest notes by meaning a search
+	// returns. Every note has some closeness, so without a cut every note in
+	// the vault would be a result.
 	meaningListSize = 50
 	// rescueLimit is how many notes holding every key word of the query move
 	// above the meaning ranking. More would push close paraphrase matches
@@ -51,7 +51,8 @@ type found struct {
 // that meaning misses. Notes whose name holds every word of the query come
 // first, then notes holding a quoted phrase, then the rescueLimit notes with
 // the best keyword scores among those with a section holding every key word;
-// each group is in meaning order, and the rest follow in meaning order. A note matching only some key words keeps its
+// each group is in meaning order, and the meaningListSize closest notes
+// follow in meaning order. A note matching only some key words keeps its
 // meaning place, because a paraphrase shares ordinary words with many
 // unrelated notes. Before any vector exists, key words alone set the order.
 // include, when not nil, limits which notes take part.
@@ -145,7 +146,7 @@ func (ix *Index) Search(ctx context.Context, query string, include func(string) 
 		}
 	}
 	rescue(covering, func(*found) {})
-	for _, doc := range meaning {
+	for _, doc := range meaning[:min(meaningListSize, len(meaning))] {
 		if !get(doc).rescued {
 			order = append(order, doc)
 		}

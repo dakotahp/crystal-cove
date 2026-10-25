@@ -52,8 +52,9 @@ func (s *Server) addSemanticTools(srv *mcp.Server, params map[string]string) {
 			"vault may not hold what was asked for. Each note reports the section that shows the match as heading_path, " +
 			"which get_section reads, and an excerpt of it. For exact text, a regex, every matching line, or a line to " +
 			"edit, use grep_notes. index reports whether every note is indexed for meaning yet; key words work before " +
-			"it is. folders and exclude_folders limit which notes are returned. Results come in pages: pass next_offset " +
-			"as offset.",
+			"it is. folders and exclude_folders limit which notes are returned. Results stop at the 50 notes closest in " +
+			"meaning, plus any moved up by name, phrase or key words. They come in pages: pass next_offset as offset. " +
+			"When the first page holds nothing useful, a better query usually beats the next page.",
 	}, s.searchNotes)
 
 	addTool(srv, params, &mcp.Tool{

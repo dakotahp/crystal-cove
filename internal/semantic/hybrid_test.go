@@ -161,24 +161,25 @@ func TestSearchKeepsPhraseMatchesMadeOfCommonWords(t *testing.T) {
 	}
 }
 
-func TestSearchLabelsOnlyTheClosestAsMeaningMatches(t *testing.T) {
+func TestSearchStopsAtTheClosestByMeaningPlusRescuedNotes(t *testing.T) {
 	notes := map[string]string{}
 	for i := range meaningListSize + 5 {
 		notes[fmt.Sprintf("n%02d.md", i)] = fmt.Sprintf("garden soil note %d\n", i)
 	}
+	notes["zz.md"] = "zebra\n"
 	ix, _, _ := newTestIndex(t, notes)
+	ix.embed = &blindEmbedder{blind: "zebra"}
 	if err := ix.Refresh(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	results := searchFor(t, ix, "compost", nil)
-	labelled := 0
-	for _, r := range results {
-		if slices.Contains(r.MatchedBy, MatchMeaning) {
-			labelled++
-		}
+	results := searchFor(t, ix, "zebra garden soil", nil)
+	if len(results) != meaningListSize+1 || results[0].Path != "zz.md" {
+		t.Fatalf("%d results, first %s; want the rescued zebra note and the %d closest", len(results), results[0].Path, meaningListSize)
 	}
-	if len(results) != meaningListSize+5 || labelled != meaningListSize {
-		t.Errorf("%d results, %d labelled meaning; want every note, the %d closest labelled", len(results), labelled, meaningListSize)
+	for _, r := range results[1:] {
+		if !slices.Equal(r.MatchedBy, []string{MatchMeaning}) {
+			t.Errorf("%+v: want the rest matched by meaning", r)
+		}
 	}
 }
 
