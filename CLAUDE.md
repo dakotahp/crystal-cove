@@ -52,8 +52,10 @@ Deliberate MVP boundaries (do not "fix" these without being asked):
   `MCP_ALLOW_PERMANENT_DELETE=true`. `MCP_READ_ONLY=true` registers no write
   tools at all (`Server.addWriteTools`); a new write tool belongs there.
 - Semantic search is beta and opt-in (`MCP_SEMANTIC_SEARCH=true`). Its tools,
-  `search_notes` (hybrid: name, BM25 key words, quoted phrase, and meaning,
-  merged by reciprocal rank fusion) and `related_notes`, are separate from
+  `search_notes` (hybrid: meaning order, with name matches, quoted phrases,
+  and up to three notes holding every BM25 key word moved to the top; an
+  equal-vote rank fusion lost to meaning alone on paraphrased queries) and
+  `related_notes`, are separate from
   the exact `grep_notes` on purpose: fuzzy results never replace exact
   matches. The split is search versus grep: `search_notes` is the first
   search, `grep_notes` the exact one. With the setting off there is no
@@ -102,7 +104,8 @@ internal/semantic/     opt-in search by meaning (MCP_SEMANTIC_SEARCH): chunks
                        also a per-section BM25 word index (headings and name
                        counted) rebuilt in memory on each refresh, before
                        embedding, and the hybrid Search that
-                       fuses the keyword, phrase, name and meaning rankings
+                       ranks by meaning and lets name, phrase and full
+                       keyword matches rescue the clear hits
 internal/oidcauth/     OIDC bearer-token validation for any compliant IdP:
                        discovery (with internal-issuer override), JWKS via
                        go-oidc, audience check with Keycloak-style azp

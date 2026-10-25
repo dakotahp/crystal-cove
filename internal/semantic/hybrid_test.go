@@ -161,7 +161,7 @@ func TestSearchKeepsPhraseMatchesMadeOfCommonWords(t *testing.T) {
 	}
 }
 
-func TestSearchCapsTheMeaningList(t *testing.T) {
+func TestSearchLabelsOnlyTheClosestAsMeaningMatches(t *testing.T) {
 	notes := map[string]string{}
 	for i := range meaningListSize + 5 {
 		notes[fmt.Sprintf("n%02d.md", i)] = fmt.Sprintf("garden soil note %d\n", i)
@@ -171,8 +171,73 @@ func TestSearchCapsTheMeaningList(t *testing.T) {
 		t.Fatal(err)
 	}
 	results := searchFor(t, ix, "compost", nil)
-	if len(results) != meaningListSize {
-		t.Errorf("%d results, want the %d closest by meaning", len(results), meaningListSize)
+	labelled := 0
+	for _, r := range results {
+		if slices.Contains(r.MatchedBy, MatchMeaning) {
+			labelled++
+		}
+	}
+	if len(results) != meaningListSize+5 || labelled != meaningListSize {
+		t.Errorf("%d results, %d labelled meaning; want every note, the %d closest labelled", len(results), labelled, meaningListSize)
+	}
+}
+
+// blindEmbedder cannot see one word, so a note can match it by keyword
+// while meaning ranks it as unrelated.
+type blindEmbedder struct {
+	fakeEmbedder
+	blind string
+}
+
+func (b *blindEmbedder) Embed(ctx context.Context, texts []string) ([][]float32, error) {
+	seen := make([]string, len(texts))
+	for i, t := range texts {
+		seen[i] = strings.ReplaceAll(t, b.blind, "")
+	}
+	return b.fakeEmbedder.Embed(ctx, seen)
+}
+
+func TestSearchRescuesAFewNotesHoldingEveryKeyWord(t *testing.T) {
+	ix, _, _ := newTestIndex(t, map[string]string{
+		"z1.md":    "zebra zebra stripes\n",
+		"z2.md":    "zebra stripes savanna\n",
+		"z3.md":    "zebra stripes savanna grass\n",
+		"z4.md":    "a zebra among many other animals in a long list of savanna grass herds\n",
+		"apple.md": "stripes stripes stripes\n",
+		"pear.md":  "pear\n",
+	})
+	ix.embed = &blindEmbedder{blind: "zebra"}
+	if err := ix.Refresh(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	results := searchFor(t, ix, "zebra stripes", nil)
+	for _, r := range results[:rescueLimit] {
+		if r.Path == "z4.md" || r.Path == "apple.md" || !slices.Contains(r.MatchedBy, MatchKeyword) {
+			t.Errorf("rescued %+v, want the notes holding both words with the best keyword scores", r)
+		}
+	}
+	if results[rescueLimit].Path != "apple.md" {
+		t.Errorf("results = %+v, want meaning order after the rescued notes", results)
+	}
+}
+
+func TestSearchKeepsMeaningOrderForPartialKeywordMatches(t *testing.T) {
+	ix, _, _ := newTestIndex(t, map[string]string{
+		"close.md":   "apple orchard harvest\n",
+		"partial.md": "zebra crossing\n",
+		"other.md":   "rent\n",
+		"more.md":    "travel\n",
+	})
+	ix.embed = &blindEmbedder{blind: "zebra"}
+	if err := ix.Refresh(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	results := searchFor(t, ix, "apple zebra", nil)
+	if results[0].Path != "close.md" {
+		t.Errorf("results = %+v, want the closest by meaning first", results)
+	}
+	if partial, _ := resultFor(results, "partial.md"); !slices.Contains(partial.MatchedBy, MatchKeyword) {
+		t.Errorf("partial.md = %+v, want it labelled keyword", partial)
 	}
 }
 
@@ -207,6 +272,21 @@ func TestSearchUsesKeywordsBeforeAnyVectorExists(t *testing.T) {
 		if !slices.Equal(r.MatchedBy, []string{MatchKeyword}) {
 			t.Errorf("result %+v: want keyword only", r)
 		}
+	}
+}
+
+func TestSearchListsEveryKeywordMatchBeforeAnyVectorExists(t *testing.T) {
+	notes := map[string]string{"other.md": "rent\n", "more.md": "travel\n", "else.md": "budget\n", "last.md": "holiday\n"}
+	for i := range rescueLimit + 2 {
+		notes[fmt.Sprintf("z%d.md", i)] = "zebra\n"
+	}
+	ix, _, _ := newTestIndex(t, notes)
+	ix.embed = alwaysFail{}
+	if err := ix.Refresh(context.Background()); err == nil {
+		t.Fatal("refresh with a failing model succeeded")
+	}
+	if results := searchFor(t, ix, "zebra", nil); len(results) != rescueLimit+2 {
+		t.Errorf("%d results, want all %d notes holding zebra", len(results), rescueLimit+2)
 	}
 }
 

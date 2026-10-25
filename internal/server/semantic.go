@@ -45,8 +45,9 @@ func (s *Server) addSemanticTools(srv *mcp.Server, params map[string]string) {
 		Description: "Find notes about a topic or by name. Start here to find notes. This is hybrid search (keyword + " +
 			"semantic): one call ranks notes by name, by key words (BM25, so rare words count most), by any phrase in " +
 			"double quotes, and by meaning, so a note that uses other words than the query is found too: \"feeling " +
-			"burned out\" can find a note about low energy. The rankings are merged: a note named after the query comes " +
-			"first, then notes found in more ways. matched_by says how each note was found (name, phrase, keyword, " +
+			"burned out\" can find a note about low energy. Notes are ranked by meaning, and key words rescue the clear " +
+			"hits meaning misses: a note named after the query comes first, then notes holding a quoted phrase, then " +
+			"up to three notes with a section holding every key word. matched_by says how each note was found (name, phrase, keyword, " +
 			"meaning). A note found by meaning alone is a weaker match, and when every top result is meaning only, the " +
 			"vault may not hold what was asked for. Each note reports the section that shows the match as heading_path, " +
 			"which get_section reads, and an excerpt of it. For exact text, a regex, every matching line, or a line to " +

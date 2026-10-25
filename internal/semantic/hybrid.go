@@ -9,16 +9,16 @@ import (
 )
 
 const (
-	// rrfK is reciprocal rank fusion's usual constant: it keeps the top
-	// few places of one list from outweighing agreement between lists.
-	rrfK = 60
-	// meaningListSize is how many of the closest notes by meaning take part
-	// in a search. Every note has some closeness, so without a cut every
-	// note would count as found.
+	// meaningListSize is how many of the closest notes report meaning in
+	// MatchedBy. Every note has some closeness, so without a cut every note
+	// would claim it.
 	meaningListSize = 50
-	// pinnedScore puts a note named after the query first: no note can
-	// score this much from the lists, whose shares are each below 1/rrfK.
-	pinnedScore = 1
+	// rescueLimit is how many notes holding every key word of the query move
+	// above the meaning ranking. More would push close paraphrase matches
+	// off the first page.
+	rescueLimit = 3
+	// fullCoverage allows for rounding in a section's share of the query.
+	fullCoverage = 1 - 1e-9
 )
 
 // The ways a search can find a note, as Result.MatchedBy reports them.
@@ -39,126 +39,151 @@ type Result struct {
 
 var quotedPhrase = regexp.MustCompile(`"([^"]+)"`)
 
-type candidate struct {
-	result Result
-	doc    int
-	score  float64
-	hit    *Hit
-	// keywordChunk is the section that earned the keyword score.
-	keywordChunk int
+type found struct {
+	name, phrase, closest bool
+	// rescued is set for a note moved above the meaning ranking.
+	rescued bool
+	keyword *scoredDoc
+	hit     *Hit
 }
 
-// Search finds notes by name, by quoted phrase, by keyword, and by meaning,
-// and merges the four rankings by reciprocal rank fusion: a note scores
-// 1/(rrfK+rank) for each list it is in. A keyword vote is scaled by how much
-// of the query's word weight the note's best section holds, so a note that
-// shares only a common word with a paraphrase does not outvote meaning. A note whose name holds every word
-// of the query comes first. include, when not nil, limits which notes take
-// part. Keyword results work as soon as the notes have been read, before any
-// vector exists; meaning joins in once vectors do.
+// Search ranks notes by meaning and lets key words rescue the clear hits
+// that meaning misses. Notes whose name holds every word of the query come
+// first, then notes holding a quoted phrase, then the rescueLimit notes with
+// the best keyword scores among those with a section holding every key word;
+// each group is in meaning order, and the rest follow in meaning order. A note matching only some key words keeps its
+// meaning place, because a paraphrase shares ordinary words with many
+// unrelated notes. Before any vector exists, key words alone set the order.
+// include, when not nil, limits which notes take part.
 func (ix *Index) Search(ctx context.Context, query string, include func(string) bool) ([]Result, Status, error) {
 	terms := ix.termSnapshot()
 	if terms == nil {
 		return nil, ix.currentStatus(), nil
 	}
-	found := map[string]*candidate{}
-	add := func(doc int, how string, score float64) *candidate {
-		p := terms.docs[doc].path
-		c, ok := found[p]
+	included := func(doc int) bool { return include == nil || include(terms.docs[doc].path) }
+	notes := map[int]*found{}
+	get := func(doc int) *found {
+		f, ok := notes[doc]
 		if !ok {
-			c = &candidate{result: Result{Path: p}, doc: doc}
-			found[p] = c
+			f = &found{}
+			notes[doc] = f
 		}
-		c.result.MatchedBy = append(c.result.MatchedBy, how)
-		c.score += score
-		return c
+		return f
 	}
-	share := func(rank int) float64 { return 1 / float64(rrfK+rank+1) }
 
-	keyTerms := terms.queryTerms(query)
-	keyword := terms.rank(keyTerms, include)
+	keyword := terms.rank(terms.queryTerms(query), include)
 	keywordRank := make(map[int]int, len(keyword))
-	for i, s := range keyword {
-		keywordRank[s.doc] = i
-	}
-	if want := tokens(quotedPhrase.ReplaceAllString(query, "$1")); len(want) > 0 {
-		for i, d := range terms.docs {
-			if (include == nil || include(d.path)) && holdsAll(tokens(noteTitle(d.path)), want) {
-				add(i, MatchName, pinnedScore)
-			}
-		}
-	}
-	phrases := phrasesOf(query)
-	if len(phrases) > 0 {
-		var docs []int
-		for i, d := range terms.docs {
-			if (include == nil || include(d.path)) && phraseChunk(d, phrases) >= 0 {
-				docs = append(docs, i)
-			}
-		}
-		keywordOrder := func(doc int) int {
-			if r, ok := keywordRank[doc]; ok {
-				return r
-			}
-			return len(keyword)
-		}
-		slices.SortStableFunc(docs, func(a, b int) int { return cmp.Compare(keywordOrder(a), keywordOrder(b)) })
-		for rank, doc := range docs {
-			add(doc, MatchPhrase, share(rank))
-		}
-	}
-	for rank, s := range keyword {
-		add(s.doc, MatchKeyword, share(rank)*s.coverage).keywordChunk = s.chunk
+	for i := range keyword {
+		keywordRank[keyword[i].doc] = i
+		get(keyword[i].doc).keyword = &keyword[i]
 	}
 	hits, status, err := ix.searchMeaning(ctx, query)
 	if err != nil {
 		return nil, status, err
 	}
-	rank := 0
+	var meaning []int
+	meaningRank := map[int]int{}
 	for i := range hits {
-		if rank == meaningListSize {
-			break
-		}
 		doc, ok := terms.byPath[hits[i].Path]
-		if !ok || (include != nil && !include(hits[i].Path)) {
+		if !ok || !included(doc) {
 			continue
 		}
-		add(doc, MatchMeaning, share(rank)).hit = &hits[i]
-		rank++
+		f := get(doc)
+		f.hit = &hits[i]
+		f.closest = len(meaning) < meaningListSize
+		meaningRank[doc] = len(meaning)
+		meaning = append(meaning, doc)
+	}
+	// Notes moved up together each hold what moved them, so meaning orders
+	// them, then key words for notes not yet embedded.
+	place := func(doc int) int {
+		if r, ok := meaningRank[doc]; ok {
+			return r
+		}
+		return len(meaning) + keywordRank[doc]
+	}
+	byMeaning := func(a, b int) int { return cmp.Compare(place(a), place(b)) }
+
+	var order []int
+	rescue := func(docs []int, mark func(*found)) {
+		slices.SortStableFunc(docs, byMeaning)
+		for _, doc := range docs {
+			f := get(doc)
+			mark(f)
+			if !f.rescued {
+				f.rescued = true
+				order = append(order, doc)
+			}
+		}
+	}
+	var named []int
+	if want := tokens(quotedPhrase.ReplaceAllString(query, "$1")); len(want) > 0 {
+		for i, d := range terms.docs {
+			if included(i) && holdsAll(tokens(noteTitle(d.path)), want) {
+				named = append(named, i)
+			}
+		}
+	}
+	rescue(named, func(f *found) { f.name = true })
+	phrases := phrasesOf(query)
+	var quoted []int
+	if len(phrases) > 0 {
+		for i, d := range terms.docs {
+			if included(i) && phraseChunk(d, phrases) >= 0 {
+				quoted = append(quoted, i)
+			}
+		}
+	}
+	rescue(quoted, func(f *found) { f.phrase = true })
+	var covering []int
+	for _, s := range keyword {
+		if len(covering) == rescueLimit {
+			break
+		}
+		if s.coverage >= fullCoverage && !get(s.doc).rescued {
+			covering = append(covering, s.doc)
+		}
+	}
+	rescue(covering, func(*found) {})
+	for _, doc := range meaning {
+		if !get(doc).rescued {
+			order = append(order, doc)
+		}
+	}
+	for _, s := range keyword {
+		if get(s.doc).hit == nil && !get(s.doc).rescued {
+			order = append(order, s.doc)
+		}
 	}
 
-	ordered := make([]*candidate, 0, len(found))
-	for _, c := range found {
-		ordered = append(ordered, c)
-	}
-	slices.SortFunc(ordered, func(a, b *candidate) int {
-		if c := cmp.Compare(b.score, a.score); c != 0 {
-			return c
-		}
-		return strings.Compare(a.result.Path, b.result.Path)
-	})
-	results := make([]Result, len(ordered))
-	for i, c := range ordered {
-		results[i] = c.withSection(terms, phrases)
+	results := make([]Result, len(order))
+	for i, doc := range order {
+		results[i] = notes[doc].result(terms.docs[doc], phrases)
 	}
 	return results, status, nil
 }
 
-// withSection fills in the section that shows best why the note was found:
-// the one holding a quoted phrase, else the one holding the rarest key
-// words, else the one closest in meaning. A name match is always a keyword
-// match too, because a note's name counts among its words.
-func (c *candidate) withSection(terms *termIndex, phrases []string) Result {
-	r := c.result
-	d := terms.docs[c.doc]
-	var chunk int
+// result reports how the note was found and the section that shows it best:
+// the one holding a quoted phrase; else, for a note placed by its key words,
+// the section that earned its keyword score; else the closest in meaning.
+func (f *found) result(d termDoc, phrases []string) Result {
+	r := Result{Path: d.path}
+	for _, m := range []struct {
+		ok  bool
+		how string
+	}{{f.name, MatchName}, {f.phrase, MatchPhrase}, {f.keyword != nil, MatchKeyword}, {f.closest, MatchMeaning}} {
+		if m.ok {
+			r.MatchedBy = append(r.MatchedBy, m.how)
+		}
+	}
+	chunk := -1
 	switch {
-	case slices.Contains(r.MatchedBy, MatchPhrase):
+	case f.phrase:
 		chunk = phraseChunk(d, phrases)
-	case slices.Contains(r.MatchedBy, MatchKeyword):
-		chunk = c.keywordChunk
-	default:
-		r.HeadingPath, r.Text = c.hit.HeadingPath, c.hit.Text
+	case f.keyword != nil && (f.rescued || f.hit == nil):
+		chunk = f.keyword.chunk
+	case f.hit != nil:
+		r.HeadingPath, r.Text = f.hit.HeadingPath, f.hit.Text
 		return r
 	}
 	if chunk >= 0 {

@@ -68,14 +68,17 @@ the note does not already end with one.
 
 `grep_notes` finds the exact words you give it. With semantic search on, `search_notes` finds notes about the same topic too, even when they use other words: "feeling burned out" can find a note about low energy. `related_notes` uses the same idea to find notes connected to one note, including notes it never links to.
 
-`search_notes` is hybrid search: it ranks notes four ways and merges the lists by rank (reciprocal rank fusion), so a note found in several ways comes first.
+`search_notes` is hybrid search: notes are ranked by meaning, and key words rescue the clear hits that meaning misses, such as a book title or a rare name. These move to the top, in this order:
 
-- **Name.** A note whose name holds every word of the query comes first.
-- **Key words.** Sections are ranked by BM25, the standard keyword ranking, and a note counts as its best section, so one matching section in a long note is not lost. Headings and the note's name count as words of each section. A word that few sections hold counts more than a word most hold, so "the" and "of" count for almost nothing in any language. Word forms do not match ("organize" does not find "organizing"); the meaning ranking covers those.
-- **Phrase.** Words in double quotes must appear together, as written.
-- **Meaning.** The 50 notes closest in meaning.
+1. **Name.** Notes whose name holds every word of the query.
+2. **Phrase.** Notes holding words in double quotes together, as written.
+3. **Key words.** Up to three notes with a section holding every key word of the query, chosen by BM25, the standard keyword ranking.
 
-Each result reports `matched_by`. A note found by meaning alone is a weaker match. When every top result is meaning only, the vault may not hold what was asked for.
+Each group is in meaning order, and the rest of the notes follow in meaning order. A note that holds only some of the key words keeps its meaning place: a question in plain words shares ordinary words with many unrelated notes, and letting those words move notes up pushes the right note down.
+
+Key words are scored per section, and a note counts as its best section, so one matching section in a long note is not lost. Headings and the note's name count as words of each section. A word that few sections hold counts more than a word most hold, so "the" and "of" count for almost nothing in any language. Word forms do not match ("organize" does not find "organizing"); the meaning ranking covers those.
+
+Each result reports `matched_by`: `name`, `phrase`, `keyword` (the note holds key words), and `meaning` (one of the 50 notes closest in meaning). A note found by meaning alone is a weaker match. When every top result is meaning only, the vault may not hold what was asked for.
 
 Turn it on with `MCP_SEMANTIC_SEARCH=true`. The server then runs a small embedding model, `nomic-embed-text-v1.5`, inside the container with `llama-server`. No note text leaves the server.
 
