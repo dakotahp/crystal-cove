@@ -50,7 +50,9 @@ type candidate struct {
 
 // Search finds notes by name, by quoted phrase, by keyword, and by meaning,
 // and merges the four rankings by reciprocal rank fusion: a note scores
-// 1/(rrfK+rank) for each list it is in. A note whose name holds every word
+// 1/(rrfK+rank) for each list it is in. A keyword vote is scaled by how much
+// of the query's word weight the note's best section holds, so a note that
+// shares only a common word with a paraphrase does not outvote meaning. A note whose name holds every word
 // of the query comes first. include, when not nil, limits which notes take
 // part. Keyword results work as soon as the notes have been read, before any
 // vector exists; meaning joins in once vectors do.
@@ -106,7 +108,7 @@ func (ix *Index) Search(ctx context.Context, query string, include func(string) 
 		}
 	}
 	for rank, s := range keyword {
-		add(s.doc, MatchKeyword, share(rank)).keywordChunk = s.chunk
+		add(s.doc, MatchKeyword, share(rank)*s.coverage).keywordChunk = s.chunk
 	}
 	hits, status, err := ix.searchMeaning(ctx, query)
 	if err != nil {

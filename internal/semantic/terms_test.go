@@ -137,6 +137,30 @@ func TestRankScoresANoteByItsBestSection(t *testing.T) {
 	}
 }
 
+func TestRankReportsHowMuchOfTheQueryASectionCovers(t *testing.T) {
+	ti := newTermIndex(termNotes(map[string][]Chunk{
+		"both.md":   {{Text: "privacy hedge for the yard"}},
+		"common.md": {{Text: "yard sale this weekend"}},
+		"rare.md":   {{Text: "privacy screen"}},
+		"a.md":      {{Text: "the yard"}},
+		"b.md":      {{Text: "rent"}},
+		"c.md":      {{Text: "travel"}},
+	}))
+	coverage := map[string]float64{}
+	for _, s := range ti.rank([]string{"privacy", "yard"}, nil) {
+		coverage[ti.docs[s.doc].path] = s.coverage
+	}
+	if coverage["both.md"] != 1 {
+		t.Errorf("coverage = %v, want 1 for the section holding every term", coverage)
+	}
+	if !(coverage["common.md"] < 0.5 && coverage["rare.md"] > 0.5) {
+		t.Errorf("coverage = %v, want the rarer term to carry more of the query", coverage)
+	}
+	if got := ti.rank([]string{"privacy"}, nil); got[0].coverage != 1 {
+		t.Errorf("one-term query: coverage = %v, want 1", got[0].coverage)
+	}
+}
+
 func TestRankCountsHeadingWords(t *testing.T) {
 	ti := newTermIndex(termNotes(map[string][]Chunk{
 		"journal.md": {{HeadingPath: []string{"Readings", "Project Aristotle"}, Text: "google studied teams"}},

@@ -44,10 +44,14 @@ type posting struct {
 
 // scoredDoc is a note's keyword score and the section, within the note,
 // that earned it; chunk is -1 for a note matched by name with no text.
+// coverage is the share of the query's word weight (summed idf) that the
+// section holds: 1 when it holds every term, small when it holds only the
+// commonest.
 type scoredDoc struct {
-	doc   int
-	score float64
-	chunk int
+	doc      int
+	score    float64
+	chunk    int
+	coverage float64
 }
 
 // tokens lowercases text and splits it into runs of letters and digits.
@@ -129,12 +133,16 @@ func (ti *termIndex) queryTerms(query string) []string {
 // section, best first.
 func (ti *termIndex) rank(terms []string, include func(string) bool) []scoredDoc {
 	scores := map[int]float64{}
+	covered := map[int]float64{}
+	var weight float64
 	for _, t := range terms {
 		idf := ti.idf(t)
+		weight += idf
 		for _, p := range ti.postings[t] {
 			norm := bm25K1 * (1 - bm25B + bm25B*float64(ti.chunkLen[p.chunk])/ti.avgLen)
 			tf := float64(p.tf)
 			scores[p.chunk] += idf * tf * (bm25K1 + 1) / (tf + norm)
+			covered[p.chunk] += idf
 		}
 	}
 	best := map[int]scoredDoc{}
@@ -143,7 +151,7 @@ func (ti *termIndex) rank(terms []string, include func(string) bool) []scoredDoc
 		if b, ok := best[doc]; ok && (b.score > score || b.score == score && b.chunk < chunk-ti.docs[doc].first) {
 			continue
 		}
-		best[doc] = scoredDoc{doc: doc, score: score, chunk: chunk - ti.docs[doc].first}
+		best[doc] = scoredDoc{doc: doc, score: score, chunk: chunk - ti.docs[doc].first, coverage: covered[chunk] / weight}
 	}
 	out := make([]scoredDoc, 0, len(best))
 	for _, s := range best {
