@@ -120,21 +120,41 @@ func TestQueryTermsDropWordsMostNotesHold(t *testing.T) {
 	}
 }
 
-func TestBestChunkPrefersTheSectionHoldingRareTerms(t *testing.T) {
+func TestRankScoresANoteByItsBestSection(t *testing.T) {
 	ti := newTermIndex(termNotes(map[string][]Chunk{
-		"lecture.md": {
-			{HeadingPath: []string{"Leadership styles"}, Text: "transactional and transformational leaders and teams"},
-			{HeadingPath: []string{"Importance of trust"}, Text: "trust is willingness to be vulnerable"},
+		"journal.md": {
+			{HeadingPath: []string{"Week 1"}, Text: repeatWord("project", 3) + repeatWord("filler", 300)},
+			{HeadingPath: []string{"Project Aristotle"}, Text: "google studied aristotle teams"},
+			{HeadingPath: []string{"Week 3"}, Text: repeatWord("filler", 300)},
 		},
-		"b.md": {{Text: "teams teams"}},
-		"c.md": {{Text: "teams"}},
+		"plan.md":   {{Text: repeatWord("project", 8) + "plan"}},
+		"other.md":  {{Text: "project"}},
+		"budget.md": {{Text: "rent"}},
 	}))
-	lecture := slices.IndexFunc(ti.docs, func(d termDoc) bool { return d.path == "lecture.md" })
-	if got := ti.bestChunk(lecture, []string{"trust", "teams"}); got != 1 {
-		t.Errorf("bestChunk = %d, want the trust section", got)
+	got := ti.rank(ti.queryTerms("project aristotle"), nil)
+	if len(got) == 0 || ti.docs[got[0].doc].path != "journal.md" || got[0].chunk != 1 {
+		t.Fatalf("rank = %+v, want journal.md first on its Project Aristotle section", got)
 	}
-	if got := ti.bestChunk(lecture, []string{"absent"}); got != 0 {
-		t.Errorf("no term present: bestChunk = %d, want the first section", got)
+}
+
+func TestRankCountsHeadingWords(t *testing.T) {
+	ti := newTermIndex(termNotes(map[string][]Chunk{
+		"journal.md": {{HeadingPath: []string{"Readings", "Project Aristotle"}, Text: "google studied teams"}},
+		"b.md":       {{Text: "rent"}},
+	}))
+	if got := ti.rank([]string{"aristotle"}, nil); len(got) != 1 || ti.docs[got[0].doc].path != "journal.md" {
+		t.Errorf("rank = %+v, want the note whose heading names Aristotle", got)
+	}
+}
+
+func TestRankPrefersTheEarlierOfTwoEqualSections(t *testing.T) {
+	ti := newTermIndex(termNotes(map[string][]Chunk{
+		"a.md": {{Text: "compost soil"}, {Text: "compost soil"}},
+		"b.md": {{Text: "rent"}},
+		"c.md": {{Text: "travel"}},
+	}))
+	if got := ti.rank([]string{"compost"}, nil); len(got) != 1 || got[0].chunk != 0 {
+		t.Errorf("rank = %+v, want a.md on its first section", got)
 	}
 }
 
@@ -143,7 +163,7 @@ func TestEmptyTermIndex(t *testing.T) {
 		t.Errorf("rank on empty index = %+v", got)
 	}
 	ti := newTermIndex(termNotes(map[string][]Chunk{"empty.md": nil}))
-	if got := ti.bestChunk(0, []string{"empty"}); got != -1 {
-		t.Errorf("bestChunk on a note without chunks = %d", got)
+	if got := ti.rank([]string{"empty"}, nil); len(got) != 1 || got[0].chunk != -1 {
+		t.Errorf("a note without text found by name: rank = %+v, want it with no section", got)
 	}
 }

@@ -44,6 +44,8 @@ type candidate struct {
 	doc    int
 	score  float64
 	hit    *Hit
+	// keywordChunk is the section that earned the keyword score.
+	keywordChunk int
 }
 
 // Search finds notes by name, by quoted phrase, by keyword, and by meaning,
@@ -104,7 +106,7 @@ func (ix *Index) Search(ctx context.Context, query string, include func(string) 
 		}
 	}
 	for rank, s := range keyword {
-		add(s.doc, MatchKeyword, share(rank))
+		add(s.doc, MatchKeyword, share(rank)).keywordChunk = s.chunk
 	}
 	hits, status, err := ix.searchMeaning(ctx, query)
 	if err != nil {
@@ -135,7 +137,7 @@ func (ix *Index) Search(ctx context.Context, query string, include func(string) 
 	})
 	results := make([]Result, len(ordered))
 	for i, c := range ordered {
-		results[i] = c.withSection(terms, keyTerms, phrases)
+		results[i] = c.withSection(terms, phrases)
 	}
 	return results, status, nil
 }
@@ -144,7 +146,7 @@ func (ix *Index) Search(ctx context.Context, query string, include func(string) 
 // the one holding a quoted phrase, else the one holding the rarest key
 // words, else the one closest in meaning. A name match is always a keyword
 // match too, because a note's name counts among its words.
-func (c *candidate) withSection(terms *termIndex, keyTerms, phrases []string) Result {
+func (c *candidate) withSection(terms *termIndex, phrases []string) Result {
 	r := c.result
 	d := terms.docs[c.doc]
 	var chunk int
@@ -152,7 +154,7 @@ func (c *candidate) withSection(terms *termIndex, keyTerms, phrases []string) Re
 	case slices.Contains(r.MatchedBy, MatchPhrase):
 		chunk = phraseChunk(d, phrases)
 	case slices.Contains(r.MatchedBy, MatchKeyword):
-		chunk = terms.bestChunk(c.doc, keyTerms)
+		chunk = c.keywordChunk
 	default:
 		r.HeadingPath, r.Text = c.hit.HeadingPath, c.hit.Text
 		return r
@@ -173,11 +175,12 @@ func phrasesOf(query string) []string {
 	return out
 }
 
-// phraseChunk returns the first chunk of d holding every phrase, compared
-// word by word so case, punctuation and line breaks do not matter, or -1.
+// phraseChunk returns the first chunk of d whose headings or text hold every
+// phrase, compared word by word so case, punctuation and line breaks do not
+// matter, or -1.
 func phraseChunk(d termDoc, phrases []string) int {
 	for i, c := range d.chunks {
-		text := " " + strings.Join(tokens(c.Text), " ") + " "
+		text := " " + strings.Join(tokens(strings.Join(c.HeadingPath, " ")+"\n"+c.Text), " ") + " "
 		if !slices.ContainsFunc(phrases, func(p string) bool { return !strings.Contains(text, " "+p+" ") }) {
 			return i
 		}

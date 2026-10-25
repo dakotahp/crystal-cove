@@ -10,31 +10,44 @@ import (
 )
 
 // BM25's usual constants: k1 sets how quickly repeats of a word stop adding
-// score, and b how strongly a long note is marked down for its length.
+// score, and b how strongly a long section is marked down for its length.
 const (
 	bm25K1 = 1.2
 	bm25B  = 0.75
 )
 
-// termIndex holds each note's word counts for keyword ranking. It is built
-// whole on every refresh and never changed after, so readers need no lock.
+// termIndex scores key words per section, not per note: a long note with
+// one section on the query would otherwise be marked down for the length
+// of everything else in it. A note scores as its best section. The index is
+// built whole on every refresh and never changed after, so readers need no
+// lock.
 type termIndex struct {
-	docs   []termDoc
-	byPath map[string]int
-	df     map[string]int
-	avgLen float64
+	docs     []termDoc
+	byPath   map[string]int
+	chunkDoc []int
+	chunkLen []int
+	postings map[string][]posting
+	avgLen   float64
 }
 
 type termDoc struct {
 	path   string
 	chunks []Chunk
-	tf     map[string]int
-	length int
+	// first is the index of the note's first section across the vault.
+	first int
 }
 
+type posting struct {
+	chunk int
+	tf    int
+}
+
+// scoredDoc is a note's keyword score and the section, within the note,
+// that earned it; chunk is -1 for a note matched by name with no text.
 type scoredDoc struct {
 	doc   int
 	score float64
+	chunk int
 }
 
 // tokens lowercases text and splits it into runs of letters and digits.
@@ -45,28 +58,39 @@ func tokens(text string) []string {
 	})
 }
 
+// newTermIndex counts every section's words and its headings' words, with
+// the note's name counted in each section so a name match reaches the whole
+// note. A note with no
+// text gets one empty section, so it can still be found by name.
 func newTermIndex(notes []noteChunks) *termIndex {
-	ti := &termIndex{byPath: map[string]int{}, df: map[string]int{}}
+	ti := &termIndex{byPath: map[string]int{}, postings: map[string][]posting{}}
 	total := 0
 	for _, n := range notes {
-		d := termDoc{path: n.path, chunks: n.chunks, tf: map[string]int{}}
-		words := tokens(noteTitle(n.path))
-		for _, c := range n.chunks {
-			words = append(words, tokens(c.Text)...)
+		d := termDoc{path: n.path, chunks: n.chunks, first: len(ti.chunkDoc)}
+		title := tokens(noteTitle(n.path))
+		texts := make([]string, max(1, len(n.chunks)))
+		for i, c := range n.chunks {
+			texts[i] = strings.Join(c.HeadingPath, " ") + " " + c.Text
 		}
-		for _, w := range words {
-			d.tf[w]++
+		for _, text := range texts {
+			chunk := len(ti.chunkDoc)
+			words := append(slices.Clone(title), tokens(text)...)
+			tf := map[string]int{}
+			for _, w := range words {
+				tf[w]++
+			}
+			for w, n := range tf {
+				ti.postings[w] = append(ti.postings[w], posting{chunk: chunk, tf: n})
+			}
+			ti.chunkDoc = append(ti.chunkDoc, len(ti.docs))
+			ti.chunkLen = append(ti.chunkLen, len(words))
+			total += len(words)
 		}
-		for w := range d.tf {
-			ti.df[w]++
-		}
-		d.length = len(words)
-		total += d.length
 		ti.byPath[d.path] = len(ti.docs)
 		ti.docs = append(ti.docs, d)
 	}
-	if len(ti.docs) > 0 {
-		ti.avgLen = float64(total) / float64(len(ti.docs))
+	if len(ti.chunkLen) > 0 {
+		ti.avgLen = float64(total) / float64(len(ti.chunkLen))
 	}
 	return ti
 }
@@ -76,12 +100,12 @@ func noteTitle(p string) string {
 }
 
 func (ti *termIndex) idf(term string) float64 {
-	n, df := float64(len(ti.docs)), float64(ti.df[term])
+	n, df := float64(len(ti.chunkLen)), float64(len(ti.postings[term]))
 	return math.Log(1 + (n-df+0.5)/(df+0.5))
 }
 
 // queryTerms returns the distinct words of query, without the words more
-// than half the notes hold, which say little about any one note. When no
+// than half the sections hold, which say little about any one note. When no
 // word in between is left, it keeps them all.
 func (ti *termIndex) queryTerms(query string) []string {
 	var all, rare []string
@@ -90,7 +114,7 @@ func (ti *termIndex) queryTerms(query string) []string {
 			continue
 		}
 		all = append(all, w)
-		if df := ti.df[w]; df > 0 && 2*df <= len(ti.docs) {
+		if df := len(ti.postings[w]); df > 0 && 2*df <= len(ti.chunkLen) {
 			rare = append(rare, w)
 		}
 	}
@@ -100,24 +124,36 @@ func (ti *termIndex) queryTerms(query string) []string {
 	return rare
 }
 
-// rank scores every note include accepts by BM25 over terms and returns the
-// notes holding at least one term, best first.
+// rank scores every section by BM25 over terms and returns each note that
+// include accepts and that holds at least one term, scored by its best
+// section, best first.
 func (ti *termIndex) rank(terms []string, include func(string) bool) []scoredDoc {
-	var out []scoredDoc
-	for i, d := range ti.docs {
-		if include != nil && !include(d.path) {
+	scores := map[int]float64{}
+	for _, t := range terms {
+		idf := ti.idf(t)
+		for _, p := range ti.postings[t] {
+			norm := bm25K1 * (1 - bm25B + bm25B*float64(ti.chunkLen[p.chunk])/ti.avgLen)
+			tf := float64(p.tf)
+			scores[p.chunk] += idf * tf * (bm25K1 + 1) / (tf + norm)
+		}
+	}
+	best := map[int]scoredDoc{}
+	for chunk, score := range scores {
+		doc := ti.chunkDoc[chunk]
+		if b, ok := best[doc]; ok && (b.score > score || b.score == score && b.chunk < chunk-ti.docs[doc].first) {
 			continue
 		}
-		var score float64
-		norm := bm25K1 * (1 - bm25B + bm25B*float64(d.length)/ti.avgLen)
-		for _, t := range terms {
-			if tf := float64(d.tf[t]); tf > 0 {
-				score += ti.idf(t) * tf * (bm25K1 + 1) / (tf + norm)
-			}
+		best[doc] = scoredDoc{doc: doc, score: score, chunk: chunk - ti.docs[doc].first}
+	}
+	out := make([]scoredDoc, 0, len(best))
+	for _, s := range best {
+		if include != nil && !include(ti.docs[s.doc].path) {
+			continue
 		}
-		if score > 0 {
-			out = append(out, scoredDoc{doc: i, score: score})
+		if s.chunk >= len(ti.docs[s.doc].chunks) {
+			s.chunk = -1
 		}
+		out = append(out, s)
 	}
 	slices.SortFunc(out, func(a, b scoredDoc) int {
 		if c := cmp.Compare(b.score, a.score); c != 0 {
@@ -126,28 +162,4 @@ func (ti *termIndex) rank(terms []string, include func(string) bool) []scoredDoc
 		return strings.Compare(ti.docs[a.doc].path, ti.docs[b.doc].path)
 	})
 	return out
-}
-
-// bestChunk returns the index of the note's chunk holding the rarest of
-// terms, the first chunk when none holds any, or -1 for a note with no
-// chunks.
-func (ti *termIndex) bestChunk(doc int, terms []string) int {
-	chunks := ti.docs[doc].chunks
-	if len(chunks) == 0 {
-		return -1
-	}
-	best, bestScore := 0, 0.0
-	for i, c := range chunks {
-		words := tokens(c.Text)
-		var score float64
-		for _, t := range terms {
-			if slices.Contains(words, t) {
-				score += ti.idf(t)
-			}
-		}
-		if score > bestScore {
-			best, bestScore = i, score
-		}
-	}
-	return best
 }

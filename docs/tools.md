@@ -71,7 +71,7 @@ the note does not already end with one.
 `search_notes` is hybrid search: it ranks notes four ways and merges the lists by rank (reciprocal rank fusion), so a note found in several ways comes first.
 
 - **Name.** A note whose name holds every word of the query comes first.
-- **Key words.** Notes are ranked by BM25, the standard keyword ranking: a word that few notes hold counts more than a word most notes hold, so "the" and "of" count for almost nothing in any language. Word forms do not match ("organize" does not find "organizing"); the meaning ranking covers those.
+- **Key words.** Sections are ranked by BM25, the standard keyword ranking, and a note counts as its best section, so one matching section in a long note is not lost. Headings and the note's name count as words of each section. A word that few sections hold counts more than a word most hold, so "the" and "of" count for almost nothing in any language. Word forms do not match ("organize" does not find "organizing"); the meaning ranking covers those.
 - **Phrase.** Words in double quotes must appear together, as written.
 - **Meaning.** The 50 notes closest in meaning.
 

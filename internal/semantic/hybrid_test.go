@@ -106,6 +106,21 @@ func TestSearchQuotedPhrase(t *testing.T) {
 	}
 }
 
+func TestSearchFindsAPhraseInAHeading(t *testing.T) {
+	ix, _, _ := newTestIndex(t, map[string]string{
+		"Journal.md": "# Week 2\n## Project Aristotle\ngoogle studied teams\n",
+		"b.md":       "aristotle wrote about project ethics\n",
+		"c.md":       "rent\n",
+	})
+	if err := ix.Refresh(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	results := searchFor(t, ix, `"project aristotle"`, nil)
+	if results[0].Path != "Journal.md" || !slices.Contains(results[0].MatchedBy, MatchPhrase) {
+		t.Errorf("results = %+v, want Journal.md first, matched by phrase in its heading", results)
+	}
+}
+
 func TestSearchOrdersPhraseMatchesByKeywordRank(t *testing.T) {
 	ix, _, _ := newTestIndex(t, map[string]string{
 		"a.md": "the lean canvas\n",

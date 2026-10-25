@@ -99,8 +99,9 @@ internal/semantic/     opt-in search by meaning (MCP_SEMANTIC_SEARCH): chunks
                        through a supervised llama-server child on loopback,
                        caches vectors by text hash in ~/.crystal-cove/semantic,
                        and compares every vector per query (no vector DB);
-                       also a BM25 word index rebuilt in memory on each
-                       refresh, before embedding, and the hybrid Search that
+                       also a per-section BM25 word index (headings and name
+                       counted) rebuilt in memory on each refresh, before
+                       embedding, and the hybrid Search that
                        fuses the keyword, phrase, name and meaning rankings
 internal/oidcauth/     OIDC bearer-token validation for any compliant IdP:
                        discovery (with internal-issuer override), JWKS via
