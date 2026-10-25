@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.22.0](https://github.com/dakotahp/crystal-cove/compare/v0.21.0...v0.22.0) (2026-10-25)
+
+
+### ⚠ BREAKING CHANGES
+
+* the exact name and content search is renamed from search_notes to grep_notes, with no change in behaviour. semantic_search is removed; with MCP_SEMANTIC_SEARCH=true, search_notes is the hybrid search instead. Agent prompts and mcp-instructions files that name either tool need updating.
+
+### Features
+
+* hybrid search_notes replaces semantic_search; exact search is grep_notes ([e24ef47](https://github.com/dakotahp/crystal-cove/commit/e24ef475f794b646a7a5cd44c298015ebfc935b6))
+* **semantic:** rank by meaning and let key words rescue clear hits ([d4b912f](https://github.com/dakotahp/crystal-cove/commit/d4b912fde3afec59a63c94688b755ebed65dbec0))
+* **semantic:** scale keyword votes by how much of the query a section covers ([c8b77e1](https://github.com/dakotahp/crystal-cove/commit/c8b77e10b38c8ed1513c72c5e0457a327f412152))
+* **semantic:** stop search_notes at the 50 closest notes plus rescued ones ([3ef71cc](https://github.com/dakotahp/crystal-cove/commit/3ef71cc3c5497e83325e08b9eae95a96fc0e593d))
+
+
+### Bug Fixes
+
+* **semantic:** score key words per section and count headings ([f297422](https://github.com/dakotahp/crystal-cove/commit/f29742272f70944703e285f62e5e9794f9e95378))
+
 ## [0.21.0](https://github.com/dakotahp/crystal-cove/compare/v0.20.0...v0.21.0) (2026-10-22)
 
 
