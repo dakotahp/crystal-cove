@@ -30,7 +30,7 @@ func titleSearchServer(t *testing.T, paths ...string) *Server {
 
 func searchFor(t *testing.T, s *Server, query string) *search.Result {
 	t.Helper()
-	_, res, err := s.searchNotes(context.Background(), &mcp.CallToolRequest{}, searchNotesInput{
+	_, res, err := s.grepNotes(context.Background(), &mcp.CallToolRequest{}, grepNotesInput{
 		Vault: "Personal",
 		Query: query,
 	})
@@ -99,7 +99,7 @@ func TestSearchLeavesOutTitleMatchesOutsideTheGlob(t *testing.T) {
 	)
 
 	for _, glob := range []string{"Journaling/BuJo for Engineering Managers.md", "Journaling/*BuJo*.md"} {
-		_, res, err := s.searchNotes(context.Background(), &mcp.CallToolRequest{}, searchNotesInput{
+		_, res, err := s.grepNotes(context.Background(), &mcp.CallToolRequest{}, grepNotesInput{
 			Vault: "Personal",
 			Query: "Monday|Tyre",
 			Glob:  glob,
@@ -124,14 +124,14 @@ func TestSearchWithGlobReportsTitleErrors(t *testing.T) {
 	s := New([]*vault.Vault{v}, search.New("rg", failFiles), func() bool { return true })
 
 	for _, query := range []string{"(", "Monday"} {
-		_, _, err := s.searchNotes(context.Background(), &mcp.CallToolRequest{}, searchNotesInput{
+		_, _, err := s.grepNotes(context.Background(), &mcp.CallToolRequest{}, grepNotesInput{
 			Vault: "Personal",
 			Query: query,
 			Mode:  "regex",
 			Glob:  "B/**",
 		})
 		if err == nil {
-			t.Errorf("query %q: searchNotes succeeded, want an error", query)
+			t.Errorf("query %q: grepNotes succeeded, want an error", query)
 		}
 	}
 }
@@ -139,7 +139,7 @@ func TestSearchWithGlobReportsTitleErrors(t *testing.T) {
 func TestSearchCountsOnlyTitleMatchesInsideTheGlobAgainstMaxResults(t *testing.T) {
 	s := titleSearchServer(t, "A/Monday one.md", "B/Monday two.md")
 
-	_, res, err := s.searchNotes(context.Background(), &mcp.CallToolRequest{}, searchNotesInput{
+	_, res, err := s.grepNotes(context.Background(), &mcp.CallToolRequest{}, grepNotesInput{
 		Vault: "Personal",
 		Query: "Monday",
 		Glob:  "B/**",
@@ -152,7 +152,7 @@ func TestSearchCountsOnlyTitleMatchesInsideTheGlobAgainstMaxResults(t *testing.T
 		t.Errorf("Files = %+v, total %d, next %d; want only B/Monday two.md and no next page", res.Files, res.Total, res.NextOffset)
 	}
 
-	_, res, err = s.searchNotes(context.Background(), &mcp.CallToolRequest{}, searchNotesInput{
+	_, res, err = s.grepNotes(context.Background(), &mcp.CallToolRequest{}, grepNotesInput{
 		Vault: "Personal",
 		Query: "Monday",
 		Glob:  "*.md",
@@ -172,7 +172,7 @@ func TestSearchPagesReachEveryTitleMatch(t *testing.T) {
 	var seen []string
 	offset := 0
 	for offset != -1 {
-		_, res, err := s.searchNotes(context.Background(), &mcp.CallToolRequest{}, searchNotesInput{
+		_, res, err := s.grepNotes(context.Background(), &mcp.CallToolRequest{}, grepNotesInput{
 			Query: "Monday", Limit: 1, Offset: offset,
 		})
 		if err != nil {
@@ -190,7 +190,7 @@ func TestSearchPagesReachEveryTitleMatch(t *testing.T) {
 		t.Errorf("pages gave %q, want %q", seen, want)
 	}
 
-	if _, _, err := s.searchNotes(context.Background(), &mcp.CallToolRequest{}, searchNotesInput{Query: "Monday", Offset: 4}); err == nil {
+	if _, _, err := s.grepNotes(context.Background(), &mcp.CallToolRequest{}, grepNotesInput{Query: "Monday", Offset: 4}); err == nil {
 		t.Error("offset past the end accepted")
 	}
 }
@@ -198,7 +198,7 @@ func TestSearchPagesReachEveryTitleMatch(t *testing.T) {
 func TestPhraseSearchMatchesNamesLiterally(t *testing.T) {
 	s := titleSearchServer(t, "Inbox/What? (draft).md", "Inbox/What draft.md")
 
-	_, res, err := s.searchNotes(context.Background(), &mcp.CallToolRequest{}, searchNotesInput{
+	_, res, err := s.grepNotes(context.Background(), &mcp.CallToolRequest{}, grepNotesInput{
 		Vault: "Personal",
 		Query: "what? (draft)",
 		Mode:  "phrase",

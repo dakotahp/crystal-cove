@@ -10,7 +10,7 @@ import (
 func TestChoiceParametersAdvertiseTheirValues(t *testing.T) {
 	s := newTestServer(t)
 	want := map[string]map[string][]string{
-		"search_notes": {"mode": {"auto", "words", "phrase", "regex"}, "output": {"lines", "files"}},
+		"grep_notes":   {"mode": {"auto", "words", "phrase", "regex"}, "output": {"lines", "files"}},
 		"list_notes":   {"order": {"asc", "desc"}},
 		"edit_section": {"mode": {"append", "prepend", "replace"}},
 	}
@@ -49,7 +49,7 @@ func TestServerRejectsAValueOutsideTheChoices(t *testing.T) {
 	s := rankServer(t, map[string]string{"Inbox/a.md": "bike\n"})
 	session := testSession(t, s)
 
-	msg := toolError(t, session, "search_notes", map[string]any{"query": "bike", "mode": "fuzzy"})
+	msg := toolError(t, session, "grep_notes", map[string]any{"query": "bike", "mode": "fuzzy"})
 	if !strings.Contains(msg, "mode") {
 		t.Errorf("error %q should name the mode parameter", msg)
 	}
@@ -58,7 +58,7 @@ func TestServerRejectsAValueOutsideTheChoices(t *testing.T) {
 func TestSearchAcceptsAutoByName(t *testing.T) {
 	s := rankServer(t, map[string]string{"Inbox/a.md": "bike trail\n"})
 
-	res := search1(t, s, searchNotesInput{Query: "bike trail", Mode: "auto"})
+	res := search1(t, s, grepNotesInput{Query: "bike trail", Mode: "auto"})
 	if len(res.Files) != 1 {
 		t.Errorf("Files = %+v, want mode auto to work like leaving mode out", res.Files)
 	}
@@ -72,12 +72,12 @@ func TestPhraseHonoursCaseGlobAndContext(t *testing.T) {
 	})
 	phrase := `Idea [draft] 💡 (v2) — "ok?"`
 
-	res := search1(t, s, searchNotesInput{Query: phrase, Mode: "phrase", Glob: "Inbox/**", CaseSensitive: true, ContextLines: 1})
+	res := search1(t, s, grepNotesInput{Query: phrase, Mode: "phrase", Glob: "Inbox/**", CaseSensitive: true, ContextLines: 1})
 	if len(res.Files) != 1 || res.Files[0].Path != "Inbox/a.md" || len(res.Files[0].Lines) != 3 {
 		t.Fatalf("Files = %+v, want only Inbox/a.md with its match and one line of context each side", res.Files)
 	}
 
-	res = search1(t, s, searchNotesInput{Query: phrase, Mode: "phrase", Glob: "Inbox/**"})
+	res = search1(t, s, grepNotesInput{Query: phrase, Mode: "phrase", Glob: "Inbox/**"})
 	if len(res.Files) != 2 {
 		t.Errorf("Files = %+v, want both Inbox notes when case does not matter", res.Files)
 	}

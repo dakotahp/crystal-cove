@@ -148,7 +148,7 @@ test('three pillars name sync, sign-in, and note tools', () => {
 
 test('the demo names only real tools', () => {
   const tools = [...html.matchAll(/data-tool="([a-z_]+)"/g)].map(m => m[1]);
-  assert.deepStrictEqual(tools, ['search_notes', 'append_note']);
+  assert.deepStrictEqual(tools, ['grep_notes', 'append_note']);
 });
 
 test('the demo uses no vendor logos', () => {

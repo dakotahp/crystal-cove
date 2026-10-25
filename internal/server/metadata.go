@@ -110,7 +110,7 @@ func (s *Server) findNotes(_ context.Context, _ *mcp.CallToolRequest, in findNot
 	if len(in.Tags) == 0 && in.Key == "" && in.MissingKey == "" && in.MinTags == nil && in.MaxTags == nil &&
 		len(in.Folders) == 0 && len(in.ExcludeFolders) == 0 {
 		return nil, nil, errors.New("give at least one filter, such as tags, frontmatter_key, missing_key, " +
-			"max_tags or folders: find_notes queries metadata, and search_notes searches text")
+			"max_tags or folders: find_notes queries metadata, and grep_notes searches text")
 	}
 	if (in.MinTags != nil && *in.MinTags < 0) || (in.MaxTags != nil && *in.MaxTags < 0) {
 		return nil, nil, errors.New("min_tags and max_tags cannot be negative")

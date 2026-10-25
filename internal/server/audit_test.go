@@ -63,14 +63,14 @@ func TestAuditLogRecordsWhoTouchedWhichNote(t *testing.T) {
 
 	call(t, session, "create_note", map[string]any{"vault": "Work", "path": "ideas/new.md", "content": "SECRET-CONTENT"})
 	call(t, session, "read_note", map[string]any{"vault": "Work", "path": "missing.md"})
-	call(t, session, "search_notes", map[string]any{"vault": "Work", "query": "SECRET-QUERY"})
+	call(t, session, "grep_notes", map[string]any{"vault": "Work", "query": "SECRET-QUERY"})
 	call(t, session, "edit_note", map[string]any{"vault": "Work", "path": "note.md", "edits": []map[string]any{{"find": "hello", "replace": "SECRET-EDIT"}}})
 
 	got := logs.String()
 	for _, want := range []string{
 		`tool=create_note caller=api-key outcome=ok`, `vault=Work path=ideas/new.md`,
 		`tool=read_note caller=api-key outcome=tool_error`, `path=missing.md`,
-		`tool=search_notes`, `tool=edit_note`,
+		`tool=grep_notes`, `tool=edit_note`,
 	} {
 		if !strings.Contains(got, want) {
 			t.Errorf("audit log lacks %q:\n%s", want, got)

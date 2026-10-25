@@ -24,7 +24,7 @@ run 'node -e "
 echo "==> the sync client runs"
 run 'ob --help >/dev/null'
 
-echo "==> ripgrep, which search_notes shells out to"
+echo "==> ripgrep, which grep_notes shells out to"
 run 'rg --version | head -1'
 
 echo "==> llama-server loads the embedding model and embeds a sentence"

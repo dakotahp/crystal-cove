@@ -140,8 +140,8 @@ func (s *Server) MCPServer() *mcp.Server {
 	}, s.getSection)
 
 	addTool(srv, params, &mcp.Tool{
-		Name: "search_notes",
-		Description: "Search a vault by note name and by content. A plain multi-word query finds notes holding every " +
+		Name: "grep_notes",
+		Description: "Exact search of a vault's note names and content, like grep. A plain multi-word query finds notes holding every " +
 			"word, in any order; a query wrapped in double quotes, or mode phrase, finds that exact text with no escaping " +
 			"needed; a query with regular-expression characters is read as a regex (ripgrep syntax). mode forces any " +
 			"reading. Only Markdown notes are searched. Results are ranked: notes named after the query first, " +
@@ -152,8 +152,8 @@ func (s *Server) MCPServer() *mcp.Server {
 			"When the first page holds nothing useful, a better query usually beats the next page. " +
 			"A line longer than 500 characters is cut to a window around the match and flagged text_truncated. " +
 			"output files leaves the lines out, which is the cheap way to learn which notes match before reading one." +
-			s.semanticHint(searchNotesSemanticHint),
-	}, s.searchNotes)
+			s.semanticHint(grepNotesSemanticHint),
+	}, s.grepNotes)
 
 	addTool(srv, params, &mcp.Tool{
 		Name: "recent_notes",
@@ -179,7 +179,7 @@ func (s *Server) MCPServer() *mcp.Server {
 			"alone lists a folder's notes. fields returns those frontmatter fields with each note. " +
 			"Example: {\"tags\": [\"project\"], \"frontmatter_key\": \"status\", \"frontmatter_value\": \"active\"}, or " +
 			"{\"folders\": [\"Projects\", \"Areas\"], \"max_tags\": 2, \"fields\": [\"summary\"]}. " +
-			"There is no query parameter: use search_notes for words in the text.",
+			"There is no query parameter: use grep_notes for words in the text.",
 	}, s.findNotes)
 
 	addTool(srv, params, &mcp.Tool{

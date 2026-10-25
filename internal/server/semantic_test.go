@@ -79,9 +79,9 @@ func newSemanticServer(t *testing.T) (*Server, *wordsEmbedder) {
 	return s, embedder
 }
 
-func TestSemanticSearch(t *testing.T) {
+func TestSearchNotes(t *testing.T) {
 	s, _ := newSemanticServer(t)
-	_, out, err := s.semanticSearch(context.Background(), nil, semanticSearchInput{Query: "rich compost for growing"})
+	_, out, err := s.searchNotes(context.Background(), nil, searchNotesInput{Query: "rich compost for growing"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -95,16 +95,14 @@ func TestSemanticSearch(t *testing.T) {
 	if top.Path != "Tomatoes.md" || !slices.Equal(top.HeadingPath, []string{"Growing"}) || !strings.Contains(top.Excerpt, "compost") {
 		t.Errorf("top = %+v", top)
 	}
+	if !slices.Contains(top.MatchedBy, "keyword") || !slices.Contains(top.MatchedBy, "meaning") {
+		t.Errorf("top matched_by = %q, want keyword and meaning", top.MatchedBy)
+	}
 	if out.Notes[1].Path == "Budget.md" {
 		t.Errorf("unrelated note ranked near the top: %+v", out.Notes)
 	}
-	for i := 1; i < len(out.Notes); i++ {
-		if out.Notes[i].Score > out.Notes[i-1].Score {
-			t.Errorf("not ranked by score: %+v", out.Notes)
-		}
-	}
 
-	_, out, err = s.semanticSearch(context.Background(), nil, semanticSearchInput{
+	_, out, err = s.searchNotes(context.Background(), nil, searchNotesInput{
 		Query:        "tomatoes",
 		folderFilter: folderFilter{ExcludeFolders: []string{"Archive"}},
 		Limit:        2,
@@ -117,32 +115,32 @@ func TestSemanticSearch(t *testing.T) {
 	}
 }
 
-func TestSemanticSearchErrors(t *testing.T) {
+func TestSearchNotesErrors(t *testing.T) {
 	s, embedder := newSemanticServer(t)
 	ctx := context.Background()
-	if _, _, err := s.semanticSearch(ctx, nil, semanticSearchInput{Vault: "Nope", Query: "x"}); err == nil {
+	if _, _, err := s.searchNotes(ctx, nil, searchNotesInput{Vault: "Nope", Query: "x"}); err == nil {
 		t.Error("unknown vault accepted")
 	}
-	if _, _, err := s.semanticSearch(ctx, nil, semanticSearchInput{Query: "  "}); err == nil || !strings.Contains(err.Error(), "query") {
+	if _, _, err := s.searchNotes(ctx, nil, searchNotesInput{Query: "  "}); err == nil || !strings.Contains(err.Error(), "query") {
 		t.Errorf("empty query: err = %v", err)
 	}
-	if _, _, err := s.semanticSearch(ctx, nil, semanticSearchInput{Query: "x", Offset: 99}); err == nil {
+	if _, _, err := s.searchNotes(ctx, nil, searchNotesInput{Query: "x", Offset: 99}); err == nil {
 		t.Error("offset past the end accepted")
 	}
 	embedder.fail = true
-	if _, _, err := s.semanticSearch(ctx, nil, semanticSearchInput{Query: "x"}); err == nil || !strings.Contains(err.Error(), "unavailable") {
+	if _, _, err := s.searchNotes(ctx, nil, searchNotesInput{Query: "x"}); err == nil || !strings.Contains(err.Error(), "unavailable") {
 		t.Errorf("model failure: err = %v", err)
 	}
 }
 
-func TestSemanticSearchWhileBuilding(t *testing.T) {
+func TestSearchNotesWhileBuilding(t *testing.T) {
 	v := vault.New("Garden", t.TempDir())
 	write(t, v, "a.md", "text\n")
 	ix := semantic.NewIndex(v, &wordsEmbedder{}, filepath.Join(t.TempDir(), "g.gob"), slog.New(slog.NewTextHandler(io.Discard, nil)))
 	s := New([]*vault.Vault{v}, search.New("rg", nil), func() bool { return true })
 	s.SetSemantic(map[string]*semantic.Index{"Garden": ix})
-	_, _, err := s.semanticSearch(context.Background(), nil, semanticSearchInput{Query: "text"})
-	if err == nil || !strings.Contains(err.Error(), "still being built") || !strings.Contains(err.Error(), "search_notes") {
+	_, _, err := s.searchNotes(context.Background(), nil, searchNotesInput{Query: "text"})
+	if err == nil || !strings.Contains(err.Error(), "still being built") || !strings.Contains(err.Error(), "grep_notes") {
 		t.Errorf("err = %v, want a hint that the index is building", err)
 	}
 	_, _, err = s.relatedNotes(context.Background(), nil, relatedNotesInput{Path: "a.md"})
@@ -264,30 +262,30 @@ func toolDescriptions(t *testing.T, s *Server) map[string]string {
 
 func TestSemanticToolsOnlyWhenEnabled(t *testing.T) {
 	off := toolDescriptions(t, newTestServer(t))
-	if _, ok := off["semantic_search"]; ok {
-		t.Error("semantic_search registered without an index")
+	if _, ok := off["search_notes"]; ok {
+		t.Error("search_notes registered without an index")
 	}
-	if strings.Contains(off["search_notes"], "semantic_search") || strings.Contains(off["get_backlinks"], "related_notes") {
+	if strings.Contains(off["grep_notes"], "search_notes") || strings.Contains(off["get_backlinks"], "related_notes") {
 		t.Error("descriptions point at tools that are not registered")
 	}
 
 	s, _ := newSemanticServer(t)
 	s.SetPolicy(Policy{ReadOnly: true})
 	on := toolDescriptions(t, s)
-	for _, name := range []string{"semantic_search", "related_notes"} {
+	for _, name := range []string{"search_notes", "related_notes"} {
 		if on[name] == "" {
 			t.Errorf("%s missing from a read-only server", name)
 		}
 	}
-	if !strings.Contains(on["search_notes"], "semantic_search") || !strings.Contains(on["get_backlinks"], "related_notes") {
+	if !strings.Contains(on["grep_notes"], "search_notes") || !strings.Contains(on["get_backlinks"], "related_notes") {
 		t.Error("existing tools do not point at the semantic tools")
 	}
-	if !strings.Contains(on["semantic_search"], "search_notes") || !strings.Contains(on["related_notes"], "get_backlinks") {
+	if !strings.Contains(on["search_notes"], "grep_notes") || !strings.Contains(on["related_notes"], "get_backlinks") {
 		t.Error("semantic tools do not point back at the exact tools")
 	}
 }
 
-func TestSemanticSearchOverHTTP(t *testing.T) {
+func TestSearchNotesOverHTTP(t *testing.T) {
 	s, _ := newSemanticServer(t)
 	ts := httptest.NewServer(s.Handler(AuthConfig{StaticToken: "secret"}))
 	defer ts.Close()
@@ -301,11 +299,11 @@ func TestSemanticSearchOverHTTP(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer session.Close()
-	res, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "semantic_search", Arguments: map[string]any{"query": "tomatoes", "limit": 1}})
+	res, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "search_notes", Arguments: map[string]any{"query": "tomatoes", "limit": 1}})
 	if err != nil || res.IsError {
 		t.Fatalf("call: %v %+v", err, res)
 	}
-	var out SemanticSearchResult
+	var out SearchNotesResult
 	raw, _ := json.Marshal(res.StructuredContent)
 	if err := json.Unmarshal(raw, &out); err != nil {
 		t.Fatal(err)

@@ -12,7 +12,7 @@ import (
 	"github.com/dakotahp/crystal-cove/internal/vault"
 )
 
-type searchNotesInput struct {
+type grepNotesInput struct {
 	Vault           string `json:"vault,omitempty" jsonschema:"name of the vault to search; optional when the server holds one vault"`
 	Query           string `json:"query" jsonschema:"words to look for, an exact phrase, or a regular expression in ripgrep syntax"`
 	Mode            string `json:"mode,omitempty" jsonschema:"how to read the query: words (every word, any order); phrase (the exact text, case-insensitive, with no escaping: use it to find a line before editing it, or for text with punctuation, quotes, dashes or emoji); regex (ripgrep syntax); or auto (the default: phrase when the query is wrapped in double quotes, regex when it holds regex characters, words otherwise)"`
@@ -30,7 +30,7 @@ const (
 	outputFiles = "files"
 )
 
-func (s *Server) searchNotes(ctx context.Context, _ *mcp.CallToolRequest, in searchNotesInput) (*mcp.CallToolResult, *search.Result, error) {
+func (s *Server) grepNotes(ctx context.Context, _ *mcp.CallToolRequest, in grepNotesInput) (*mcp.CallToolResult, *search.Result, error) {
 	v, err := s.vault(in.Vault)
 	if err != nil {
 		return nil, nil, err

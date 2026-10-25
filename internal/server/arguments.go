@@ -35,7 +35,7 @@ func addTool[In, Out any](srv *mcp.Server, params map[string]string, t *mcp.Tool
 // options accepts. They go into the advertised schema as an enum, so a client
 // shows the options and rejects any other value before calling.
 var toolChoices = map[string]map[string][]string{
-	"search_notes": {
+	"grep_notes": {
 		"mode":   {"auto", string(search.ModeWords), string(search.ModePhrase), string(search.ModeRegex)},
 		"output": {outputLines, outputFiles},
 	},
