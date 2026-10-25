@@ -27,24 +27,24 @@ func resultFor(results []Result, p string) (Result, bool) {
 
 func TestSearchPicksTheSectionHoldingTheKeyWords(t *testing.T) {
 	ix, _, _ := newTestIndex(t, map[string]string{
-		"Lecture.md": "# Styles\ntransactional transformational leaders " + repeatWord("styles", 80) +
-			"\n# Importance of trust\ntrust is willingness to be vulnerable " + repeatWord("vulnerable", 80) + "\n",
-		"Teams.md":  "# Teams\nteams teams leaders\n",
+		"Garden.md": "# Layout\nraised beds paths borders " + repeatWord("layout", 80) +
+			"\n# Watering basics\nwatering is deep and slow " + repeatWord("slow", 80) + "\n",
+		"Beds.md":   "# Beds\nbeds beds borders\n",
 		"Budget.md": "# Money\nrent income\n",
 	})
 	if err := ix.Refresh(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	results := searchFor(t, ix, "trust and teams", nil)
-	lecture, ok := resultFor(results, "Lecture.md")
+	results := searchFor(t, ix, "watering and beds", nil)
+	garden, ok := resultFor(results, "Garden.md")
 	if !ok {
-		t.Fatalf("results = %+v, want Lecture.md", results)
+		t.Fatalf("results = %+v, want Garden.md", results)
 	}
-	if !slices.Equal(lecture.HeadingPath, []string{"Importance of trust"}) || !strings.HasPrefix(lecture.Text, "trust is") {
-		t.Errorf("lecture = %+v, want the trust section", lecture)
+	if !slices.Equal(garden.HeadingPath, []string{"Watering basics"}) || !strings.HasPrefix(garden.Text, "watering is") {
+		t.Errorf("garden = %+v, want the watering section", garden)
 	}
-	if !slices.Contains(lecture.MatchedBy, MatchKeyword) || !slices.Contains(lecture.MatchedBy, MatchMeaning) {
-		t.Errorf("matched_by = %q, want keyword and meaning", lecture.MatchedBy)
+	if !slices.Contains(garden.MatchedBy, MatchKeyword) || !slices.Contains(garden.MatchedBy, MatchMeaning) {
+		t.Errorf("matched_by = %q, want keyword and meaning", garden.MatchedBy)
 	}
 	if results[len(results)-1].Path != "Budget.md" {
 		t.Errorf("results = %+v, want the budget note last", results)
@@ -72,32 +72,32 @@ func TestSearchRanksNotesFoundBothWaysFirst(t *testing.T) {
 
 func TestSearchPinsANoteNamedAfterTheQuery(t *testing.T) {
 	ix, _, _ := newTestIndex(t, map[string]string{
-		"Reading/Project Aristotle.md": "google studied what makes groups work\n",
-		"Teams.md":                     "project aristotle project aristotle teams\n",
-		"Other.md":                     "rent\n",
+		"Reading/Project Kestrel.md": "a field study of small falcons\n",
+		"Birds.md":                   "project kestrel project kestrel birds\n",
+		"Other.md":                   "rent\n",
 	})
 	if err := ix.Refresh(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	results := searchFor(t, ix, "Project Aristotle", nil)
-	if results[0].Path != "Reading/Project Aristotle.md" || !slices.Contains(results[0].MatchedBy, MatchName) {
-		t.Errorf("results = %+v, want the note named Project Aristotle first, matched by name", results)
+	results := searchFor(t, ix, "Project Kestrel", nil)
+	if results[0].Path != "Reading/Project Kestrel.md" || !slices.Contains(results[0].MatchedBy, MatchName) {
+		t.Errorf("results = %+v, want the note named Project Kestrel first, matched by name", results)
 	}
-	if teams, _ := resultFor(results, "Teams.md"); slices.Contains(teams.MatchedBy, MatchName) {
-		t.Errorf("Teams.md matched by name: %+v", teams)
+	if birds, _ := resultFor(results, "Birds.md"); slices.Contains(birds.MatchedBy, MatchName) {
+		t.Errorf("Birds.md matched by name: %+v", birds)
 	}
 }
 
 func TestSearchQuotedPhrase(t *testing.T) {
 	ix, _, _ := newTestIndex(t, map[string]string{
-		"a.md": "# Safety\nwhy psychological safety matters\n",
-		"b.md": "safety is psychological and safety is psychological\n",
+		"a.md": "# Frames\nwhy a cold frame helps seedlings\n",
+		"b.md": "frame is cold and frame is cold\n",
 		"c.md": "rent\n",
 	})
 	if err := ix.Refresh(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	results := searchFor(t, ix, `"Psychological Safety" at work`, nil)
+	results := searchFor(t, ix, `"Cold Frame" in spring`, nil)
 	if results[0].Path != "a.md" || !slices.Contains(results[0].MatchedBy, MatchPhrase) {
 		t.Errorf("results = %+v, want a.md first, matched by phrase", results)
 	}
@@ -108,16 +108,16 @@ func TestSearchQuotedPhrase(t *testing.T) {
 
 func TestSearchFindsAPhraseInAHeading(t *testing.T) {
 	ix, _, _ := newTestIndex(t, map[string]string{
-		"Journal.md": "# Week 2\n## Project Aristotle\ngoogle studied teams\n",
-		"b.md":       "aristotle wrote about project ethics\n",
-		"c.md":       "rent\n",
+		"Log.md": "# Week 2\n## Project Kestrel\nfield notes on falcons\n",
+		"b.md":   "kestrel seen near the project site\n",
+		"c.md":   "rent\n",
 	})
 	if err := ix.Refresh(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	results := searchFor(t, ix, `"project aristotle"`, nil)
-	if results[0].Path != "Journal.md" || !slices.Contains(results[0].MatchedBy, MatchPhrase) {
-		t.Errorf("results = %+v, want Journal.md first, matched by phrase in its heading", results)
+	results := searchFor(t, ix, `"project kestrel"`, nil)
+	if results[0].Path != "Log.md" || !slices.Contains(results[0].MatchedBy, MatchPhrase) {
+		t.Errorf("results = %+v, want Log.md first, matched by phrase in its heading", results)
 	}
 }
 

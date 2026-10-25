@@ -6,8 +6,8 @@ import (
 )
 
 func TestTokens(t *testing.T) {
-	got := tokens("Trust, Teams & PSYCHOLOGICAL-safety in 2024: café naïve")
-	want := []string{"trust", "teams", "psychological", "safety", "in", "2024", "café", "naïve"}
+	got := tokens("Compost, Beds & COLD-frame in 2024: café naïve")
+	want := []string{"compost", "beds", "cold", "frame", "in", "2024", "café", "naïve"}
 	if !slices.Equal(got, want) {
 		t.Errorf("tokens = %q, want %q", got, want)
 	}
@@ -40,14 +40,14 @@ func rankedPaths(ti *termIndex, query []string) []string {
 
 func TestTermIndexRanksRareWordsAboveCommonOnes(t *testing.T) {
 	ti := newTermIndex(termNotes(map[string][]Chunk{
-		"a.md": {{Text: "the team met and the team planned"}},
-		"b.md": {{Text: "the trust in a team"}},
+		"a.md": {{Text: "the garden grew and the garden spread"}},
+		"b.md": {{Text: "the compost in a garden"}},
 		"c.md": {{Text: "the weather today"}},
 		"d.md": {{Text: "the budget"}},
 	}))
-	got := rankedPaths(ti, []string{"trust", "team"})
+	got := rankedPaths(ti, []string{"compost", "garden"})
 	if len(got) != 2 || got[0] != "b.md" {
-		t.Errorf("ranked = %q, want b.md first: trust is rarer than team", got)
+		t.Errorf("ranked = %q, want b.md first: compost is rarer than garden", got)
 	}
 }
 
@@ -81,11 +81,11 @@ func repeatWord(w string, n int) string {
 
 func TestTermIndexCountsTheNoteName(t *testing.T) {
 	ti := newTermIndex(termNotes(map[string][]Chunk{
-		"Projects/Aristotle.md": {{Text: "google studied teams"}},
-		"b.md":                  {{Text: "unrelated"}},
+		"Projects/Kestrel.md": {{Text: "a field study of falcons"}},
+		"b.md":                {{Text: "unrelated"}},
 	}))
-	if got := rankedPaths(ti, []string{"aristotle"}); !slices.Equal(got, []string{"Projects/Aristotle.md"}) {
-		t.Errorf("ranked = %q, want the note named Aristotle", got)
+	if got := rankedPaths(ti, []string{"kestrel"}); !slices.Equal(got, []string{"Projects/Kestrel.md"}) {
+		t.Errorf("ranked = %q, want the note named Kestrel", got)
 	}
 }
 
@@ -102,12 +102,12 @@ func TestTermIndexRankHonoursInclude(t *testing.T) {
 
 func TestQueryTermsDropWordsMostNotesHold(t *testing.T) {
 	ti := newTermIndex(termNotes(map[string][]Chunk{
-		"a.md": {{Text: "the trust"}},
-		"b.md": {{Text: "the team"}},
+		"a.md": {{Text: "the compost"}},
+		"b.md": {{Text: "the garden"}},
 		"c.md": {{Text: "the plan"}},
 	}))
-	if got := ti.queryTerms("the trust the"); !slices.Equal(got, []string{"trust"}) {
-		t.Errorf("queryTerms = %q, want [trust]", got)
+	if got := ti.queryTerms("the compost the"); !slices.Equal(got, []string{"compost"}) {
+		t.Errorf("queryTerms = %q, want [compost]", got)
 	}
 	if got := ti.queryTerms("the"); !slices.Equal(got, []string{"the"}) {
 		t.Errorf("a query of only common words keeps them: %q", got)
@@ -122,32 +122,32 @@ func TestQueryTermsDropWordsMostNotesHold(t *testing.T) {
 
 func TestRankScoresANoteByItsBestSection(t *testing.T) {
 	ti := newTermIndex(termNotes(map[string][]Chunk{
-		"journal.md": {
+		"log.md": {
 			{HeadingPath: []string{"Week 1"}, Text: repeatWord("project", 3) + repeatWord("filler", 300)},
-			{HeadingPath: []string{"Project Aristotle"}, Text: "google studied aristotle teams"},
+			{HeadingPath: []string{"Project Kestrel"}, Text: "field study of kestrel birds"},
 			{HeadingPath: []string{"Week 3"}, Text: repeatWord("filler", 300)},
 		},
 		"plan.md":   {{Text: repeatWord("project", 8) + "plan"}},
 		"other.md":  {{Text: "project"}},
 		"budget.md": {{Text: "rent"}},
 	}))
-	got := ti.rank(ti.queryTerms("project aristotle"), nil)
-	if len(got) == 0 || ti.docs[got[0].doc].path != "journal.md" || got[0].chunk != 1 {
-		t.Fatalf("rank = %+v, want journal.md first on its Project Aristotle section", got)
+	got := ti.rank(ti.queryTerms("project kestrel"), nil)
+	if len(got) == 0 || ti.docs[got[0].doc].path != "log.md" || got[0].chunk != 1 {
+		t.Fatalf("rank = %+v, want log.md first on its Project Kestrel section", got)
 	}
 }
 
 func TestRankReportsHowMuchOfTheQueryASectionCovers(t *testing.T) {
 	ti := newTermIndex(termNotes(map[string][]Chunk{
-		"both.md":   {{Text: "privacy hedge for the yard"}},
-		"common.md": {{Text: "yard sale this weekend"}},
-		"rare.md":   {{Text: "privacy screen"}},
-		"a.md":      {{Text: "the yard"}},
+		"both.md":   {{Text: "trellis for the climbing roses"}},
+		"common.md": {{Text: "roses on sale this weekend"}},
+		"rare.md":   {{Text: "trellis panel"}},
+		"a.md":      {{Text: "the roses"}},
 		"b.md":      {{Text: "rent"}},
 		"c.md":      {{Text: "travel"}},
 	}))
 	coverage := map[string]float64{}
-	for _, s := range ti.rank([]string{"privacy", "yard"}, nil) {
+	for _, s := range ti.rank([]string{"trellis", "roses"}, nil) {
 		coverage[ti.docs[s.doc].path] = s.coverage
 	}
 	if coverage["both.md"] != 1 {
@@ -156,18 +156,18 @@ func TestRankReportsHowMuchOfTheQueryASectionCovers(t *testing.T) {
 	if !(coverage["common.md"] < 0.5 && coverage["rare.md"] > 0.5) {
 		t.Errorf("coverage = %v, want the rarer term to carry more of the query", coverage)
 	}
-	if got := ti.rank([]string{"privacy"}, nil); got[0].coverage != 1 {
+	if got := ti.rank([]string{"trellis"}, nil); got[0].coverage != 1 {
 		t.Errorf("one-term query: coverage = %v, want 1", got[0].coverage)
 	}
 }
 
 func TestRankCountsHeadingWords(t *testing.T) {
 	ti := newTermIndex(termNotes(map[string][]Chunk{
-		"journal.md": {{HeadingPath: []string{"Readings", "Project Aristotle"}, Text: "google studied teams"}},
-		"b.md":       {{Text: "rent"}},
+		"log.md": {{HeadingPath: []string{"Field notes", "Project Kestrel"}, Text: "small falcons hover"}},
+		"b.md":   {{Text: "rent"}},
 	}))
-	if got := ti.rank([]string{"aristotle"}, nil); len(got) != 1 || ti.docs[got[0].doc].path != "journal.md" {
-		t.Errorf("rank = %+v, want the note whose heading names Aristotle", got)
+	if got := ti.rank([]string{"kestrel"}, nil); len(got) != 1 || ti.docs[got[0].doc].path != "log.md" {
+		t.Errorf("rank = %+v, want the note whose heading names Kestrel", got)
 	}
 }
 

@@ -222,6 +222,7 @@ You can also give agents guidance about your vault, like an AGENTS.md file. Put 
 - [Configuration](docs/configuration.md): every environment variable
 - [OAuth](docs/oauth.md): signing in from claude.ai and ChatGPT
 - [MCP tools](docs/tools.md): what each tool does
+- [How search works](docs/search.md): exact, hybrid, and related-note search, and how they rank
 - [Vault instructions](docs/vault-instructions.md): guidance for agents
 - [Operations](docs/operations.md): health checks, recovery, and running without Compose
 - [Contributing](docs/CONTRIBUTING.md): developing this project
