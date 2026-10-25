@@ -27,7 +27,7 @@ RUN npm ci --omit=dev --ignore-scripts \
     && rm -rf deps src build/deps build/Release/obj build/Release/obj.target
 
 # Bare Alpine runtime: apk nodejs runs the sync client, ripgrep backs
-# search_notes, tini reaps the ob sync children, and llama-server runs the
+# grep_notes, tini reaps the ob sync children, and llama-server runs the
 # embedding model when MCP_SEMANTIC_SEARCH is on. scripts/smoke-test.sh
 # opens a sqlite database to confirm the addon loads under this Node, and
 # embeds a sentence to confirm the model loads.
