@@ -406,6 +406,10 @@ main { background: linear-gradient(180deg, #0a0f2b 0, #0c0a26 900px, #0d0a24 100
   padding: 3px 8px; margin-left: -8px; border-radius: 6px; transition: background-color .2s, color .2s;
 }
 .tool-group dd { margin: 2px 0 14px; color: var(--text-2); font-size: .9375rem; }
+.tool-group .opt-in {
+  font-size: .6875rem; letter-spacing: .08em; text-transform: uppercase; color: var(--ring);
+  border: 1px solid var(--line); border-radius: 999px; padding: 1px 7px; vertical-align: 2px;
+}
 .tool-group dt:hover code { background: rgb(139 92 246 / 0.18); color: #fff; }
 .tools-foot { margin: 32px 0 0; color: var(--text-2); }
 .tools-foot a { color: var(--facet-2); text-underline-offset: 4px; }
