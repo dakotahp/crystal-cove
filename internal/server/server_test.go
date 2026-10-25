@@ -65,8 +65,8 @@ func TestUnknownVaultRejectedByEveryTool(t *testing.T) {
 		{"read_note", func() error { _, _, err := s.readNote(ctx, nil, readNoteInput{Vault: "Nope", Path: "x"}); return err }},
 		{"get_section", func() error { _, _, err := s.getSection(ctx, nil, getSectionInput{Vault: "Nope"}); return err }},
 		{"edit_section", func() error { _, _, err := s.editSection(ctx, nil, editSectionInput{Vault: "Nope"}); return err }},
-		{"search_notes", func() error {
-			_, _, err := s.searchNotes(ctx, nil, searchNotesInput{Vault: "Nope", Query: "x"})
+		{"grep_notes", func() error {
+			_, _, err := s.grepNotes(ctx, nil, grepNotesInput{Vault: "Nope", Query: "x"})
 			return err
 		}},
 		{"create_note", func() error {
@@ -131,20 +131,20 @@ func TestReadNote(t *testing.T) {
 	}
 }
 
-func TestSearchNotes(t *testing.T) {
+func TestGrepNotes(t *testing.T) {
 	if _, err := exec.LookPath("rg"); err != nil {
 		t.Skip("rg not installed")
 	}
 	s := newTestServer(t)
-	_, out, err := s.searchNotes(context.Background(), nil, searchNotesInput{Vault: "Work", Query: "todo"})
+	_, out, err := s.grepNotes(context.Background(), nil, grepNotesInput{Vault: "Work", Query: "todo"})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if out.TotalMatches != 1 || out.Files[0].Path != "projects/plan.md" {
 		t.Errorf("out = %+v", out)
 	}
-	if _, _, err := s.searchNotes(context.Background(), nil, searchNotesInput{Vault: "Work", Query: ""}); err == nil {
-		t.Error("searchNotes accepted empty query")
+	if _, _, err := s.grepNotes(context.Background(), nil, grepNotesInput{Vault: "Work", Query: ""}); err == nil {
+		t.Error("grepNotes accepted empty query")
 	}
 }
 
@@ -330,9 +330,9 @@ func TestEndToEndOverHTTP(t *testing.T) {
 	want := []string{
 		"append_daily_note", "append_note", "create_note", "daily_note_path", "delete_note", "edit_note",
 		"edit_section", "find_notes", "get_backlinks", "get_frontmatter", "get_links",
-		"get_section", "list_notes", "list_tags", "list_vaults",
+		"get_section", "grep_notes", "list_notes", "list_tags", "list_vaults",
 		"move_folder", "move_note", "orphans", "prepend_daily_note", "read_daily_note", "read_note",
-		"read_notes", "recent_notes", "search_notes", "unresolved_links", "update_frontmatter",
+		"read_notes", "recent_notes", "unresolved_links", "update_frontmatter",
 	}
 	if !slices.Equal(names, want) {
 		t.Errorf("tools = %v, want %v", names, want)

@@ -52,10 +52,16 @@ Deliberate MVP boundaries (do not "fix" these without being asked):
   `MCP_ALLOW_PERMANENT_DELETE=true`. `MCP_READ_ONLY=true` registers no write
   tools at all (`Server.addWriteTools`); a new write tool belongs there.
 - Semantic search is beta and opt-in (`MCP_SEMANTIC_SEARCH=true`). Its tools,
-  `semantic_search` and `related_notes`, are separate from `search_notes` on
-  purpose: fuzzy results never replace exact matches. Other tools mention
-  them only when they are registered (`Server.semanticHint`). Inference stays
-  inside the container; there is no external embedding service.
+  `search_notes` (hybrid: meaning order, with name matches, quoted phrases,
+  and up to three notes holding every BM25 key word moved to the top; an
+  equal-vote rank fusion lost to meaning alone on paraphrased queries) and
+  `related_notes`, are separate from
+  the exact `grep_notes` on purpose: fuzzy results never replace exact
+  matches. The split is search versus grep: `search_notes` is the first
+  search, `grep_notes` the exact one. With the setting off there is no
+  `search_notes`. Other tools mention the semantic tools only when they are
+  registered (`Server.semanticHint`). Inference stays inside the container;
+  there is no external embedding service.
 - `read_note` returns at most 10,240 characters per call
   (`vault.ReadPageSize`) with `offset`/`next_offset` paging — chosen
   deliberately for LLM context-window hygiene.
@@ -94,7 +100,12 @@ internal/semantic/     opt-in search by meaning (MCP_SEMANTIC_SEARCH): chunks
                        lines repeated across many notes dropped), embeds them
                        through a supervised llama-server child on loopback,
                        caches vectors by text hash in ~/.crystal-cove/semantic,
-                       and compares every vector per query (no vector DB)
+                       and compares every vector per query (no vector DB);
+                       also a per-section BM25 word index (headings and name
+                       counted) rebuilt in memory on each refresh, before
+                       embedding, and the hybrid Search that
+                       ranks by meaning and lets name, phrase and full
+                       keyword matches rescue the clear hits
 internal/oidcauth/     OIDC bearer-token validation for any compliant IdP:
                        discovery (with internal-issuer override), JWKS via
                        go-oidc, audience check with Keycloak-style azp
@@ -116,7 +127,7 @@ Key invariants:
   heartbeat. A silent continuous-sync child is restarted by the supervisor;
   `/health` must remain process-only so transient network failures do not
   restart the whole container.
-- **Search reads a query as words unless it looks like a phrase or a regex.**
+- **`grep_notes` reads a query as words unless it looks like a phrase or a regex.**
   Two or more plain words mean "a note holding all of them, in any order"; a
   query wrapped in double quotes is a literal phrase (ripgrep
   `--fixed-strings`); any of the characters in `search.regexChars` make the
@@ -127,7 +138,7 @@ Key invariants:
   (`offset` and `limit`), so a good match late in path order is not cut and
   every page comes from the same ranked list. Search and
   name matching cover Markdown notes only.
-- **`search_notes` covers names as well as content.** A note's name is
+- **`grep_notes` covers names as well as content.** A note's name is
   usually its subject, so a content-only search misses the note a person
   would have opened by name. `vault.MatchTitles` walks for name matches and
   the handler puts them first, flagged `title_match`; content search stays in
@@ -135,7 +146,7 @@ Key invariants:
   The `glob` limits name matches too: `Searcher.Files` asks ripgrep which
   files the glob selects, so both passes share ripgrep's glob rules.
 - **Metadata queries are separate from text search.** `find_notes` filters by
-  tags and frontmatter; `search_notes` searches words. Scans read every note
+  tags and frontmatter; `grep_notes` and `search_notes` search words. Scans read every note
   on demand: a vault of a few thousand notes is fast enough, so there is no
   index yet. A note whose frontmatter does not parse is skipped during a scan
   rather than failing it, but the single-note tools report the error.

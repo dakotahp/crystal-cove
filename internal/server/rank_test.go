@@ -29,9 +29,9 @@ func rankServer(t *testing.T, notes map[string]string) *Server {
 	return New([]*vault.Vault{v}, search.New("rg", nil), func() bool { return true })
 }
 
-func search1(t *testing.T, s *Server, in searchNotesInput) *search.Result {
+func search1(t *testing.T, s *Server, in grepNotesInput) *search.Result {
 	t.Helper()
-	_, res, err := s.searchNotes(context.Background(), &mcp.CallToolRequest{}, in)
+	_, res, err := s.grepNotes(context.Background(), &mcp.CallToolRequest{}, in)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -44,7 +44,7 @@ func TestRankingPutsTitleMatchesAboveBodyMatches(t *testing.T) {
 		"Areas/Planning.md": "a short note\n",
 	})
 
-	res := search1(t, s, searchNotesInput{Query: "planning"})
+	res := search1(t, s, grepNotesInput{Query: "planning"})
 	if len(res.Files) < 2 {
 		t.Fatalf("Files = %+v", res.Files)
 	}
@@ -59,7 +59,7 @@ func TestRankingPrefersNotesCoveringMoreQueryWords(t *testing.T) {
 		"Inbox/two.md": "bike and maintenance\n",
 	})
 
-	res := search1(t, s, searchNotesInput{Query: "bike maintenance", Mode: "words"})
+	res := search1(t, s, grepNotesInput{Query: "bike maintenance", Mode: "words"})
 	if len(res.Files) == 0 {
 		t.Fatal("no matches")
 	}
@@ -74,7 +74,7 @@ func TestRankingUsesMatchCountAsATieBreak(t *testing.T) {
 		"Inbox/many.md": "bike\nbike\nbike\n",
 	})
 
-	res := search1(t, s, searchNotesInput{Query: "bike"})
+	res := search1(t, s, grepNotesInput{Query: "bike"})
 	if len(res.Files) != 2 {
 		t.Fatalf("Files = %+v", res.Files)
 	}
@@ -89,7 +89,7 @@ func TestRankingIsStableForEqualScores(t *testing.T) {
 		"Inbox/a.md": "bike\n",
 	})
 
-	res := search1(t, s, searchNotesInput{Query: "bike"})
+	res := search1(t, s, grepNotesInput{Query: "bike"})
 	if len(res.Files) != 2 || res.Files[0].Path != "Inbox/a.md" {
 		t.Errorf("Files = %+v, want path order when scores tie", res.Files)
 	}
@@ -98,12 +98,12 @@ func TestRankingIsStableForEqualScores(t *testing.T) {
 func TestSearchAcceptsModeAndLineCap(t *testing.T) {
 	s := rankServer(t, map[string]string{"Inbox/a.md": "bike\nbike\nbike\n"})
 
-	res := search1(t, s, searchNotesInput{Query: "bike", MaxLinesPerNote: 1})
+	res := search1(t, s, grepNotesInput{Query: "bike", MaxLinesPerNote: 1})
 	if len(res.Files) != 1 || len(res.Files[0].Lines) != 1 {
 		t.Errorf("Files = %+v, want one line kept", res.Files)
 	}
 
-	res = search1(t, s, searchNotesInput{Query: "bike bike", Mode: "regex"})
+	res = search1(t, s, grepNotesInput{Query: "bike bike", Mode: "regex"})
 	if len(res.Files) != 0 {
 		t.Errorf("Files = %+v, want the phrase treated as a regex", res.Files)
 	}
@@ -112,7 +112,7 @@ func TestSearchAcceptsModeAndLineCap(t *testing.T) {
 func TestSearchRejectsAnUnknownMode(t *testing.T) {
 	s := rankServer(t, map[string]string{"Inbox/a.md": "bike\n"})
 
-	_, _, err := s.searchNotes(context.Background(), &mcp.CallToolRequest{}, searchNotesInput{Query: "bike", Mode: "fuzzy"})
+	_, _, err := s.grepNotes(context.Background(), &mcp.CallToolRequest{}, grepNotesInput{Query: "bike", Mode: "fuzzy"})
 	if err == nil || !strings.Contains(err.Error(), "phrase") {
 		t.Errorf("err = %v, want one naming every mode, phrase included", err)
 	}
@@ -124,7 +124,7 @@ func TestRankingCountsEveryMatchNotJustTheLinesShown(t *testing.T) {
 		"Inbox/b.md": strings.Repeat("bike\n", 4*search.DefaultLinesPerNote),
 	})
 
-	res := search1(t, s, searchNotesInput{Query: "bike"})
+	res := search1(t, s, grepNotesInput{Query: "bike"})
 	if len(res.Files) != 2 || res.Files[0].Path != "Inbox/b.md" {
 		t.Errorf("Files = %+v, want the note with more matches first", res.Files)
 	}
@@ -137,7 +137,7 @@ func TestSearchRanksBeforeLimiting(t *testing.T) {
 	}
 	s := rankServer(t, notes)
 
-	res := search1(t, s, searchNotesInput{Query: "bike", Limit: 5})
+	res := search1(t, s, grepNotesInput{Query: "bike", Limit: 5})
 	if len(res.Files) != 5 || res.NextOffset != 5 {
 		t.Fatalf("got %d notes, next %d; want 5 and a next page", len(res.Files), res.NextOffset)
 	}
@@ -153,7 +153,7 @@ func TestSearchTotalMatchesCountsTheNotesReturned(t *testing.T) {
 		"Inbox/c.md": strings.Repeat("bike\n", 7),
 	})
 
-	res := search1(t, s, searchNotesInput{Query: "bike", Limit: 2})
+	res := search1(t, s, grepNotesInput{Query: "bike", Limit: 2})
 	if res.TotalMatches != 10 {
 		t.Errorf("TotalMatches = %d, want 10 across the two notes returned", res.TotalMatches)
 	}
@@ -165,7 +165,7 @@ func TestRankingKeepsTitleMatchesAboveAnyMatchCount(t *testing.T) {
 		"Areas/Bike.md": "a short note\n",
 	})
 
-	res := search1(t, s, searchNotesInput{Query: "bike"})
+	res := search1(t, s, grepNotesInput{Query: "bike"})
 	if len(res.Files) != 2 || res.Files[0].Path != "Areas/Bike.md" {
 		t.Errorf("Files = %+v, want the note named after the query first", res.Files)
 	}

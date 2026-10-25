@@ -204,7 +204,7 @@
             <div class="phone-notch" aria-hidden="true"></div>
             <div class="chat">
               <p class="bubble user" data-step="1">Add “call the landlord” to my to-do note.</p>
-              <p class="tool" data-step="2" data-tool="search_notes"><code>search_notes</code> <span>“to-do”</span> <b>1 note</b></p>
+              <p class="tool" data-step="2" data-tool="grep_notes"><code>grep_notes</code> <span>“to-do”</span> <b>1 note</b></p>
               <p class="tool" data-step="3" data-tool="append_note"><code>append_note</code> <span>To-do.md</span> <b>done</b></p>
               <p class="bubble assistant" data-step="4">Added it to your To-do note. It's already on your other devices.</p>
             </div>
@@ -404,7 +404,9 @@ docker compose logs -f          # wait for "Fully synced", then Ctrl-C</code></p
           <div class="tool-group">
             <h3>Find</h3>
             <dl>
-              <dt><code>search_notes</code></dt><dd>Search names and content, ranked.</dd>
+              <dt><code>search_notes</code> <span class="opt-in">opt-in</span></dt><dd>Search by name, key words, and meaning in one ranked list.</dd>
+              <dt><code>related_notes</code> <span class="opt-in">opt-in</span></dt><dd>Notes close in meaning, even with no link between them.</dd>
+              <dt><code>grep_notes</code></dt><dd>Exact search of names and content, ranked.</dd>
               <dt><code>find_notes</code></dt><dd>Filter by tags and frontmatter.</dd>
               <dt><code>list_tags</code></dt><dd>Every tag, most used first.</dd>
               <dt><code>get_links</code></dt><dd>The notes a note links to.</dd>
@@ -430,7 +432,7 @@ docker compose logs -f          # wait for "Fully synced", then Ctrl-C</code></p
           </div>
         </div>
 
-        <p class="tools-foot">Want read-only? One setting removes every write tool. <a href="https://github.com/dakotahp/crystal-cove/blob/master/docs/tools.md">Every tool in detail <span aria-hidden="true">→</span></a></p>
+        <p class="tools-foot">Search by meaning is opt-in: one setting runs a small model inside the container, and no note text leaves it. Want read-only? One setting removes every write tool. <a href="https://github.com/dakotahp/crystal-cove/blob/master/docs/tools.md">Every tool in detail <span aria-hidden="true">→</span></a></p>
       </div>
     </section>
     <section id="closing" class="closing">

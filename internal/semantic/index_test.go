@@ -113,7 +113,7 @@ func TestIndexSearchRanksByMeaning(t *testing.T) {
 	if err := ix.Refresh(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	hits, status, err := ix.Search(context.Background(), "watering tomatoes")
+	hits, status, err := ix.searchMeaning(context.Background(), "watering tomatoes")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -143,7 +143,7 @@ func TestIndexSearchRanksByMeaning(t *testing.T) {
 
 func TestIndexSearchBeforeAnyRefresh(t *testing.T) {
 	ix, f, _ := newTestIndex(t, gardenNotes)
-	hits, status, err := ix.Search(context.Background(), "tomatoes")
+	hits, status, err := ix.searchMeaning(context.Background(), "tomatoes")
 	if err != nil || hits != nil || status.Complete {
 		t.Errorf("Search on an empty index = %v, %+v, %v", hits, status, err)
 	}
@@ -158,7 +158,7 @@ func TestIndexSearchQueryError(t *testing.T) {
 		t.Fatal(err)
 	}
 	f.failAfter = f.calls
-	if _, _, err := ix.Search(context.Background(), "tomatoes"); err == nil || !strings.Contains(err.Error(), "query") {
+	if _, _, err := ix.searchMeaning(context.Background(), "tomatoes"); err == nil || !strings.Contains(err.Error(), "query") {
 		t.Errorf("err = %v, want a query embedding error", err)
 	}
 }
@@ -235,7 +235,7 @@ func TestIndexRefreshEmbedsOnlyChanges(t *testing.T) {
 	if len(ix.cache) != 2 {
 		t.Errorf("cache holds %d vectors, want the deleted note's dropped", len(ix.cache))
 	}
-	hits, status, _ := ix.Search(ctx, "tomatoes")
+	hits, status, _ := ix.searchMeaning(ctx, "tomatoes")
 	if status.NotesTotal != 2 || len(hits) != 2 {
 		t.Errorf("after delete: %d hits, status %+v", len(hits), status)
 	}
@@ -262,7 +262,7 @@ func TestIndexSkipsEmptyNotesButCountsThem(t *testing.T) {
 	if err := ix.Refresh(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	_, status, _ := ix.Search(context.Background(), "words")
+	_, status, _ := ix.searchMeaning(context.Background(), "words")
 	if want := (Status{NotesIndexed: 2, NotesTotal: 2, Complete: true}); status != want {
 		t.Errorf("status = %+v, want %+v", status, want)
 	}
@@ -354,7 +354,7 @@ func TestIndexSkipsUnreadableNotes(t *testing.T) {
 	if err := ix.Refresh(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	if _, status, _ := ix.Search(context.Background(), "x"); status.NotesTotal != 2 {
+	if _, status, _ := ix.searchMeaning(context.Background(), "x"); status.NotesTotal != 2 {
 		t.Errorf("status = %+v, want the unreadable note left out", status)
 	}
 }
@@ -370,7 +370,7 @@ func TestIndexEmbedFailureKeepsProgress(t *testing.T) {
 	if err == nil {
 		t.Fatal("no error when the embedding server fails")
 	}
-	_, status, _ := ix.Search(context.Background(), "")
+	_, status, _ := ix.searchMeaning(context.Background(), "")
 	if status.NotesIndexed != batchSize || status.NotesTotal != batchSize*3 || status.Complete {
 		t.Errorf("status = %+v, want the first batch kept", status)
 	}
@@ -418,7 +418,7 @@ func TestIndexRun(t *testing.T) {
 	if want := []time.Duration{readyPoll, refreshInterval, retryDelay}; !slices.Equal(sleeps, want) {
 		t.Errorf("sleeps = %v, want %v", sleeps, want)
 	}
-	if _, status, _ := ix.Search(context.Background(), ""); status.NotesIndexed != 3 {
+	if _, status, _ := ix.searchMeaning(context.Background(), ""); status.NotesIndexed != 3 {
 		t.Errorf("status = %+v", status)
 	}
 }

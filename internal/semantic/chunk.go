@@ -1,6 +1,7 @@
-// Package semantic finds notes by meaning. It splits notes into chunks at
-// their headings, turns each chunk into a vector with a local embedding
-// model, and compares vectors to answer a query or to find related notes.
+// Package semantic finds notes by meaning and by key words. It splits notes
+// into chunks at their headings, turns each chunk into a vector with a local
+// embedding model, and compares vectors to answer a query or to find related
+// notes. Search merges that ranking with keyword, phrase and name rankings.
 package semantic
 
 import (

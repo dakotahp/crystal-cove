@@ -26,8 +26,8 @@ const (
 func (s *Server) SetSemantic(indexes map[string]*semantic.Index) { s.semantic = indexes }
 
 const (
-	searchNotesSemanticHint = " To find notes about a topic in other words than the query, or when this finds little, use semantic_search."
-	backlinksSemanticHint   = " For notes on the same topic that do not link here, use related_notes."
+	grepNotesSemanticHint = " To find notes about a topic, including notes that use other words than the query, use search_notes."
+	backlinksSemanticHint = " For notes on the same topic that do not link here, use related_notes."
 )
 
 // semanticHint returns hint when the semantic tools are registered, so
@@ -41,16 +41,21 @@ func (s *Server) semanticHint(hint string) string {
 
 func (s *Server) addSemanticTools(srv *mcp.Server, params map[string]string) {
 	addTool(srv, params, &mcp.Tool{
-		Name: "semantic_search",
-		Description: "Find notes by meaning rather than exact words: a note about the same topic matches even when it " +
-			"shares no words with the query, so \"feeling burned out\" can find a note about low energy. Use it when you " +
-			"do not know the words a note uses, to explore what a vault holds on a topic, or when search_notes finds " +
-			"little. Results are ranked by closeness and always list the nearest notes, even when none is truly " +
-			"relevant, so judge them by their excerpts; use search_notes for exact words, names, dates, or text to edit. " +
-			"Each note reports the section that matched best as heading_path, which get_section reads, and an excerpt " +
-			"of it. index reports whether every note is indexed yet. folders and exclude_folders limit which notes are " +
-			"returned. Results come in pages: pass next_offset as offset.",
-	}, s.semanticSearch)
+		Name: "search_notes",
+		Description: "Find notes about a topic or by name. Start here to find notes. This is hybrid search (keyword + " +
+			"semantic): one call ranks notes by name, by key words (BM25, so rare words count most), by any phrase in " +
+			"double quotes, and by meaning, so a note that uses other words than the query is found too: \"feeling " +
+			"burned out\" can find a note about low energy. Notes are ranked by meaning, and key words rescue the clear " +
+			"hits meaning misses: a note named after the query comes first, then notes holding a quoted phrase, then " +
+			"up to three notes with a section holding every key word. matched_by says how each note was found (name, phrase, keyword, " +
+			"meaning). A note found by meaning alone is a weaker match, and when every top result is meaning only, the " +
+			"vault may not hold what was asked for. Each note reports the section that shows the match as heading_path, " +
+			"which get_section reads, and an excerpt of it. For exact text, a regex, every matching line, or a line to " +
+			"edit, use grep_notes. index reports whether every note is indexed for meaning yet; key words work before " +
+			"it is. folders and exclude_folders limit which notes are returned. Results stop at the 50 notes closest in " +
+			"meaning, plus any moved up by name, phrase or key words. They come in pages: pass next_offset as offset. " +
+			"When the first page holds nothing useful, a better query usually beats the next page.",
+	}, s.searchNotes)
 
 	addTool(srv, params, &mcp.Tool{
 		Name: "related_notes",
@@ -64,12 +69,54 @@ func (s *Server) addSemanticTools(srv *mcp.Server, params map[string]string) {
 	}, s.relatedNotes)
 }
 
-type semanticSearchInput struct {
+type searchNotesInput struct {
 	Vault string `json:"vault,omitempty" jsonschema:"name of the vault to search; optional when the server holds one vault"`
-	Query string `json:"query" jsonschema:"a question or a description of the topic, in plain words"`
+	Query string `json:"query" jsonschema:"a name, key words, or a description of the topic in plain words; wrap words in double quotes to require that exact phrase"`
 	folderFilter
 	Offset int `json:"offset,omitempty" jsonschema:"note to start from; use next_offset from the previous page"`
 	Limit  int `json:"limit,omitempty" jsonschema:"maximum notes to return (default 10)"`
+}
+
+// FoundNote is one note search_notes found.
+type FoundNote struct {
+	Path        string   `json:"path"`
+	HeadingPath []string `json:"heading_path,omitempty" jsonschema:"the section that shows the match, for get_section; empty for text before the first heading"`
+	Excerpt     string   `json:"excerpt" jsonschema:"the start of that section"`
+	MatchedBy   []string `json:"matched_by" jsonschema:"how the note was found: name, phrase, keyword, or meaning"`
+}
+
+// SearchNotesResult is the outcome of search_notes.
+type SearchNotesResult struct {
+	Notes      []FoundNote     `json:"notes"`
+	Total      int             `json:"total" jsonschema:"notes across every page"`
+	NextOffset int             `json:"next_offset" jsonschema:"offset of the next page; -1 when this is the last page"`
+	Index      semantic.Status `json:"index"`
+}
+
+func (s *Server) searchNotes(ctx context.Context, _ *mcp.CallToolRequest, in searchNotesInput) (*mcp.CallToolResult, *SearchNotesResult, error) {
+	v, ix, err := s.semanticIndex(in.Vault)
+	if err != nil {
+		return nil, nil, err
+	}
+	if strings.TrimSpace(in.Query) == "" {
+		return nil, nil, errors.New("query is empty: give a name, key words, or the topic in plain words")
+	}
+	results, status, err := ix.Search(ctx, in.Query, in.includes)
+	if err != nil {
+		return nil, nil, err
+	}
+	if len(results) == 0 && !status.Complete {
+		return nil, nil, stillBuilding(v, status)
+	}
+	found := make([]FoundNote, len(results))
+	for i, r := range results {
+		found[i] = FoundNote{Path: r.Path, HeadingPath: r.HeadingPath, Excerpt: excerpt(r.Text), MatchedBy: r.MatchedBy}
+	}
+	page, next, err := pageOf(found, in.Offset, in.Limit, DefaultSemanticLimit)
+	if err != nil {
+		return nil, nil, err
+	}
+	return nil, &SearchNotesResult{Notes: page, Total: len(found), NextOffset: next, Index: status}, nil
 }
 
 // SemanticNote is one note found by meaning.
@@ -78,42 +125,6 @@ type SemanticNote struct {
 	HeadingPath []string `json:"heading_path,omitempty" jsonschema:"the section that matched best, for get_section; empty for text before the first heading"`
 	Excerpt     string   `json:"excerpt" jsonschema:"the start of the section that matched"`
 	Score       float64  `json:"score" jsonschema:"closeness in meaning, higher is closer; compare scores within one result, not with a fixed scale"`
-}
-
-// SemanticSearchResult is the outcome of semantic_search.
-type SemanticSearchResult struct {
-	Notes      []SemanticNote  `json:"notes"`
-	Total      int             `json:"total" jsonschema:"notes across every page"`
-	NextOffset int             `json:"next_offset" jsonschema:"offset of the next page; -1 when this is the last page"`
-	Index      semantic.Status `json:"index"`
-}
-
-func (s *Server) semanticSearch(ctx context.Context, _ *mcp.CallToolRequest, in semanticSearchInput) (*mcp.CallToolResult, *SemanticSearchResult, error) {
-	v, ix, err := s.semanticIndex(in.Vault)
-	if err != nil {
-		return nil, nil, err
-	}
-	if strings.TrimSpace(in.Query) == "" {
-		return nil, nil, errors.New("query is empty: describe the topic in plain words")
-	}
-	hits, status, err := ix.Search(ctx, in.Query)
-	if err != nil {
-		return nil, nil, err
-	}
-	if len(hits) == 0 && !status.Complete {
-		return nil, nil, stillBuilding(v, status)
-	}
-	found := []SemanticNote{}
-	for _, h := range hits {
-		if in.includes(h.Path) {
-			found = append(found, semanticNote(h))
-		}
-	}
-	page, next, err := pageOf(found, in.Offset, in.Limit, DefaultSemanticLimit)
-	if err != nil {
-		return nil, nil, err
-	}
-	return nil, &SemanticSearchResult{Notes: page, Total: len(found), NextOffset: next, Index: status}, nil
 }
 
 type relatedNotesInput struct {
@@ -187,7 +198,7 @@ func (s *Server) semanticIndex(vaultName string) (*vault.Vault, *semantic.Index,
 }
 
 func stillBuilding(v *vault.Vault, status semantic.Status) error {
-	return fmt.Errorf("the semantic index for vault %q is still being built (%d of %d notes so far); try again in a few minutes, or use search_notes",
+	return fmt.Errorf("the semantic index for vault %q is still being built (%d of %d notes so far); try again in a few minutes, or use grep_notes",
 		v.Name(), status.NotesIndexed, status.NotesTotal)
 }
 

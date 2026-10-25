@@ -79,6 +79,7 @@ type Index struct {
 	mu      sync.RWMutex
 	entries []entry
 	status  Status
+	terms   *termIndex
 }
 
 type entry struct {
@@ -178,6 +179,10 @@ func (ix *Index) Refresh(ctx context.Context) error {
 		}
 		notes = append(notes, n)
 	}
+	terms := newTermIndex(notes)
+	ix.mu.Lock()
+	ix.terms = terms
+	ix.mu.Unlock()
 
 	if len(queue) > 0 {
 		ix.log.Info("embedding notes for semantic search", "chunks", len(queue))
@@ -269,6 +274,12 @@ func (ix *Index) snapshot() ([]entry, Status) {
 	return ix.entries, ix.status
 }
 
+func (ix *Index) termSnapshot() *termIndex {
+	ix.mu.RLock()
+	defer ix.mu.RUnlock()
+	return ix.terms
+}
+
 func (ix *Index) currentStatus() Status {
 	_, s := ix.snapshot()
 	return s
@@ -321,10 +332,10 @@ func (ix *Index) save() error {
 	return nil
 }
 
-// Search returns every indexed note ranked by how close its best chunk is
+// searchMeaning returns every indexed note ranked by how close its best chunk is
 // to the query in meaning. It returns no hits, and embeds nothing, while
 // the index is empty.
-func (ix *Index) Search(ctx context.Context, query string) ([]Hit, Status, error) {
+func (ix *Index) searchMeaning(ctx context.Context, query string) ([]Hit, Status, error) {
 	entries, status := ix.snapshot()
 	if len(entries) == 0 {
 		return nil, status, nil
