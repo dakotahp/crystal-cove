@@ -133,8 +133,15 @@ jobs:
           only-fixed: true
           output-format: table
 
+  # A pull request from a branch of this repository publishes a :pr-N
+  # preview image. Fork and Dependabot pull requests get a read-only token.
   publish:
-    if: github.event_name == 'push' || (github.event_name != 'pull_request' && github.ref == 'refs/heads/master')
+    if: >-
+      github.event_name == 'push'
+      || (github.event_name != 'pull_request' && github.ref == 'refs/heads/master')
+      || (github.event_name == 'pull_request'
+          && github.event.pull_request.head.repo.full_name == github.repository
+          && github.event.pull_request.user.login != 'dependabot[bot]')
     needs: [test, fuzz, gosec, image]
     runs-on: ubuntu-latest
     permissions:
@@ -161,6 +168,7 @@ jobs:
             type=raw,value=latest,enable={{is_default_branch}}
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
+            type=ref,event=pr
       - id: build
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
@@ -169,13 +177,13 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          build-args: COMMIT=${{ github.sha }}
+          build-args: COMMIT=${{ github.event.pull_request.head.sha || github.sha }}
           sbom: true
           provenance: mode=max
           # Cached layers would skip apk add and keep old packages, so a
-          # rebuild that is not triggered by a push starts from scratch.
+          # scheduled or manual rebuild starts from scratch.
           pull: true
-          no-cache: ${{ github.event_name != 'push' }}
+          no-cache: ${{ github.event_name != 'push' && github.event_name != 'pull_request' }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
       - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2

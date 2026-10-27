@@ -15,7 +15,7 @@ docker compose up -d --build        # runs your local source
 
 The table of contents at the top of this README is generated. After you add or rename a heading, run `node scripts/generate-toc.js` (Node 18 or newer) and commit the result.
 
-CI enforces `gofmt`, `go vet`, a 95% total coverage gate, and an up-to-date table of contents, then publishes a multi-arch (amd64/arm64) image to GHCR. Every push to `master` updates `:latest`.
+CI enforces `gofmt`, `go vet`, a 95% total coverage gate, and an up-to-date table of contents, then publishes a multi-arch (amd64/arm64) image to GHCR. Every push to `master` updates `:latest`. A pull request from a branch of this repository publishes `:pr-N` (N is the PR number) and updates it on each push, so you can try a change before it merges.
 
 Releases are automatic. Write commit messages, or squash-merge PR titles, as [Conventional Commits](https://www.conventionalcommits.org): `fix:` makes a
 patch release, `feat:` makes a minor release, and `feat!:` makes a breaking one. [release-please](https://github.com/googleapis/release-please) collects
