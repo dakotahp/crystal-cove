@@ -81,7 +81,7 @@ func newSemanticServer(t *testing.T) (*Server, *wordsEmbedder) {
 
 func TestSearchNotes(t *testing.T) {
 	s, _ := newSemanticServer(t)
-	_, out, err := s.searchNotes(context.Background(), nil, searchNotesInput{Query: "rich compost for growing"})
+	_, out, err := s.searchNotes(context.Background(), nil, searchNotesInput{Query: "rich compost growing"})
 	if err != nil {
 		t.Fatal(err)
 	}

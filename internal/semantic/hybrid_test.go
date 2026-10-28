@@ -43,8 +43,8 @@ func TestSearchPicksTheSectionHoldingTheKeyWords(t *testing.T) {
 	if !slices.Equal(garden.HeadingPath, []string{"Watering basics"}) || !strings.HasPrefix(garden.Text, "watering is") {
 		t.Errorf("garden = %+v, want the watering section", garden)
 	}
-	if !slices.Contains(garden.MatchedBy, MatchKeyword) || !slices.Contains(garden.MatchedBy, MatchMeaning) {
-		t.Errorf("matched_by = %q, want keyword and meaning", garden.MatchedBy)
+	if !slices.Equal(garden.MatchedBy, []string{MatchMeaning}) {
+		t.Errorf("matched_by = %q, want meaning only: no section holds both key words", garden.MatchedBy)
 	}
 	if results[len(results)-1].Path != "Budget.md" {
 		t.Errorf("results = %+v, want the budget note last", results)
@@ -237,8 +237,8 @@ func TestSearchKeepsMeaningOrderForPartialKeywordMatches(t *testing.T) {
 	if results[0].Path != "close.md" {
 		t.Errorf("results = %+v, want the closest by meaning first", results)
 	}
-	if partial, _ := resultFor(results, "partial.md"); !slices.Contains(partial.MatchedBy, MatchKeyword) {
-		t.Errorf("partial.md = %+v, want it labelled keyword", partial)
+	if partial, _ := resultFor(results, "partial.md"); slices.Contains(partial.MatchedBy, MatchKeyword) {
+		t.Errorf("partial.md = %+v, want no keyword label for some of the key words", partial)
 	}
 }
 
@@ -330,5 +330,38 @@ func TestSearchNameOnlyMatchWithoutText(t *testing.T) {
 	top := results[0]
 	if top.Path != "Inbox.md" || !slices.Contains(top.MatchedBy, MatchName) || top.Text != "" || len(top.HeadingPath) != 0 {
 		t.Errorf("results = %+v, want the empty Inbox note first, by name, with no section", results)
+	}
+}
+
+func TestSearchPointsAtTheJoinedSectionHoldingTheMatch(t *testing.T) {
+	var chapter strings.Builder
+	chapter.WriteString("# Letters 8\n")
+	for i := 1; i <= 8; i++ {
+		text := fmt.Sprintf("verse %d says little of note here.", i)
+		if i == 6 {
+			text = "all things work together for good."
+		}
+		fmt.Fprintf(&chapter, "###### %d\n%s\n", i, text)
+	}
+	ix, _, _ := newTestIndex(t, map[string]string{
+		"Letters 8.md": chapter.String(),
+		"Budget.md":    "# Money\nbudget rent income\n",
+		"Garden.md":    "# Beds\nsoil compost\n",
+	})
+	if err := ix.Refresh(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	for _, query := range []string{"things work together for good", "things work together for good budget"} {
+		r, ok := resultFor(searchFor(t, ix, query, nil), "Letters 8.md")
+		if !ok {
+			t.Fatalf("%q: Letters 8.md not found", query)
+		}
+		if !slices.Equal(r.HeadingPath, []string{"Letters 8", "6"}) || r.Text != "all things work together for good." {
+			t.Errorf("%q: got %q %q, want verse 6", query, r.HeadingPath, r.Text)
+		}
+	}
+	r, _ := resultFor(searchFor(t, ix, "soil", nil), "Letters 8.md")
+	if !slices.Equal(r.HeadingPath, []string{"Letters 8", "1"}) {
+		t.Errorf("no shared words: got %q, want the chunk start", r.HeadingPath)
 	}
 }

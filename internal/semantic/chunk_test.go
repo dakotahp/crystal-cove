@@ -16,7 +16,10 @@ func TestChunkNote(t *testing.T) {
 		{"empty", "", nil},
 		{"headings only", "# A\n# B\n", nil},
 		{"small sections join", "# A\none\n# B\ntwo\n", []Chunk{
-			{HeadingPath: []string{"A"}, Text: "one\n\ntwo"},
+			{HeadingPath: []string{"A"}, Text: "one\n\ntwo", pieces: []piece{
+				{HeadingPath: []string{"A"}, Text: "one"},
+				{HeadingPath: []string{"B"}, Text: "two"},
+			}},
 		}},
 		{"nested heading path", "# A\n## B\n" + long + "\n", []Chunk{
 			{HeadingPath: []string{"A", "B"}, Text: strings.TrimSpace(long)},
@@ -26,7 +29,10 @@ func TestChunkNote(t *testing.T) {
 			{HeadingPath: []string{"B"}, Text: strings.TrimSpace(long + long)},
 		}},
 		{"lead text before headings", "intro\n# A\nbody\n", []Chunk{
-			{Text: "intro\n\nbody"},
+			{Text: "intro\n\nbody", pieces: []piece{{Text: "intro"}, {HeadingPath: []string{"A"}, Text: "body"}}},
+		}},
+		{"links shown as text", "# A\n[[Ch 1|← Chapter 1]] | [[Book]]\n", []Chunk{
+			{HeadingPath: []string{"A"}, Text: "← Chapter 1 | Book"},
 		}},
 	}
 	for _, tc := range cases {
@@ -70,7 +76,7 @@ func TestChunkNoteDropsBoilerplate(t *testing.T) {
 	note := "> **Quote of the Day**\nBe kind.\n\n# Log\n> **Quote of the Day**\nreal entry\n"
 	boiler := map[uint64]bool{lineKey("> **Quote of the Day**"): true}
 	got := chunkNote([]byte(note), boiler)
-	want := []Chunk{{Text: "Be kind.\n\nreal entry"}}
+	want := []Chunk{{Text: "Be kind.\n\nreal entry", pieces: []piece{{Text: "Be kind."}, {HeadingPath: []string{"Log"}, Text: "real entry"}}}}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("got %#v, want %#v", got, want)
 	}

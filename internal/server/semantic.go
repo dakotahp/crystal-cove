@@ -47,8 +47,10 @@ func (s *Server) addSemanticTools(srv *mcp.Server, params map[string]string) {
 			"double quotes, and by meaning, so a note that uses other words than the query is found too: \"feeling " +
 			"burned out\" can find a note about low energy. Notes are ranked by meaning, and key words rescue the clear " +
 			"hits meaning misses: a note named after the query comes first, then notes holding a quoted phrase, then " +
-			"up to three notes with a section holding every key word. matched_by says how each note was found (name, phrase, keyword, " +
-			"meaning). A note found by meaning alone is a weaker match, and when every top result is meaning only, the " +
+			"up to three notes with a section holding every key word. Ask about one idea per query: a query that mixes " +
+			"several ideas matches none of them well, so run one search per idea. matched_by says how each note was " +
+			"found (name, phrase, keyword when one section holds every key word, meaning). A note found by meaning alone " +
+			"is a weaker match, and when every top result is meaning only, the " +
 			"vault may not hold what was asked for. Each note reports the section that shows the match as heading_path, " +
 			"which get_section reads, and an excerpt of it. For exact text, a regex, every matching line, or a line to " +
 			"edit, use grep_notes. index reports whether every note is indexed for meaning yet; key words work before " +
@@ -82,13 +84,13 @@ type FoundNote struct {
 	Path        string   `json:"path"`
 	HeadingPath []string `json:"heading_path,omitempty" jsonschema:"the section that shows the match, for get_section; empty for text before the first heading"`
 	Excerpt     string   `json:"excerpt" jsonschema:"the start of that section"`
-	MatchedBy   []string `json:"matched_by" jsonschema:"how the note was found: name, phrase, keyword, or meaning"`
+	MatchedBy   []string `json:"matched_by" jsonschema:"how the note was found: name, phrase, keyword (one section holds every key word), or meaning"`
 }
 
 // SearchNotesResult is the outcome of search_notes.
 type SearchNotesResult struct {
 	Notes      []FoundNote     `json:"notes"`
-	Total      int             `json:"total" jsonschema:"notes across every page"`
+	Total      int             `json:"total" jsonschema:"results across every page: the 50 notes closest in meaning plus any moved up, not every note that matches"`
 	NextOffset int             `json:"next_offset" jsonschema:"offset of the next page; -1 when this is the last page"`
 	Index      semantic.Status `json:"index"`
 }

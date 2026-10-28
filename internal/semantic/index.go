@@ -55,6 +55,7 @@ type Hit struct {
 	HeadingPath []string
 	Text        string
 	Score       float32
+	pieces      []piece
 }
 
 // Match is a note related to another, with the pair of chunks that matched.
@@ -349,7 +350,7 @@ func (ix *Index) searchMeaning(ctx context.Context, query string) ([]Hit, Status
 	for _, e := range entries {
 		score := dot(e.vec, q)
 		if h, ok := best[e.path]; !ok || score > h.Score {
-			best[e.path] = Hit{Path: e.path, HeadingPath: e.chunk.HeadingPath, Text: e.chunk.Text, Score: score}
+			best[e.path] = Hit{Path: e.path, HeadingPath: e.chunk.HeadingPath, Text: e.chunk.Text, Score: score, pieces: e.chunk.pieces}
 		}
 	}
 	hits := make([]Hit, 0, len(best))

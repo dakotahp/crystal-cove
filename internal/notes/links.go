@@ -197,6 +197,25 @@ func unescape(s string) string {
 	return s
 }
 
+// LinkText returns doc with every wikilink outside code replaced by the text
+// Obsidian shows for it: the alias, or else the target and heading.
+func LinkText(doc string) string {
+	var out strings.Builder
+	last := 0
+	for _, m := range wikilink.FindAllStringSubmatchIndex(maskCode(doc), -1) {
+		link := parseLink(false, doc[m[4]:m[5]])
+		text := link.Alias
+		if text == "" {
+			text = strings.Join(slices.DeleteFunc([]string{link.Target, link.Heading}, func(s string) bool { return s == "" }), " > ")
+		}
+		out.WriteString(doc[last:m[0]])
+		out.WriteString(text)
+		last = m[1]
+	}
+	out.WriteString(doc[last:])
+	return out.String()
+}
+
 // RewriteLinks returns doc with the target of every link replaced by what
 // rewrite returns for it, and how many links it changed. Headings, block
 // references, aliases, titles and the embed marker stay as written. A
