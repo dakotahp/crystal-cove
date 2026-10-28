@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.23.0](https://github.com/dakotahp/crystal-cove/compare/v0.22.0...v0.23.0) (2026-10-28)
+
+
+### Features
+
+* **search_notes:** point results at the matching section ([60b4cd5](https://github.com/dakotahp/crystal-cove/commit/60b4cd5c92feffff2a2cc5c1fb02535b851ce292))
+
 ## [0.22.0](https://github.com/dakotahp/crystal-cove/compare/v0.21.0...v0.22.0) (2026-10-25)
 
 
