@@ -72,7 +72,8 @@ func (ix *Index) Search(ctx context.Context, query string, include func(string) 
 		return f
 	}
 
-	keyword := terms.rank(terms.queryTerms(query), include)
+	words := terms.queryTerms(query)
+	keyword := terms.rank(words, include)
 	keywordRank := make(map[int]int, len(keyword))
 	for i := range keyword {
 		keywordRank[keyword[i].doc] = i
@@ -159,7 +160,7 @@ func (ix *Index) Search(ctx context.Context, query string, include func(string) 
 
 	results := make([]Result, len(order))
 	for i, doc := range order {
-		results[i] = notes[doc].result(terms.docs[doc], phrases)
+		results[i] = notes[doc].result(terms, terms.docs[doc], phrases, words)
 	}
 	return results, status, nil
 }
@@ -167,30 +168,58 @@ func (ix *Index) Search(ctx context.Context, query string, include func(string) 
 // result reports how the note was found and the section that shows it best:
 // the one holding a quoted phrase; else, for a note placed by its key words,
 // the section that earned its keyword score; else the closest in meaning.
-func (f *found) result(d termDoc, phrases []string) Result {
+// Within a section joined from short ones, it points at the one holding the
+// most of the query's key words. A note is labelled keyword only when one
+// section holds every key word, or when key words alone placed it.
+func (f *found) result(ti *termIndex, d termDoc, phrases, words []string) Result {
 	r := Result{Path: d.path}
+	keyword := f.keyword != nil && (f.keyword.coverage >= fullCoverage || f.hit == nil)
 	for _, m := range []struct {
 		ok  bool
 		how string
-	}{{f.name, MatchName}, {f.phrase, MatchPhrase}, {f.keyword != nil, MatchKeyword}, {f.closest, MatchMeaning}} {
+	}{{f.name, MatchName}, {f.phrase, MatchPhrase}, {keyword, MatchKeyword}, {f.closest, MatchMeaning}} {
 		if m.ok {
 			r.MatchedBy = append(r.MatchedBy, m.how)
 		}
 	}
 	chunk := -1
+	var pieces []piece
 	switch {
 	case f.phrase:
 		chunk = phraseChunk(d, phrases)
 	case f.keyword != nil && (f.rescued || f.hit == nil):
 		chunk = f.keyword.chunk
 	case f.hit != nil:
-		r.HeadingPath, r.Text = f.hit.HeadingPath, f.hit.Text
-		return r
+		r.HeadingPath, r.Text, pieces = f.hit.HeadingPath, f.hit.Text, f.hit.pieces
 	}
 	if chunk >= 0 {
-		r.HeadingPath, r.Text = d.chunks[chunk].HeadingPath, d.chunks[chunk].Text
+		c := d.chunks[chunk]
+		r.HeadingPath, r.Text, pieces = c.HeadingPath, c.Text, c.pieces
+	}
+	if p, ok := ti.focus(pieces, words); ok {
+		r.HeadingPath, r.Text = p.HeadingPath, p.Text
 	}
 	return r
+}
+
+// focus returns the piece holding the most weight of words, or false when
+// none holds any.
+func (ti *termIndex) focus(pieces []piece, words []string) (piece, bool) {
+	var best piece
+	bestScore := 0.0
+	for _, p := range pieces {
+		have := tokens(strings.Join(p.HeadingPath, " ") + " " + p.Text)
+		score := 0.0
+		for _, w := range words {
+			if slices.Contains(have, w) {
+				score += ti.idf(w)
+			}
+		}
+		if score > bestScore {
+			best, bestScore = p, score
+		}
+	}
+	return best, bestScore > 0
 }
 
 func phrasesOf(query string) []string {

@@ -91,11 +91,19 @@ Lines that repeat across many notes are left out, such as a daily-note
 template's headings. A line counts as template text when it appears in at
 least 10 notes, or in 1% of the vault if that is more.
 
+Links are read as the text Obsidian shows: `[[Plan|the plan]]` becomes "the
+plan" and `[[Plan#Budget]]` becomes "Plan > Budget". Brackets and link
+targets are markup, not writing, so neither the model nor the excerpt sees
+them.
+
 Sections matter because one note can cover many topics. A long journal with
 one short section on the query would otherwise lose to a short note that
 mentions the query once. Results show the section that matched, as
 `heading_path` with an excerpt, so an agent can judge a hit without reading
-the whole note.
+the whole note. When the match is a section joined from short ones, the
+result points at the short section that holds the most key words of the
+query, so a hit on the eighth of ten short headed entries shows that entry,
+not the first. With no key word in common, it shows the start.
 
 ### Meaning: embeddings
 
@@ -208,13 +216,22 @@ Each result reports `matched_by`:
 
 - `name`: the note's name holds every word of the query.
 - `phrase`: the note holds a quoted phrase.
-- `keyword`: the note holds at least one key word.
+- `keyword`: one section of the note holds every key word, or key words
+  alone placed it because the note has no vector yet.
 - `meaning`: the note is one of the 50 closest in meaning.
 
 A note found by meaning alone is a weaker match. When every top result is
-meaning only, the vault may not hold what was asked for. This signal is
-partial: a question made of everyday words often finds keyword matches
-anyway.
+meaning only, the vault may not hold what was asked for. A note holding only
+some key words is not labelled `keyword`: one shared word, such as "heart"
+in a vault of letters, would put the label on nearly every result.
+
+`total` counts the results across every page, which is at most the 50
+closest notes plus any moved up. It is not the number of notes in the vault
+that match.
+
+A query should hold one idea. Its vector sits between the ideas it mixes and
+close to none of them, and no section holds every key word of a long mixed
+query, so key words rescue nothing. One search per idea finds each.
 
 There is no score in the output and no score cutoff. On the test vault, the
 point where results turned to noise moved from a closeness of about 0.73 for
@@ -275,7 +292,9 @@ What the tests showed:
 
 The evaluation harness is `internal/semantic/eval_test.go`. It is skipped
 unless `CRYSTAL_COVE_EVAL` names a file of labelled queries, which should
-stay outside the repository because it names your notes. To run it, start
+stay outside the repository because it names your notes. An expected entry
+written `path#heading` names a section, and the report then also counts how
+often a top-5 result points at that section. To run it, start
 `llama-server` with the model, then:
 
 ```

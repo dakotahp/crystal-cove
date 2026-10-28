@@ -10,6 +10,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/dakotahp/crystal-cove/internal/notes"
 	"github.com/dakotahp/crystal-cove/internal/vault"
 )
 
@@ -30,16 +31,24 @@ type Chunk struct {
 	// for text before the note's first heading.
 	HeadingPath []string
 	Text        string
+	// pieces are the sections joined into Text, when there is more than
+	// one, so a search can point at the one that matched.
+	pieces []piece
 }
 
-// chunkNote splits a note at its headings, drops lines in boilerplate, cuts
-// sections longer than maxChunkChars at paragraph breaks, and joins pieces
-// shorter than minChunkChars with their neighbor.
+type piece struct {
+	HeadingPath []string
+	Text        string
+}
+
+// chunkNote splits a note at its headings, drops lines in boilerplate, shows
+// links as their text, cuts sections longer than maxChunkChars at paragraph
+// breaks, and joins pieces shorter than minChunkChars with their neighbor.
 func chunkNote(source []byte, boilerplate map[uint64]bool) []Chunk {
-	var pieces []Chunk
+	var pieces []piece
 	for _, p := range vault.Passages(source) {
-		for _, text := range splitText(stripLines(p.Text, boilerplate)) {
-			pieces = append(pieces, Chunk{HeadingPath: p.HeadingPath, Text: text})
+		for _, text := range splitText(notes.LinkText(stripLines(p.Text, boilerplate))) {
+			pieces = append(pieces, piece{HeadingPath: p.HeadingPath, Text: text})
 		}
 	}
 	var out []Chunk
@@ -48,11 +57,15 @@ func chunkNote(source []byte, boilerplate map[uint64]bool) []Chunk {
 			last := &out[n-1]
 			small := len(last.Text) < minChunkChars || len(p.Text) < minChunkChars
 			if small && len(last.Text)+2+len(p.Text) <= maxChunkChars {
+				if last.pieces == nil {
+					last.pieces = []piece{{HeadingPath: last.HeadingPath, Text: last.Text}}
+				}
+				last.pieces = append(last.pieces, p)
 				last.Text += "\n\n" + p.Text
 				continue
 			}
 		}
-		out = append(out, p)
+		out = append(out, Chunk{HeadingPath: p.HeadingPath, Text: p.Text})
 	}
 	return out
 }

@@ -30,7 +30,9 @@ type evalQuery struct {
 	Query   string   `json:"query"`
 	Folders []string `json:"folders"`
 	// Expect lists the notes a good answer holds. Empty means the vault has
-	// no answer, and the report shows how the top results were found.
+	// no answer, and the report shows how the top results were found. An
+	// entry may name a section as "path#heading", matched against the last
+	// heading of a result's heading path.
 	Expect []string `json:"expect"`
 }
 
@@ -64,7 +66,7 @@ func TestEval(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	var meaningTop, hybridTop, labelled int
+	var meaningTop, hybridTop, labelled, sectionTop, sectionLabelled int
 	var meaningRR, hybridRR float64
 	for _, q := range file.Queries {
 		include := func(p string) bool {
@@ -109,7 +111,19 @@ func TestEval(t *testing.T) {
 			continue
 		}
 		labelled++
-		m, h := firstRank(meaning, q.Expect), firstRank(hybrid, q.Expect)
+		expectNotes := make([]string, len(q.Expect))
+		for i, e := range q.Expect {
+			expectNotes[i], _, _ = strings.Cut(e, "#")
+		}
+		if slices.ContainsFunc(q.Expect, func(e string) bool { return strings.Contains(e, "#") }) {
+			sectionLabelled++
+			if slices.ContainsFunc(results[:min(evalTop, len(results))], func(r Result) bool {
+				return len(r.HeadingPath) > 0 && slices.Contains(q.Expect, r.Path+"#"+r.HeadingPath[len(r.HeadingPath)-1])
+			}) {
+				sectionTop++
+			}
+		}
+		m, h := firstRank(meaning, expectNotes), firstRank(hybrid, expectNotes)
 		if m > 0 && m <= evalTop {
 			meaningTop++
 		}
@@ -128,6 +142,9 @@ func TestEval(t *testing.T) {
 		n := float64(labelled)
 		t.Logf("expected note in top %d: meaning %d/%d, hybrid %d/%d", evalTop, meaningTop, labelled, hybridTop, labelled)
 		t.Logf("mean reciprocal rank: meaning %.3f, hybrid %.3f", meaningRR/n, hybridRR/n)
+	}
+	if sectionLabelled > 0 {
+		t.Logf("expected section in hybrid top %d: %d/%d", evalTop, sectionTop, sectionLabelled)
 	}
 }
 

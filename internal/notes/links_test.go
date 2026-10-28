@@ -5,6 +5,21 @@ import (
 	"testing"
 )
 
+func TestLinkTextShowsWhatObsidianShows(t *testing.T) {
+	cases := map[string]string{
+		"[[Eccl 2|← Ecclesiastes 2]] | [[Ecclesiastes]]": "← Ecclesiastes 2 | Ecclesiastes",
+		"see [[Plan#Budget]] and [[#Goals]]":             "see Plan > Budget and Goals",
+		"block [[Plan#^abc123]] and ![[chart.png]]":      "block Plan and chart.png",
+		"code `[[Plan]]` stays":                          "code `[[Plan]]` stays",
+		"no links here":                                  "no links here",
+	}
+	for in, want := range cases {
+		if got := LinkText(in); got != want {
+			t.Errorf("LinkText(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
+
 func targets(links []Link) []string {
 	out := make([]string, 0, len(links))
 	for _, l := range links {
