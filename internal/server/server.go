@@ -141,7 +141,8 @@ func (s *Server) MCPServer() *mcp.Server {
 
 	addTool(srv, params, &mcp.Tool{
 		Name: "grep_notes",
-		Description: "Exact search of a vault's note names and content, like grep. A plain multi-word query finds notes holding every " +
+		Description: "Exact search of a vault's note names and content, like grep." + s.semanticHint(grepNotesSemanticHint) +
+			" A plain multi-word query finds notes holding every " +
 			"word, in any order; a query wrapped in double quotes, or mode phrase, finds that exact text with no escaping " +
 			"needed; a query with regular-expression characters is read as a regex (ripgrep syntax). mode forces any " +
 			"reading. Only Markdown notes are searched. Results are ranked: notes named after the query first, " +
@@ -149,10 +150,9 @@ func (s *Server) MCPServer() *mcp.Server {
 			"no line in it matches; it reports total_matches 0. glob limits name matches as well as content matches. Case-insensitive unless " +
 			"case_sensitive is set. limit counts notes, and each note returns at most 5 matching lines unless max_lines_per_note says otherwise; every note reports its own total_matches. " +
 			"Results come in pages: total counts every matching note, and next_offset, passed as offset, gives the next page. " +
-			"When the first page holds nothing useful, a better query usually beats the next page. " +
+			s.semanticOr(grepNotesNoResultSemantic, "When the first page holds nothing useful, a better query usually beats the next page. ") +
 			"A line longer than 500 characters is cut to a window around the match and flagged text_truncated. " +
-			"output files leaves the lines out, which is the cheap way to learn which notes match before reading one." +
-			s.semanticHint(grepNotesSemanticHint),
+			"output files leaves the lines out, which is the cheap way to learn which notes match before reading one.",
 	}, s.grepNotes)
 
 	addTool(srv, params, &mcp.Tool{
@@ -179,7 +179,7 @@ func (s *Server) MCPServer() *mcp.Server {
 			"alone lists a folder's notes. fields returns those frontmatter fields with each note. " +
 			"Example: {\"tags\": [\"project\"], \"frontmatter_key\": \"status\", \"frontmatter_value\": \"active\"}, or " +
 			"{\"folders\": [\"Projects\", \"Areas\"], \"max_tags\": 2, \"fields\": [\"summary\"]}. " +
-			"There is no query parameter: use grep_notes for words in the text.",
+			"There is no query parameter: " + s.semanticOr("use search_notes to find notes about a topic, or grep_notes for exact words in the text.", "use grep_notes for words in the text."),
 	}, s.findNotes)
 
 	addTool(srv, params, &mcp.Tool{
