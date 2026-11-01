@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.23.1](https://github.com/dakotahp/crystal-cove/compare/v0.23.0...v0.23.1) (2026-11-01)
+
+
+### Bug Fixes
+
+* **search:** send topic searches to search_notes, not grep_notes ([33dfbec](https://github.com/dakotahp/crystal-cove/commit/33dfbec1385b321e60183a0272508c8ef218c654))
+
 ## [0.23.0](https://github.com/dakotahp/crystal-cove/compare/v0.22.0...v0.23.0) (2026-10-28)
 
 
