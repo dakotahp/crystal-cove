@@ -26,17 +26,20 @@ const (
 func (s *Server) SetSemantic(indexes map[string]*semantic.Index) { s.semantic = indexes }
 
 const (
-	grepNotesSemanticHint = " To find notes about a topic, including notes that use other words than the query, use search_notes."
-	backlinksSemanticHint = " For notes on the same topic that do not link here, use related_notes."
+	grepNotesSemanticHint     = " To find notes about a topic, including notes that use other words than the query, use search_notes."
+	backlinksSemanticHint     = " For notes on the same topic that do not link here, use related_notes."
+	grepNotesNoResultSemantic = "When the first page holds nothing useful and you want a topic rather than exact text, use search_notes, not more key words. "
 )
 
 // semanticHint returns hint when the semantic tools are registered, so
 // other tools point at them only when they exist.
-func (s *Server) semanticHint(hint string) string {
+func (s *Server) semanticHint(hint string) string { return s.semanticOr(hint, "") }
+
+func (s *Server) semanticOr(on, off string) string {
 	if s.semantic == nil {
-		return ""
+		return off
 	}
-	return hint
+	return on
 }
 
 func (s *Server) addSemanticTools(srv *mcp.Server, params map[string]string) {

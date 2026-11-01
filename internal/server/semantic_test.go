@@ -285,6 +285,48 @@ func TestSemanticToolsOnlyWhenEnabled(t *testing.T) {
 	}
 }
 
+func TestDescriptionsSendTopicSearchesToSearchNotes(t *testing.T) {
+	s, _ := newSemanticServer(t)
+	on := toolDescriptions(t, s)
+	if !strings.Contains(on["find_notes"], "search_notes") {
+		t.Error("find_notes does not point at search_notes")
+	}
+	grep := on["grep_notes"]
+	if strings.Index(grep, "search_notes") > strings.Index(grep, "A plain multi-word query") {
+		t.Errorf("grep_notes names search_notes only after its query rules: %s", grep)
+	}
+	if strings.Contains(grep, "a better query") {
+		t.Errorf("grep_notes still sends an agent to try other key words: %s", grep)
+	}
+	if !strings.Contains(grep, "not more key words") {
+		t.Errorf("grep_notes does not warn against trying more key words: %s", grep)
+	}
+
+	off := toolDescriptions(t, newTestServer(t))
+	if strings.Contains(off["find_notes"], "search_notes") {
+		t.Error("find_notes points at search_notes when it is not registered")
+	}
+	if !strings.Contains(off["find_notes"], "grep_notes") {
+		t.Error("find_notes no longer points at grep_notes without semantic search")
+	}
+	if !strings.Contains(off["grep_notes"], "a better query") {
+		t.Error("grep_notes lost its advice for a server without semantic search")
+	}
+}
+
+func TestFindNotesWithoutFilterNamesTheSearchTools(t *testing.T) {
+	ctx := context.Background()
+	on, _ := newSemanticServer(t)
+	_, _, err := on.findNotes(ctx, nil, findNotesInput{})
+	if err == nil || !strings.Contains(err.Error(), "search_notes") || !strings.Contains(err.Error(), "grep_notes") {
+		t.Errorf("with semantic search on: %v", err)
+	}
+	_, _, err = newTestServer(t).findNotes(ctx, nil, findNotesInput{Vault: "Work"})
+	if err == nil || strings.Contains(err.Error(), "search_notes") || !strings.Contains(err.Error(), "grep_notes") {
+		t.Errorf("with semantic search off: %v", err)
+	}
+}
+
 func TestSearchNotesOverHTTP(t *testing.T) {
 	s, _ := newSemanticServer(t)
 	ts := httptest.NewServer(s.Handler(AuthConfig{StaticToken: "secret"}))

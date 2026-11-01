@@ -205,15 +205,8 @@ embedding model is about 146MB).
 
 ## Methodology
 
-TDD is crucial here — treat it as a regular checkpoint, file by file and
-feature by feature, not something to backfill at the end.
-
-- **Bugs**: reproduce with a failing test first, then fix, then confirm the
-  test passes. No bug fix lands without the test that would have caught it.
-- **New features / builds**: build the piece, test it, and only then
-  proceed to the next piece. After each file or feature, stop and run the
-  full check (`gofmt`, `go vet`, `go test ./...`) before moving on — do not
-  batch several features and test at the end.
+- A bug fix includes a test that fails without the fix.
+- A new feature includes its tests in the same change.
 
 ## Quality gates
 
