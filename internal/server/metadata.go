@@ -71,6 +71,61 @@ func (s *Server) listTags(_ context.Context, _ *mcp.CallToolRequest, in listTags
 	return nil, &TagList{Tags: page, NotesScanned: scanned, Total: len(tags), NextOffset: next}, nil
 }
 
+type listPropertiesInput struct {
+	Vault  string `json:"vault,omitempty" jsonschema:"the vault to scan; optional when the server holds one vault"`
+	Offset int    `json:"offset,omitempty" jsonschema:"property to start from; use next_offset from the previous page"`
+	Limit  int    `json:"limit,omitempty" jsonschema:"maximum properties to return (default 200, max 1000); a small limit gives the most used properties"`
+}
+
+// PropertyCount is one frontmatter field and how many notes carry it.
+type PropertyCount struct {
+	Name  string `json:"name"`
+	Count int    `json:"count"`
+}
+
+// PropertyList is the outcome of list_properties.
+type PropertyList struct {
+	// Properties are ordered by count, most used first, then alphabetically.
+	Properties []PropertyCount `json:"properties"`
+	// NotesScanned is how many notes were read to build the list.
+	NotesScanned int `json:"notes_scanned"`
+	Total        int `json:"total" jsonschema:"distinct properties in the whole vault"`
+	NextOffset   int `json:"next_offset" jsonschema:"offset of the next page; -1 when this is the last page"`
+}
+
+func (s *Server) listProperties(_ context.Context, _ *mcp.CallToolRequest, in listPropertiesInput) (*mcp.CallToolResult, *PropertyList, error) {
+	v, err := s.vault(in.Vault)
+	if err != nil {
+		return nil, nil, err
+	}
+	counts := map[string]int{}
+	scanned, err := eachNote(v, func(_ string, n *notes.Note) error {
+		for name := range n.Frontmatter {
+			counts[name]++
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+
+	properties := make([]PropertyCount, 0, len(counts))
+	for name, count := range counts {
+		properties = append(properties, PropertyCount{Name: name, Count: count})
+	}
+	sort.Slice(properties, func(i, j int) bool {
+		if properties[i].Count != properties[j].Count {
+			return properties[i].Count > properties[j].Count
+		}
+		return properties[i].Name < properties[j].Name
+	})
+	page, next, err := pageOf(properties, in.Offset, in.Limit, DefaultListLimit)
+	if err != nil {
+		return nil, nil, err
+	}
+	return nil, &PropertyList{Properties: page, NotesScanned: scanned, Total: len(properties), NextOffset: next}, nil
+}
+
 type findNotesInput struct {
 	Vault string   `json:"vault,omitempty" jsonschema:"the vault to search; optional when the server holds one vault"`
 	Tags  []string `json:"tags,omitempty" jsonschema:"notes must carry every tag listed"`
