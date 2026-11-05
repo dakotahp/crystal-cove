@@ -178,6 +178,13 @@ func (s *Server) MCPServer() *mcp.Server {
 	}, s.listTags)
 
 	addTool(srv, params, &mcp.Tool{
+		Name: "list_properties",
+		Description: "List every frontmatter field used in a vault with the number of notes carrying it, most used first. " +
+			"Use it to learn which fields exist before filtering; each name works as frontmatter_key, missing_key or fields " +
+			"in find_notes. Names keep their exact spelling and case. Long lists come in pages: pass next_offset as offset for the next one.",
+	}, s.listProperties)
+
+	addTool(srv, params, &mcp.Tool{
 		Name: "find_notes",
 		Description: "Find notes by metadata rather than text. Give at least one filter; a note must pass all of them. " +
 			"tags is a list, and a note must carry every tag in it; frontmatter_key names a frontmatter field the note " +

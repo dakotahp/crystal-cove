@@ -331,7 +331,7 @@ func TestEndToEndOverHTTP(t *testing.T) {
 	want := []string{
 		"append_daily_note", "append_note", "create_note", "daily_note_path", "delete_note", "edit_note",
 		"edit_section", "find_notes", "get_backlinks", "get_frontmatter", "get_links",
-		"get_outline", "get_section", "grep_notes", "list_notes", "list_tags", "list_vaults",
+		"get_outline", "get_section", "grep_notes", "list_notes", "list_properties", "list_tags", "list_vaults",
 		"move_folder", "move_note", "orphans", "prepend_daily_note", "read_daily_note", "read_note",
 		"read_notes", "recent_notes", "unresolved_links", "update_frontmatter",
 	}

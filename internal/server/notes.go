@@ -30,8 +30,8 @@ type listNotesInput struct {
 	Order     string `json:"order,omitempty" jsonschema:"asc (the default) lists in path order; desc reverses it, so notes named by date, such as session logs, come newest first"`
 }
 
-// DefaultListLimit and MaxListLimit bound one page of list_notes and
-// list_tags, so a listing of a large vault cannot fill a model's context.
+// DefaultListLimit and MaxListLimit bound one page of list_notes, list_tags and
+// list_properties, so a listing of a large vault cannot fill a model's context.
 const (
 	DefaultListLimit = 200
 	MaxListLimit     = 1000
