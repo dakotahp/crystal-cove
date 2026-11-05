@@ -140,6 +140,14 @@ func (s *Server) MCPServer() *mcp.Server {
 	}, s.getSection)
 
 	addTool(srv, params, &mcp.Tool{
+		Name: "get_outline",
+		Description: "List a note's headings in order, each with its level and its heading_path for get_section or " +
+			"edit_section, so a long note can be read one section at a time. Only document-level headings count, not " +
+			"headings in code, quotes, lists, or YAML frontmatter. Returns at most 200 headings unless limit says " +
+			"otherwise (max 1000); when next_offset is not -1, call again with offset set to it.",
+	}, s.getOutline)
+
+	addTool(srv, params, &mcp.Tool{
 		Name: "grep_notes",
 		Description: "Exact search of a vault's note names and content, like grep." + s.semanticHint(grepNotesSemanticHint) +
 			" A plain multi-word query finds notes holding every " +

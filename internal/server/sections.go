@@ -24,6 +24,35 @@ func (s *Server) getSection(_ context.Context, _ *mcp.CallToolRequest, in getSec
 	return nil, out, err
 }
 
+type getOutlineInput struct {
+	Vault  string `json:"vault,omitempty" jsonschema:"name of the vault; optional when the server holds one vault"`
+	Path   string `json:"path" jsonschema:"vault-relative path of the note"`
+	Offset int    `json:"offset,omitempty" jsonschema:"heading to start from; use next_offset from the previous page"`
+	Limit  int    `json:"limit,omitempty" jsonschema:"maximum headings to return (default 200, max 1000)"`
+}
+
+type getOutlineOutput struct {
+	Headings   []vault.Heading `json:"headings"`
+	Total      int             `json:"total" jsonschema:"headings in the whole note"`
+	NextOffset int             `json:"next_offset" jsonschema:"offset of the next page; -1 when this is the last page"`
+}
+
+func (s *Server) getOutline(_ context.Context, _ *mcp.CallToolRequest, in getOutlineInput) (*mcp.CallToolResult, *getOutlineOutput, error) {
+	v, err := s.note(in.Vault, in.Path)
+	if err != nil {
+		return nil, nil, err
+	}
+	headings, err := v.Outline(in.Path)
+	if err != nil {
+		return nil, nil, err
+	}
+	page, next, err := pageOf(headings, in.Offset, in.Limit, DefaultListLimit)
+	if err != nil {
+		return nil, nil, err
+	}
+	return nil, &getOutlineOutput{Headings: page, Total: len(headings), NextOffset: next}, nil
+}
+
 type editSectionInput struct {
 	Vault       string   `json:"vault,omitempty" jsonschema:"name of the vault; optional when the server holds one vault"`
 	Path        string   `json:"path" jsonschema:"vault-relative path of the note"`

@@ -64,6 +64,7 @@ func TestUnknownVaultRejectedByEveryTool(t *testing.T) {
 		{"list_notes", func() error { _, _, err := s.listNotes(ctx, nil, listNotesInput{Vault: "Nope"}); return err }},
 		{"read_note", func() error { _, _, err := s.readNote(ctx, nil, readNoteInput{Vault: "Nope", Path: "x"}); return err }},
 		{"get_section", func() error { _, _, err := s.getSection(ctx, nil, getSectionInput{Vault: "Nope"}); return err }},
+		{"get_outline", func() error { _, _, err := s.getOutline(ctx, nil, getOutlineInput{Vault: "Nope"}); return err }},
 		{"edit_section", func() error { _, _, err := s.editSection(ctx, nil, editSectionInput{Vault: "Nope"}); return err }},
 		{"grep_notes", func() error {
 			_, _, err := s.grepNotes(ctx, nil, grepNotesInput{Vault: "Nope", Query: "x"})
@@ -330,7 +331,7 @@ func TestEndToEndOverHTTP(t *testing.T) {
 	want := []string{
 		"append_daily_note", "append_note", "create_note", "daily_note_path", "delete_note", "edit_note",
 		"edit_section", "find_notes", "get_backlinks", "get_frontmatter", "get_links",
-		"get_section", "grep_notes", "list_notes", "list_tags", "list_vaults",
+		"get_outline", "get_section", "grep_notes", "list_notes", "list_tags", "list_vaults",
 		"move_folder", "move_note", "orphans", "prepend_daily_note", "read_daily_note", "read_note",
 		"read_notes", "recent_notes", "unresolved_links", "update_frontmatter",
 	}
