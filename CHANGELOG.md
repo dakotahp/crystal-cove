@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.24.0](https://github.com/dakotahp/crystal-cove/compare/v0.23.1...v0.24.0) (2026-11-05)
+
+
+### Features
+
+* **sections:** add get_outline to list a note's headings ([7239830](https://github.com/dakotahp/crystal-cove/commit/7239830570e051266865729602d30d6a2fd8fa6e))
+
 ## [0.23.1](https://github.com/dakotahp/crystal-cove/compare/v0.23.0...v0.23.1) (2026-11-01)
 
 
