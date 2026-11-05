@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.25.0](https://github.com/dakotahp/crystal-cove/compare/v0.24.0...v0.25.0) (2026-11-05)
+
+
+### Features
+
+* **metadata:** add list_properties to list a vault's frontmatter fields ([08d27af](https://github.com/dakotahp/crystal-cove/commit/08d27af10e964f0381bb9554343e3982adca5de4))
+
 ## [0.24.0](https://github.com/dakotahp/crystal-cove/compare/v0.23.1...v0.24.0) (2026-11-05)
 
 
