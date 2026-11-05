@@ -48,7 +48,7 @@ func TestReadOnlyServerOffersNoWriteTools(t *testing.T) {
 	s.SetPolicy(Policy{ReadOnly: true})
 
 	want := []string{
-		"daily_note_path", "find_notes", "get_backlinks", "get_frontmatter", "get_links", "get_section", "grep_notes",
+		"daily_note_path", "find_notes", "get_backlinks", "get_frontmatter", "get_links", "get_outline", "get_section", "grep_notes",
 		"list_notes", "list_tags", "list_vaults", "orphans", "read_daily_note", "read_note", "read_notes",
 		"recent_notes", "unresolved_links",
 	}

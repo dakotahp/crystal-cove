@@ -196,6 +196,26 @@ func (v *Vault) GetSection(rel string, headingPath []string, offset int) (*Secti
 	return &SectionResult{HeadingPath: s.path, Level: s.level, ReadResult: body}, nil
 }
 
+// Heading is one entry in a note's outline.
+type Heading struct {
+	HeadingPath []string `json:"heading_path" jsonschema:"full heading hierarchy, ready to pass to get_section or edit_section"`
+	Level       int      `json:"level" jsonschema:"heading level from 1 to 6"`
+}
+
+// Outline lists a note's document-level headings in the order they appear.
+func (v *Vault) Outline(rel string) ([]Heading, error) {
+	data, err := v.ReadAll(rel)
+	if err != nil {
+		return nil, err
+	}
+	sections := markdownSections(data)
+	headings := make([]Heading, len(sections))
+	for i, s := range sections {
+		headings[i] = Heading{HeadingPath: s.path, Level: s.level}
+	}
+	return headings, nil
+}
+
 // SectionMode says how EditSection changes a section.
 type SectionMode string
 
