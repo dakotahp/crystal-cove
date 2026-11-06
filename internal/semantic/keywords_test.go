@@ -32,6 +32,50 @@ func TestKeyWordsSkipWordsCommonAcrossTheVault(t *testing.T) {
 	}
 }
 
+func TestKeyWordsSkipWordsInFewNotesOfATopic(t *testing.T) {
+	notes := themeNotes(20)
+	names := []string{"bryce", "claire", "morgan", "priya", "tobias", "wendell"}
+	for i := range 18 {
+		p := fmt.Sprintf("Garden/g%02d.md", i)
+		name := names[i/3]
+		notes[p] = strings.TrimSpace(notes[p]) + strings.Repeat(" "+name, 4) + "\n"
+	}
+	for i := range 100 {
+		g := themes["Garden"]
+		notes[fmt.Sprintf("Misc/x%03d.md", i)] = fmt.Sprintf("%s %s misc%d\n", g[i%12], g[(i+5)%12], i)
+	}
+	ix, _, _ := newTestIndex(t, notes)
+	refresh(t, ix)
+	garden := gardenTopic(topicsOf(t, ix, "-Misc", func(p string) bool { return !strings.HasPrefix(p, "Misc/") }))
+	if garden.ID == "" {
+		t.Fatal("no garden topic")
+	}
+	for _, w := range garden.KeyWords {
+		if slices.Contains(names, w) {
+			t.Errorf("garden key words %v hold a name found in 3 of 20 notes", garden.KeyWords)
+		}
+	}
+}
+
+func TestStartWithSkipsNearCopies(t *testing.T) {
+	notes := themeNotes(20)
+	best := strings.Repeat(strings.Join(themes["Garden"], " ")+" ", 2)
+	notes["Garden/Cover.md"] = best + "\n"
+	notes["Garden/Cover v2.md"] = best + "revised\n"
+	ix, _, _ := newTestIndex(t, notes)
+	refresh(t, ix)
+	garden := gardenTopic(topicsOf(t, ix, "", all))
+	copies := 0
+	for _, p := range garden.StartWith {
+		if strings.HasPrefix(path.Base(p), "Cover") {
+			copies++
+		}
+	}
+	if copies != 1 {
+		t.Errorf("start_with holds %d copies of Cover: %v", copies, garden.StartWith)
+	}
+}
+
 func TestStartWithListsEachNoteNameOnce(t *testing.T) {
 	notes := themeNotes(20)
 	best := strings.Repeat(strings.Join(themes["Garden"], " ")+" ", 2) + "\n"

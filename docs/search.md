@@ -268,7 +268,7 @@ close in meaning, then reports each group as a topic of notes:
 - `notes`, `folders`: how many notes the topic holds, and the folders that
   hold most of them.
 - `start_with`: notes that best represent the topic, to read first. Copies
-  of one note in two folders take one place.
+  of one note, by name or by nearly the same text, take one place.
 - `close_to`: the nearest other topics.
 
 **Sections, not notes.** A daily note or meeting log often covers several
@@ -283,8 +283,8 @@ this way.
 it appears in the topic than in the whole vault, blended with how much of the
 topic it makes up. Words common everywhere, such as "the" or "you", rank
 below words typical of one topic, even inside a zoom or a folder map. Short
-words and numbers are skipped, and words found in only one note of a topic
-come last. This works for any language written with spaces.
+words and numbers are skipped, and words found in fewer than a fifth of a
+topic's notes, such as a name or a signature, come last. This works for any language written with spaces.
 
 **Zooming in.** The first call lists up to 30 topics: about 10 for a vault
 of 800 sections, and fewer for smaller vaults or folders. To split one topic, pass its `id` as `topic` with the `build`

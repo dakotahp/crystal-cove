@@ -27,10 +27,17 @@ const (
 	closeCount    = 2
 	minWordRunes  = 3
 	commonSection = 0.5
-	// relevanceWeight leans key words toward lift over raw frequency; the
-	// LDAvis authors found 0.6 best for their topics, and notes need more
-	// lift because their common words are more varied.
+	// relevanceWeight leans key words toward lift over raw frequency, below
+	// the 0.6 the LDAvis authors found best: at 0.6 a pronoun somewhat more
+	// frequent in reflective notes led their topic. minWordNoteShare keeps the
+	// strong lift of names found in a few notes from taking over instead.
 	relevanceWeight = 1.0 / 3
+	// minWordNoteShare is the share of a topic's notes a word must appear in
+	// to lead its key words.
+	minWordNoteShare = 0.2
+	// nearCopy is the closeness above which two notes count as copies of
+	// one another for start_with.
+	nearCopy = 0.95
 )
 
 // ErrTooFewSections means the scope holds too few indexed sections to group.
@@ -326,8 +333,10 @@ func notesOf(sections []entry, members []int) map[string]int {
 // not only the sections in scope, so a word common across the vault, such
 // as "you", never leads a topic or a zoom just because the scope uses it
 // less. Words with no lift, or held by more than half the sections in
-// scope, come after every other word, and words found in only one note of
-// the topic after those; words under minWordRunes and numbers are skipped.
+// scope, come after every other word, and words found in fewer than
+// minWordNoteShare of the topic's notes (or in one note) after those, so a
+// name or a signature in a few notes does not lead; words under
+// minWordRunes and numbers are skipped.
 // So no word list is needed, and a tiny topic still gets words.
 func keyWords(sections []entry, drafts []*draft, background *termIndex) [][]string {
 	sectionWords := make([][]string, len(sections))
@@ -359,6 +368,10 @@ func keyWords(sections []entry, drafts []*draft, background *termIndex) [][]stri
 			}
 		}
 	}
+	minWordNotes := make([]int, len(drafts))
+	for i, d := range drafts {
+		minWordNotes[i] = max(2, int(math.Ceil(minWordNoteShare*float64(len(notesOf(sections, d.members))))))
+	}
 	out := make([][]string, len(drafts))
 	for i := range drafts {
 		type scored struct {
@@ -377,7 +390,7 @@ func keyWords(sections []entry, drafts []*draft, background *termIndex) [][]stri
 			if lift <= 1 || float64(held[w]) > commonSection*float64(len(sections)) {
 				tier = 1
 			}
-			if len(noteSets[i][w]) < 2 {
+			if len(noteSets[i][w]) < minWordNotes[i] {
 				tier = 2
 			}
 			score := relevanceWeight*math.Log(share) + (1-relevanceWeight)*math.Log(lift)
@@ -464,12 +477,25 @@ func folders(sections []entry, members []int) []FolderCount {
 // startWith ranks a topic's notes by how much of each note is in the topic
 // times how clearly those sections belong to it rather than to the next
 // topic, so a note that only touches the topic, such as a daily note whose
-// short headings were joined into one mixed section, does not lead it.
+// short headings were joined into one mixed section, does not lead it. It
+// skips a second note with the same name or with nearly the same text, such
+// as an archived copy or a "v2".
 func startWith(sections []entry, members []int, margin []float32, perNote map[string]int) []string {
 	sum := map[string]float64{}
+	vecs := map[string][]float32{}
 	in := notesOf(sections, members)
 	for _, s := range members {
-		sum[sections[s].path] += float64(margin[s])
+		p := sections[s].path
+		sum[p] += float64(margin[s])
+		if vecs[p] == nil {
+			vecs[p] = make([]float32, len(sections[s].vec))
+		}
+		for d, x := range sections[s].vec {
+			vecs[p][d] += x
+		}
+	}
+	for _, v := range vecs {
+		_ = normalize(v)
 	}
 	type scored struct {
 		path  string
@@ -491,10 +517,12 @@ func startWith(sections []entry, members []int, margin []float32, perNote map[st
 		if len(out) == startCount {
 			break
 		}
-		if name := path.Base(s.path); !names[name] {
-			names[name] = true
-			out = append(out, s.path)
+		name := path.Base(s.path)
+		if names[name] || slices.ContainsFunc(out, func(p string) bool { return dot(vecs[p], vecs[s.path]) >= nearCopy }) {
+			continue
 		}
+		names[name] = true
+		out = append(out, s.path)
 	}
 	return out
 }
