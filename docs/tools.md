@@ -68,7 +68,7 @@ the note does not already end with one.
 
 ## Semantic search (beta)
 
-`grep_notes` finds the exact words you give it. With semantic search on, `search_notes` finds notes about the same topic too, even when they use other words: "feeling burned out" can find a note about low energy. `related_notes` uses the same idea to find notes connected to one note, including notes it never links to.
+`grep_notes` finds the exact words you give it. With semantic search on, `search_notes` finds notes about the same topic too, even when they use other words: "feeling burned out" can find a note about low energy. `related_notes` uses the same idea to find notes connected to one note, including notes it never links to. `topic_map` groups the vault's notes into topics by meaning, so an agent can see what the vault is about in one call ([how it works](search.md#topic_map)).
 
 `search_notes` is hybrid search: notes are ranked by meaning, and key words (BM25) rescue the clear hits that meaning misses, such as a book title or a rare name. Each result reports `matched_by` (`name`, `phrase`, `keyword`, `meaning`). The list stops at the 50 notes closest in meaning, plus any rescued notes. [How search works](search.md) explains the ranking, the algorithms, and how the design was tested.
 

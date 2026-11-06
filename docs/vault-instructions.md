@@ -17,4 +17,14 @@ Keep the file short. Some MCP clients cut long server instructions without warni
 
 The file is re-read for each new session, so an edit made on another device reaches the next conversation once it syncs. The boot log reports how many characters were loaded at startup.
 
+## Starting from the topic map
+
+With semantic search on, `topic_map` shows an agent what the vault is about: its notes grouped into topics, with entry notes for each. The server does not tell agents to call it. If you want agents to start with it, add a line such as this to your instructions file:
+
+```markdown
+At the start of an open-ended task, call `topic_map` to see what this vault is about.
+```
+
+## Editing the instructions file
+
 The MCP tools can read `mcp-instructions.md` but cannot create, edit, move, delete or restore it. Its text steers every later session, so a note that talks an assistant into rewriting it would steer every client from then on. Edit it in Obsidian instead.

@@ -72,6 +72,8 @@ func (s *Server) addSemanticTools(srv *mcp.Server, params map[string]string) {
 			"by closeness and always list the nearest notes, so judge them by their excerpts. folders and " +
 			"exclude_folders limit which notes are returned. Results come in pages: pass next_offset as offset.",
 	}, s.relatedNotes)
+
+	addTool(srv, params, &mcp.Tool{Name: "topic_map", Description: topicMapDescription}, s.topicMap)
 }
 
 type searchNotesInput struct {

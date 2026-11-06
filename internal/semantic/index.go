@@ -72,6 +72,7 @@ type Index struct {
 	store string
 	log   *slog.Logger
 	sleep func(ctx context.Context, d time.Duration)
+	now   func() time.Time
 
 	// cache maps a document's hash to its vector. Only the goroutine
 	// running Run touches it.
@@ -81,6 +82,8 @@ type Index struct {
 	entries []entry
 	status  Status
 	terms   *termIndex
+
+	topics topicCache
 }
 
 type entry struct {
@@ -102,7 +105,7 @@ type storeFile struct {
 
 // NewIndex returns an Index over v that saves its vectors at store.
 func NewIndex(v *vault.Vault, e Embedder, store string, log *slog.Logger) *Index {
-	return &Index{vault: v, embed: e, store: store, log: log.With("vault", v.Name()), sleep: sleepCtx, cache: map[string][]float32{}}
+	return &Index{vault: v, embed: e, store: store, log: log.With("vault", v.Name()), sleep: sleepCtx, now: time.Now, cache: map[string][]float32{}}
 }
 
 // StorePath returns where a vault's index is saved inside dir.

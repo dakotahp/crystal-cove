@@ -1,6 +1,7 @@
 # How search works
 
-Crystal Cove gives agents four ways to find notes. Each one answers a
+Crystal Cove gives agents four ways to find notes, and one way to see what
+a vault holds. Each one answers a
 different question, and they are separate tools on purpose: an agent that
 knows which question it is asking picks the right tool on the first call.
 
@@ -10,6 +11,7 @@ knows which question it is asking picks the right tool on the first call.
 | `search_notes` | Which notes are about this, or named this? | `MCP_SEMANTIC_SEARCH=true` |
 | `related_notes` | Which notes are about the same thing as this note? | `MCP_SEMANTIC_SEARCH=true` |
 | `find_notes` | Which notes have these tags or frontmatter fields? | Nothing extra |
+| `topic_map` | What is this vault about? | `MCP_SEMANTIC_SEARCH=true` |
 
 The short version: use `search_notes` to find notes, and `grep_notes` for
 exact words, a regex, every matching line, or a line you are about to edit.
@@ -248,6 +250,56 @@ ranks each other note by its closest pair. A long note matches on its most
 similar section, not an average of all of them. `linked` marks notes that
 already link to it or from it, and `unlinked: true` leaves them out, to show
 only connections the links miss.
+
+## topic_map
+
+`topic_map` answers "what is this vault about?" in one call. A new session
+knows a vault's layout from its instructions, but nothing about its
+content. Without a map, an agent makes many small list and grep calls to
+find its bearings. With one, it sees the vault's topics and where they
+live, and goes straight to the right notes.
+
+It uses the same section vectors. The server groups sections that are
+close in meaning, then reports each group as a topic of notes:
+
+- `key_words`: the words most typical of the topic compared with the rest
+  of the map. The server has no model that writes text, so these stand in
+  for a name.
+- `notes`, `folders`: how many notes the topic holds, and the folders that
+  hold most of them.
+- `start_with`: notes that best represent the topic, to read first. Copies
+  of one note, by name or by nearly the same text, take one place.
+- `close_to`: the nearest other topics.
+
+**Sections, not notes.** A daily note or meeting log often covers several
+subjects. The map groups sections, so such a note counts in each topic it
+touches. Short headings are joined into one section, so a daily note can
+still give one mixed section; entry notes favor sections that clearly belong
+to one topic, so such notes do not lead a topic. A section far from every
+topic stays out of all of them. `outside_notes` counts the notes left out
+this way.
+
+**Key words without a word list.** A word ranks by how many times more often
+it appears in the topic than in the whole vault, blended with how much of the
+topic it makes up. Words common everywhere, such as "the" or "you", rank
+below words typical of one topic, even inside a zoom or a folder map: a
+word must be at least twice as frequent in the topic as in the vault to
+lead. Web addresses, short words and numbers are skipped, and words found in fewer than a fifth of a
+topic's notes, such as a name or a signature, come last. This works for any language written with spaces.
+
+**Zooming in.** The first call lists up to 30 topics: about 10 for a vault
+of 800 sections, and fewer for smaller vaults or folders. To split one topic, pass its `id` as `topic` with the `build`
+from the same result. Each call goes one level deeper. `folders` and
+`exclude_folders` map part of the vault, such as one project folder.
+
+**Builds.** A map is built when first asked for, and kept in memory for 30
+minutes. Its `build` comes from the content it was made from, so an
+unchanged vault gives the same map and the same IDs. A zoom answers from the
+build it names, even if notes changed since then. After 30 minutes, the
+tool asks for a new map instead of guessing which topic an old ID meant.
+
+The tool is never in the session instructions on its own. To have agents
+start with it, add a line to your [vault instructions](vault-instructions.md).
 
 ## How the design was chosen
 
