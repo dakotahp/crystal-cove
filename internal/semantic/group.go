@@ -15,7 +15,8 @@ const (
 	minGroupSections   = 4
 	minTopicNotes      = 2
 	maxTopics          = 30
-	outlierSpread      = 1.5
+	outlierSpread      = 3
+	minSpread          = 0.02
 	maxIterations      = 25
 	minClusterSections = 2
 	reseedRounds       = 3
@@ -168,22 +169,42 @@ func (g *grouping) reseedTiny(vecs [][]float32) bool {
 	return moved
 }
 
+// cutOutliers leaves out each section much less close to its center than
+// the rest of its topic: below the topic's median by outlierSpread robust
+// standard deviations (1.4826 times the median absolute deviation), with
+// minSpread as the floor for a topic whose sections are all alike.
 func (g *grouping) cutOutliers() {
-	n := float64(len(g.closeness))
-	var sum, sq float64
-	for _, c := range g.closeness {
-		sum += float64(c)
+	byTopic := make([][]float64, len(g.centers))
+	for i, c := range g.assign {
+		byTopic[c] = append(byTopic[c], float64(g.closeness[i]))
 	}
-	mean := sum / n
-	for _, c := range g.closeness {
-		sq += (float64(c) - mean) * (float64(c) - mean)
+	cutoff := make([]float64, len(g.centers))
+	for c, values := range byTopic {
+		if len(values) == 0 {
+			continue
+		}
+		med := median(values)
+		dev := make([]float64, len(values))
+		for i, v := range values {
+			dev[i] = math.Abs(v - med)
+		}
+		cutoff[c] = med - outlierSpread*max(1.4826*median(dev), minSpread)
 	}
-	cutoff := mean - outlierSpread*math.Sqrt(sq/n)
-	for i, c := range g.closeness {
-		if float64(c) < cutoff {
+	for i, c := range g.assign {
+		if float64(g.closeness[i]) < cutoff[c] {
 			g.assign[i] = -1
 		}
 	}
+}
+
+func median(values []float64) float64 {
+	s := slices.Clone(values)
+	slices.Sort(s)
+	n := len(s)
+	if n%2 == 1 {
+		return s[n/2]
+	}
+	return (s[n/2-1] + s[n/2]) / 2
 }
 
 // buildID names the sections in scope, so the same content and scope always
