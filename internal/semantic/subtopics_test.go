@@ -126,6 +126,22 @@ func TestSubtopicsErrors(t *testing.T) {
 	}
 }
 
+func TestKeyWordsInASmallScopeFallBackToCommonWords(t *testing.T) {
+	ix, _, _ := newTestIndex(t, map[string]string{
+		"A.md": "tomatoes soil watering compost\n",
+		"B.md": "tomatoes soil watering seedlings\n",
+		"C.md": "tomatoes soil watering basil\n",
+		"D.md": "tomatoes soil watering mulch\n",
+	})
+	refresh(t, ix)
+	m := topicsOf(t, ix, "", all)
+	for _, tp := range m.Topics {
+		if len(tp.KeyWords) == 0 || tp.KeyWords[0] == "" {
+			t.Errorf("topic %s has no key words", tp.ID)
+		}
+	}
+}
+
 func TestTopicCacheEvictsOldest(t *testing.T) {
 	ix, _, _ := newTestIndex(t, themeNotes(20))
 	clock := time.Now()

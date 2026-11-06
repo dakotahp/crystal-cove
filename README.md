@@ -210,7 +210,7 @@ Agents get tools that work with notes, not raw files:
 
 - **Read:** `read_note`, `read_notes`, `get_outline`, `get_section`, `get_frontmatter`, `list_notes`, `recent_notes`, `read_daily_note`, `daily_note_path`
 - **Find:** `grep_notes` (exact search of names and content, ranked), `find_notes` (by tags and frontmatter), `list_tags`, `list_properties`, `get_links`, `get_backlinks`, `unresolved_links`, `orphans`
-- **Find by meaning (beta, opt-in):** `search_notes` (hybrid search: name, key words and meaning in one ranked list) and `related_notes`, with `MCP_SEMANTIC_SEARCH=true`
+- **Find by meaning (beta, opt-in):** `search_notes` (hybrid search: name, key words and meaning in one ranked list) `related_notes`, and `topic_map` (what the vault is about, as topics grouped by meaning), with `MCP_SEMANTIC_SEARCH=true`
 - **Write:** `create_note`, `append_note`, `append_daily_note`, `prepend_daily_note`, `edit_note`, `edit_section`, `update_frontmatter`, `move_note` (also restores from the trash), `move_folder`, `delete_note`
 
 Note deletes are soft by moving the file to the vault's `.trash` so it will be recoverable. Set `MCP_READ_ONLY=true` to give agents only the read and find tools. See [docs/tools.md](docs/tools.md) for every tool's details.

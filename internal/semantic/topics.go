@@ -292,8 +292,9 @@ func notesOf(sections []entry, members []int) map[string]int {
 // keyWords picks each topic's most typical words by class-based TF-IDF:
 // how much of the topic's text a word makes up, weighted down by how often
 // it appears in every topic together. Words held by more than half the
-// sections, words under minWordRunes, numbers, and words found in only one
-// note of the topic are skipped, so no word list is needed.
+// sections come only after every other word, and words under minWordRunes,
+// numbers, and words found in only one note of the topic are skipped, so no
+// word list is needed.
 func keyWords(sections []entry, drafts []*draft) [][]string {
 	sectionWords := make([][]string, len(sections))
 	held := map[string]int{}
@@ -331,18 +332,26 @@ func keyWords(sections []entry, drafts []*draft) [][]string {
 	out := make([][]string, len(drafts))
 	for i := range drafts {
 		type scored struct {
-			word  string
-			score float64
+			word   string
+			common bool
+			score  float64
 		}
 		var list []scored
 		for w, n := range counts[i] {
-			if !keyWordCandidate(w) || len(noteSets[i][w]) < 2 || float64(held[w]) > commonSection*float64(len(sections)) {
+			if !keyWordCandidate(w) || len(noteSets[i][w]) < 2 {
 				continue
 			}
+			common := float64(held[w]) > commonSection*float64(len(sections))
 			score := float64(n) / float64(totals[i]) * math.Log(1+avg/float64(global[w]))
-			list = append(list, scored{w, score})
+			list = append(list, scored{w, common, score})
 		}
 		slices.SortFunc(list, func(a, b scored) int {
+			if a.common != b.common {
+				if a.common {
+					return 1
+				}
+				return -1
+			}
 			if c := cmp.Compare(b.score, a.score); c != 0 {
 				return c
 			}

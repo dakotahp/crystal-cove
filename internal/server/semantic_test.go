@@ -265,19 +265,22 @@ func TestSemanticToolsOnlyWhenEnabled(t *testing.T) {
 	if _, ok := off["search_notes"]; ok {
 		t.Error("search_notes registered without an index")
 	}
-	if strings.Contains(off["grep_notes"], "search_notes") || strings.Contains(off["get_backlinks"], "related_notes") {
+	if _, ok := off["topic_map"]; ok {
+		t.Error("topic_map registered without an index")
+	}
+	if strings.Contains(off["grep_notes"], "search_notes") || strings.Contains(off["get_backlinks"], "related_notes") || strings.Contains(off["list_notes"], "topic_map") {
 		t.Error("descriptions point at tools that are not registered")
 	}
 
 	s, _ := newSemanticServer(t)
 	s.SetPolicy(Policy{ReadOnly: true})
 	on := toolDescriptions(t, s)
-	for _, name := range []string{"search_notes", "related_notes"} {
+	for _, name := range []string{"search_notes", "related_notes", "topic_map"} {
 		if on[name] == "" {
 			t.Errorf("%s missing from a read-only server", name)
 		}
 	}
-	if !strings.Contains(on["grep_notes"], "search_notes") || !strings.Contains(on["get_backlinks"], "related_notes") {
+	if !strings.Contains(on["grep_notes"], "search_notes") || !strings.Contains(on["get_backlinks"], "related_notes") || !strings.Contains(on["list_notes"], "topic_map") {
 		t.Error("existing tools do not point at the semantic tools")
 	}
 	if !strings.Contains(on["search_notes"], "grep_notes") || !strings.Contains(on["related_notes"], "get_backlinks") {

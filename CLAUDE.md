@@ -55,7 +55,8 @@ Deliberate MVP boundaries (do not "fix" these without being asked):
   `search_notes` (hybrid: meaning order, with name matches, quoted phrases,
   and up to three notes holding every BM25 key word moved to the top; an
   equal-vote rank fusion lost to meaning alone on paraphrased queries) and
-  `related_notes`, are separate from
+  `related_notes`, plus `topic_map` (the vault's sections grouped into
+  topics by meaning, with zoom into one topic), are separate from
   the exact `grep_notes` on purpose: fuzzy results never replace exact
   matches. The split is search versus grep: `search_notes` is the first
   search, `grep_notes` the exact one. With the setting off there is no
@@ -105,7 +106,10 @@ internal/semantic/     opt-in search by meaning (MCP_SEMANTIC_SEARCH): chunks
                        counted) rebuilt in memory on each refresh, before
                        embedding, and the hybrid Search that
                        ranks by meaning and lets name, phrase and full
-                       keyword matches rescue the clear hits
+                       keyword matches rescue the clear hits; also groups
+                       sections into topics for topic_map (seeded spherical
+                       k-means, far sections left out, maps cached 30
+                       minutes under a build ID derived from the content)
 internal/oidcauth/     OIDC bearer-token validation for any compliant IdP:
                        discovery (with internal-issuer override), JWKS via
                        go-oidc, audience check with Keycloak-style azp
