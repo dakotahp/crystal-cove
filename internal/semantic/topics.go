@@ -27,6 +27,10 @@ const (
 	closeCount    = 2
 	minWordRunes  = 3
 	commonSection = 0.5
+	// relevanceWeight leans key words toward lift over raw frequency; the
+	// LDAvis authors found 0.6 best for their topics, and notes need more
+	// lift because their common words are more varied.
+	relevanceWeight = 1.0 / 3
 )
 
 // ErrTooFewSections means the scope holds too few indexed sections to group.
@@ -83,6 +87,9 @@ type builtMap struct {
 	entries  []entry
 	members  [][]int
 	children map[string]*builtMap
+	// background is the vault's word index when the map was built; key
+	// words are measured against it, and a zoom reuses it.
+	background *termIndex
 }
 
 // Topics groups the indexed sections whose note include accepts into
@@ -108,7 +115,7 @@ func (ix *Index) Topics(scope string, include func(string) bool) (TopicMap, Stat
 		b.created = ix.now()
 		return b.topicMap, status, nil
 	}
-	b := buildMap(kept, build, "")
+	b := buildMap(kept, build, "", ix.termSnapshot())
 	if len(b.topicMap.Topics) == 0 {
 		return TopicMap{}, status, ErrTooFewSections
 	}
@@ -163,7 +170,7 @@ func (b *builtMap) zoom(i int) (*builtMap, error) {
 	for j, s := range b.members[i] {
 		sections[j] = b.entries[s]
 	}
-	child := buildMap(sections, b.topicMap.Build, id)
+	child := buildMap(sections, b.topicMap.Build, id, b.background)
 	if len(child.topicMap.Topics) < 2 {
 		return nil, ErrTooSmallToSplit
 	}
@@ -224,13 +231,13 @@ func groupSeed(build, topic string) uint64 {
 	return binary.BigEndian.Uint64(sum[:8])
 }
 
-func buildMap(sections []entry, build, parent string) *builtMap {
+func buildMap(sections []entry, build, parent string, background *termIndex) *builtMap {
 	vecs := make([][]float32, len(sections))
 	for i, e := range sections {
 		vecs[i] = groupVector(e.vec)
 	}
 	g := group(vecs, topicCount(len(sections)), groupSeed(build, parent))
-	topics, members := describe(sections, g, parent)
+	topics, members := describe(sections, g, parent, background)
 	notes := map[string]bool{}
 	inside := map[string]bool{}
 	for _, e := range sections {
@@ -242,9 +249,10 @@ func buildMap(sections []entry, build, parent string) *builtMap {
 		}
 	}
 	return &builtMap{
-		topicMap: TopicMap{Build: build, Parent: parent, Topics: topics, Notes: len(notes), OutsideNotes: len(notes) - len(inside)},
-		entries:  sections,
-		members:  members,
+		topicMap:   TopicMap{Build: build, Parent: parent, Topics: topics, Notes: len(notes), OutsideNotes: len(notes) - len(inside)},
+		entries:    sections,
+		members:    members,
+		background: background,
 	}
 }
 
@@ -256,7 +264,7 @@ type draft struct {
 
 // describe turns a grouping into topics, dropping groups with fewer than
 // minTopicNotes notes, and returns each topic's sections in topic order.
-func describe(sections []entry, g grouping, parent string) ([]Topic, [][]int) {
+func describe(sections []entry, g grouping, parent string, background *termIndex) ([]Topic, [][]int) {
 	perNote := map[string]int{}
 	for _, e := range sections {
 		perNote[e.path]++
@@ -273,7 +281,7 @@ func describe(sections []entry, g grouping, parent string) ([]Topic, [][]int) {
 			drafts = append(drafts, &draft{center: g.centers[c], members: members})
 		}
 	}
-	words := keyWords(sections, drafts)
+	words := keyWords(sections, drafts, background)
 	for i, d := range drafts {
 		d.topic = Topic{
 			Notes:     len(notesOf(sections, d.members)),
@@ -311,13 +319,17 @@ func notesOf(sections []entry, members []int) map[string]int {
 	return notes
 }
 
-// keyWords picks each topic's most typical words by class-based TF-IDF:
-// how much of the topic's text a word makes up, weighted down by how often
-// it appears in every topic together. Words held by more than half the
-// sections come after every other word, and words found in only one note of
+// keyWords picks each topic's most typical words by relevance (Sievert and
+// Shirley's LDAvis measure): a blend of how much of the topic's text a word
+// makes up and its lift, how many times more often it appears in the topic
+// than in the whole vault. Lift is measured against the vault's word index,
+// not only the sections in scope, so a word common across the vault, such
+// as "you", never leads a topic or a zoom just because the scope uses it
+// less. Words with no lift, or held by more than half the sections in
+// scope, come after every other word, and words found in only one note of
 // the topic after those; words under minWordRunes and numbers are skipped.
 // So no word list is needed, and a tiny topic still gets words.
-func keyWords(sections []entry, drafts []*draft) [][]string {
+func keyWords(sections []entry, drafts []*draft, background *termIndex) [][]string {
 	sectionWords := make([][]string, len(sections))
 	held := map[string]int{}
 	for i, e := range sections {
@@ -330,19 +342,16 @@ func keyWords(sections []entry, drafts []*draft) [][]string {
 			}
 		}
 	}
+	vaultCount, vaultTotal := backgroundCounts(background, sectionWords)
 	counts := make([]map[string]int, len(drafts))
 	noteSets := make([]map[string]map[string]bool, len(drafts))
 	totals := make([]int, len(drafts))
-	global := map[string]int{}
-	all := 0
 	for i, d := range drafts {
 		counts[i], noteSets[i] = map[string]int{}, map[string]map[string]bool{}
 		for _, s := range d.members {
 			for _, w := range sectionWords[s] {
 				counts[i][w]++
-				global[w]++
 				totals[i]++
-				all++
 				if noteSets[i][w] == nil {
 					noteSets[i][w] = map[string]bool{}
 				}
@@ -350,7 +359,6 @@ func keyWords(sections []entry, drafts []*draft) [][]string {
 			}
 		}
 	}
-	avg := float64(all) / float64(max(1, len(drafts)))
 	out := make([][]string, len(drafts))
 	for i := range drafts {
 		type scored struct {
@@ -363,14 +371,16 @@ func keyWords(sections []entry, drafts []*draft) [][]string {
 			if !keyWordCandidate(w) {
 				continue
 			}
+			share := float64(n) / float64(totals[i])
+			lift := share / (float64(max(vaultCount(w), n)) / float64(max(vaultTotal, totals[i])))
 			tier := 0
-			if float64(held[w]) > commonSection*float64(len(sections)) {
+			if lift <= 1 || float64(held[w]) > commonSection*float64(len(sections)) {
 				tier = 1
 			}
 			if len(noteSets[i][w]) < 2 {
 				tier = 2
 			}
-			score := float64(n) / float64(totals[i]) * math.Log(1+avg/float64(global[w]))
+			score := relevanceWeight*math.Log(share) + (1-relevanceWeight)*math.Log(lift)
 			list = append(list, scored{w, tier, score})
 		}
 		slices.SortFunc(list, func(a, b scored) int {
@@ -387,6 +397,34 @@ func keyWords(sections []entry, drafts []*draft) [][]string {
 		}
 	}
 	return out
+}
+
+// backgroundCounts returns how often each word appears across the vault and
+// how many words the vault holds, from its word index, or from the sections
+// themselves when there is no index.
+func backgroundCounts(background *termIndex, sectionWords [][]string) (func(string) int, int) {
+	if background != nil {
+		total := 0
+		for _, n := range background.chunkLen {
+			total += n
+		}
+		return func(w string) int {
+			n := 0
+			for _, p := range background.postings[w] {
+				n += p.tf
+			}
+			return n
+		}, total
+	}
+	count := map[string]int{}
+	total := 0
+	for _, words := range sectionWords {
+		for _, w := range words {
+			count[w]++
+			total++
+		}
+	}
+	return func(w string) int { return count[w] }, total
 }
 
 func keyWordCandidate(w string) bool {
@@ -448,8 +486,15 @@ func startWith(sections []entry, members []int, margin []float32, perNote map[st
 		return cmp.Compare(a.path, b.path)
 	})
 	out := make([]string, 0, startCount)
-	for _, s := range list[:min(startCount, len(list))] {
-		out = append(out, s.path)
+	names := map[string]bool{}
+	for _, s := range list {
+		if len(out) == startCount {
+			break
+		}
+		if name := path.Base(s.path); !names[name] {
+			names[name] = true
+			out = append(out, s.path)
+		}
 	}
 	return out
 }

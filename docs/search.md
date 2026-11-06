@@ -267,7 +267,8 @@ close in meaning, then reports each group as a topic of notes:
   for a name.
 - `notes`, `folders`: how many notes the topic holds, and the folders that
   hold most of them.
-- `start_with`: notes that best represent the topic, to read first.
+- `start_with`: notes that best represent the topic, to read first. Copies
+  of one note in two folders take one place.
 - `close_to`: the nearest other topics.
 
 **Sections, not notes.** A daily note or meeting log often covers several
@@ -278,10 +279,12 @@ to one topic, so such notes do not lead a topic. A section far from every
 topic stays out of all of them. `outside_notes` counts the notes left out
 this way.
 
-**Key words without a word list.** Words that appear across the whole map,
-such as "the", rank below words typical of one topic. Short words, numbers,
-and words found in only one note of a topic are skipped. This works for any
-language written with spaces.
+**Key words without a word list.** A word ranks by how many times more often
+it appears in the topic than in the whole vault, blended with how much of the
+topic it makes up. Words common everywhere, such as "the" or "you", rank
+below words typical of one topic, even inside a zoom or a folder map. Short
+words and numbers are skipped, and words found in only one note of a topic
+come last. This works for any language written with spaces.
 
 **Zooming in.** The first call lists up to 30 topics: about 10 for a vault
 of 800 sections, and fewer for smaller vaults or folders. To split one topic, pass its `id` as `topic` with the `build`
