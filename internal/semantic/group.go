@@ -20,15 +20,18 @@ const (
 	maxIterations      = 25
 	minClusterSections = 2
 	reseedRounds       = 3
+	overcluster        = 2
 )
 
 // grouping is the result of group: assign[i] is section i's topic, or -1
-// when it is far from every topic, and closeness[i] is its dot product with
-// its nearest center.
+// when it is far from every topic, closeness[i] is its dot product with its
+// nearest center, and margin[i] how much closer that is than the next
+// center, which is small for a section that mixes two topics.
 type grouping struct {
 	assign    []int
 	centers   [][]float32
 	closeness []float32
+	margin    []float32
 }
 
 // topicCount is how many topics to make from this many sections.
@@ -37,13 +40,16 @@ func topicCount(sections int) int {
 	return min(max(k, 2), maxTopics)
 }
 
-// group sorts unit vectors into k topics by spherical k-means from a seeded
-// k-means++ start, then leaves out the vectors much farther from their
-// center than the rest.
+// group sorts unit vectors into k topics. Spherical k-means from a seeded
+// k-means++ start first makes twice as many groups, and the closest groups
+// are then merged down to k: k-means alone favors groups of equal size, so
+// one large blob, such as many mixed daily notes, would split in two and
+// swallow a smaller real topic. Last, it leaves out the vectors much
+// farther from their center than the rest.
 func group(vecs [][]float32, k int, seed uint64) grouping {
 	k = min(k, len(vecs))
 	rng := rand.New(rand.NewPCG(seed, seed^0x9e3779b97f4a7c15)) // #nosec G404 -- deterministic grouping seed, not security
-	g := grouping{centers: seedCenters(vecs, k, rng), assign: make([]int, len(vecs)), closeness: make([]float32, len(vecs))}
+	g := grouping{centers: seedCenters(vecs, min(overcluster*k, len(vecs)), rng), assign: make([]int, len(vecs)), closeness: make([]float32, len(vecs)), margin: make([]float32, len(vecs))}
 	g.converge(vecs)
 	for range reseedRounds {
 		if !g.reseedTiny(vecs) {
@@ -51,40 +57,127 @@ func group(vecs [][]float32, k int, seed uint64) grouping {
 		}
 		g.converge(vecs)
 	}
+	g.merge(vecs, k)
 	g.cutOutliers()
 	return g
 }
 
-func seedCenters(vecs [][]float32, k int, rng *rand.Rand) [][]float32 {
-	centers := [][]float32{slices.Clone(vecs[rng.IntN(len(vecs))])}
-	far := make([]float64, len(vecs))
-	for i := range far {
-		far[i] = math.Inf(1)
+// merge joins groups by Ward's rule until k remain, then assigns every
+// vector to its nearest merged center. Ward's cost, sizes a*b/(a+b) times
+// the squared distance between centers, merges a small stray group into its
+// neighbor before it merges two large real topics.
+func (g *grouping) merge(vecs [][]float32, k int) {
+	size := make([]float64, len(g.centers))
+	for _, c := range g.assign {
+		size[c]++
 	}
-	for len(centers) < k {
-		last := centers[len(centers)-1]
-		total := 0.0
-		for i, v := range vecs {
-			d := 1 - float64(dot(v, last))
-			far[i] = min(far[i], d*d)
-			total += far[i]
+	sums := make([][]float32, len(g.centers))
+	for c := range sums {
+		sums[c] = make([]float32, len(vecs[0]))
+	}
+	for i, v := range vecs {
+		for d, x := range v {
+			sums[g.assign[i]][d] += x
 		}
-		pick := 0
-		if total > 0 {
-			r := rng.Float64() * total
-			for i, f := range far {
-				r -= f
-				if r <= 0 {
-					pick = i
-					break
+	}
+	active := make([]int, 0, len(g.centers))
+	for c, sum := range sums {
+		if normalize(slices.Clone(sum)) == nil {
+			active = append(active, c)
+		}
+	}
+	for len(active) > k {
+		bi, bj, best := 0, 1, math.Inf(1)
+		for i := range active {
+			for j := i + 1; j < len(active); j++ {
+				a, b := active[i], active[j]
+				cost := size[a] * size[b] / (size[a] + size[b]) * (2 - 2*float64(dot(g.centers[a], g.centers[b])))
+				if cost < best {
+					bi, bj, best = i, j, cost
 				}
 			}
-		} else {
-			pick = rng.IntN(len(vecs))
 		}
-		centers = append(centers, slices.Clone(vecs[pick]))
+		a, b := active[bi], active[bj]
+		size[a] += size[b]
+		for d, x := range sums[b] {
+			sums[a][d] += x
+		}
+		merged := slices.Clone(sums[a])
+		if normalize(merged) == nil {
+			g.centers[a] = merged
+		}
+		active = slices.Delete(active, bj, bj+1)
+	}
+	centers := make([][]float32, len(active))
+	for i, c := range active {
+		centers[i] = g.centers[c]
+	}
+	g.centers = centers
+	for i, v := range vecs {
+		var score, second float32
+		g.assign[i], score, second = nearest(g.centers, v)
+		g.closeness[i], g.margin[i] = score, score-second
+	}
+}
+
+// seedCenters is greedy k-means++: for each new center it draws a few
+// candidates weighted by squared distance and keeps the one that brings the
+// sections closest overall, which avoids most of the poor starts that leave
+// two real topics merged.
+func seedCenters(vecs [][]float32, k int, rng *rand.Rand) [][]float32 {
+	first := rng.IntN(len(vecs))
+	centers := [][]float32{slices.Clone(vecs[first])}
+	far := distancesTo(vecs, vecs[first], nil)
+	tries := 2 + int(math.Log(float64(k)))
+	for len(centers) < k {
+		total := 0.0
+		for _, f := range far {
+			total += f
+		}
+		best, bestFar, bestTotal := 0, far, math.Inf(1)
+		for range tries {
+			pick := weightedPick(far, total, rng)
+			next := distancesTo(vecs, vecs[pick], far)
+			sum := 0.0
+			for _, f := range next {
+				sum += f
+			}
+			if sum < bestTotal {
+				best, bestFar, bestTotal = pick, next, sum
+			}
+		}
+		centers = append(centers, slices.Clone(vecs[best]))
+		far = bestFar
 	}
 	return centers
+}
+
+// distancesTo returns each vector's squared distance to center, or to the
+// nearer of center and its distance in prev when prev is given.
+func distancesTo(vecs [][]float32, center []float32, prev []float64) []float64 {
+	out := make([]float64, len(vecs))
+	for i, v := range vecs {
+		d := 1 - float64(dot(v, center))
+		out[i] = d * d
+		if prev != nil {
+			out[i] = min(out[i], prev[i])
+		}
+	}
+	return out
+}
+
+func weightedPick(weights []float64, total float64, rng *rand.Rand) int {
+	if total <= 0 {
+		return rng.IntN(len(weights))
+	}
+	r := rng.Float64() * total
+	for i, w := range weights {
+		r -= w
+		if r <= 0 {
+			return i
+		}
+	}
+	return len(weights) - 1
 }
 
 func (g *grouping) converge(vecs [][]float32) {
@@ -94,11 +187,11 @@ func (g *grouping) converge(vecs [][]float32) {
 	for range maxIterations {
 		changed := false
 		for i, v := range vecs {
-			best, score := nearest(g.centers, v)
+			best, score, second := nearest(g.centers, v)
 			if best != g.assign[i] {
 				g.assign[i], changed = best, true
 			}
-			g.closeness[i] = score
+			g.closeness[i], g.margin[i] = score, score-second
 		}
 		if !changed {
 			return
@@ -107,14 +200,22 @@ func (g *grouping) converge(vecs [][]float32) {
 	}
 }
 
-func nearest(centers [][]float32, v []float32) (int, float32) {
-	best, score := 0, float32(math.Inf(-1))
+// nearest returns the closest center, its closeness, and the closeness of
+// the runner-up (the same as the best when there is one center).
+func nearest(centers [][]float32, v []float32) (int, float32, float32) {
+	best, score, second := 0, float32(math.Inf(-1)), float32(math.Inf(-1))
 	for c, center := range centers {
-		if s := dot(center, v); s > score {
-			best, score = c, s
+		switch s := dot(center, v); {
+		case s > score:
+			best, score, second = c, s, score
+		case s > second:
+			second = s
 		}
 	}
-	return best, score
+	if len(centers) < 2 {
+		second = score
+	}
+	return best, score, second
 }
 
 func (g *grouping) recenter(vecs [][]float32) {

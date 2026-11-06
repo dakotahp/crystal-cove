@@ -272,16 +272,19 @@ close in meaning, then reports each group as a topic of notes:
 
 **Sections, not notes.** A daily note or meeting log often covers several
 subjects. The map groups sections, so such a note counts in each topic it
-touches and blurs none of them. A section far from every topic stays out of
-all of them. `outside_notes` counts the notes left out this way.
+touches. Short headings are joined into one section, so a daily note can
+still give one mixed section; entry notes favor sections that clearly belong
+to one topic, so such notes do not lead a topic. A section far from every
+topic stays out of all of them. `outside_notes` counts the notes left out
+this way.
 
 **Key words without a word list.** Words that appear across the whole map,
 such as "the", rank below words typical of one topic. Short words, numbers,
 and words found in only one note of a topic are skipped. This works for any
 language written with spaces.
 
-**Zooming in.** The first call lists 10 to 30 topics, depending on the
-vault's size. To split one topic, pass its `id` as `topic` with the `build`
+**Zooming in.** The first call lists up to 30 topics: about 10 for a vault
+of 800 sections, and fewer for smaller vaults or folders. To split one topic, pass its `id` as `topic` with the `build`
 from the same result. Each call goes one level deeper. `folders` and
 `exclude_folders` map part of the vault, such as one project folder.
 

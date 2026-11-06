@@ -19,6 +19,7 @@ import (
 
 const (
 	mapTTL        = 30 * time.Minute
+	groupDims     = 256
 	maxMaps       = 16
 	keyWordCount  = 5
 	folderCount   = 3
@@ -86,7 +87,8 @@ type builtMap struct {
 
 // Topics groups the indexed sections whose note include accepts into
 // topics. scope names what include selects, so each scope gets its own
-// build. A map is built once per build and kept for mapTTL.
+// build. A map is built once per build and kept until mapTTL has passed
+// since it was last handed out.
 func (ix *Index) Topics(scope string, include func(string) bool) (TopicMap, Status, error) {
 	entries, status := ix.snapshot()
 	var kept []entry
@@ -103,9 +105,13 @@ func (ix *Index) Topics(scope string, include func(string) bool) (TopicMap, Stat
 	defer ix.topics.mu.Unlock()
 	ix.expireMaps()
 	if b, ok := ix.topics.maps[build]; ok {
+		b.created = ix.now()
 		return b.topicMap, status, nil
 	}
 	b := buildMap(kept, build, "")
+	if len(b.topicMap.Topics) == 0 {
+		return TopicMap{}, status, ErrTooFewSections
+	}
 	b.created = ix.now()
 	if ix.topics.maps == nil {
 		ix.topics.maps = map[string]*builtMap{}
@@ -128,6 +134,7 @@ func (ix *Index) Subtopics(build, topic string) (TopicMap, Status, error) {
 	if !ok {
 		return TopicMap{}, status, fmt.Errorf("build %s: %w", build, ErrStaleBuild)
 	}
+	node.created = ix.now()
 	parts := strings.Split(topic, ".")
 	for depth := range parts {
 		id := strings.Join(parts[:depth+1], ".")
@@ -197,6 +204,21 @@ func (ix *Index) evictMaps() {
 	}
 }
 
+// groupVector keeps the first groupDims numbers of a vector, renormalized.
+// nomic-embed-text is trained so that a prefix of its vector still carries
+// the meaning, and grouping on the shorter vector is about three times
+// faster.
+func groupVector(v []float32) []float32 {
+	if len(v) <= groupDims {
+		return v
+	}
+	short := slices.Clone(v[:groupDims])
+	if normalize(short) != nil {
+		return v
+	}
+	return short
+}
+
 func groupSeed(build, topic string) uint64 {
 	sum := sha256.Sum256([]byte(build + "/" + topic))
 	return binary.BigEndian.Uint64(sum[:8])
@@ -205,7 +227,7 @@ func groupSeed(build, topic string) uint64 {
 func buildMap(sections []entry, build, parent string) *builtMap {
 	vecs := make([][]float32, len(sections))
 	for i, e := range sections {
-		vecs[i] = e.vec
+		vecs[i] = groupVector(e.vec)
 	}
 	g := group(vecs, topicCount(len(sections)), groupSeed(build, parent))
 	topics, members := describe(sections, g, parent)
@@ -257,7 +279,7 @@ func describe(sections []entry, g grouping, parent string) ([]Topic, [][]int) {
 			Notes:     len(notesOf(sections, d.members)),
 			KeyWords:  words[i],
 			Folders:   folders(sections, d.members),
-			StartWith: startWith(sections, d.members, g.closeness, perNote),
+			StartWith: startWith(sections, d.members, g.margin, perNote),
 		}
 	}
 	slices.SortStableFunc(drafts, func(a, b *draft) int {
@@ -292,9 +314,9 @@ func notesOf(sections []entry, members []int) map[string]int {
 // keyWords picks each topic's most typical words by class-based TF-IDF:
 // how much of the topic's text a word makes up, weighted down by how often
 // it appears in every topic together. Words held by more than half the
-// sections come only after every other word, and words under minWordRunes,
-// numbers, and words found in only one note of the topic are skipped, so no
-// word list is needed.
+// sections come after every other word, and words found in only one note of
+// the topic after those; words under minWordRunes and numbers are skipped.
+// So no word list is needed, and a tiny topic still gets words.
 func keyWords(sections []entry, drafts []*draft) [][]string {
 	sectionWords := make([][]string, len(sections))
 	held := map[string]int{}
@@ -332,25 +354,28 @@ func keyWords(sections []entry, drafts []*draft) [][]string {
 	out := make([][]string, len(drafts))
 	for i := range drafts {
 		type scored struct {
-			word   string
-			common bool
-			score  float64
+			word  string
+			tier  int
+			score float64
 		}
 		var list []scored
 		for w, n := range counts[i] {
-			if !keyWordCandidate(w) || len(noteSets[i][w]) < 2 {
+			if !keyWordCandidate(w) {
 				continue
 			}
-			common := float64(held[w]) > commonSection*float64(len(sections))
+			tier := 0
+			if float64(held[w]) > commonSection*float64(len(sections)) {
+				tier = 1
+			}
+			if len(noteSets[i][w]) < 2 {
+				tier = 2
+			}
 			score := float64(n) / float64(totals[i]) * math.Log(1+avg/float64(global[w]))
-			list = append(list, scored{w, common, score})
+			list = append(list, scored{w, tier, score})
 		}
 		slices.SortFunc(list, func(a, b scored) int {
-			if a.common != b.common {
-				if a.common {
-					return 1
-				}
-				return -1
+			if c := cmp.Compare(a.tier, b.tier); c != 0 {
+				return c
 			}
 			if c := cmp.Compare(b.score, a.score); c != 0 {
 				return c
@@ -399,13 +424,14 @@ func folders(sections []entry, members []int) []FolderCount {
 }
 
 // startWith ranks a topic's notes by how much of each note is in the topic
-// times how close those sections sit to its center, so a note that only
-// touches the topic, such as a daily note, does not lead it.
-func startWith(sections []entry, members []int, closeness []float32, perNote map[string]int) []string {
+// times how clearly those sections belong to it rather than to the next
+// topic, so a note that only touches the topic, such as a daily note whose
+// short headings were joined into one mixed section, does not lead it.
+func startWith(sections []entry, members []int, margin []float32, perNote map[string]int) []string {
 	sum := map[string]float64{}
 	in := notesOf(sections, members)
 	for _, s := range members {
-		sum[sections[s].path] += float64(closeness[s])
+		sum[sections[s].path] += float64(margin[s])
 	}
 	type scored struct {
 		path  string

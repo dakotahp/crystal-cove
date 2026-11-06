@@ -108,8 +108,11 @@ internal/semantic/     opt-in search by meaning (MCP_SEMANTIC_SEARCH): chunks
                        ranks by meaning and lets name, phrase and full
                        keyword matches rescue the clear hits; also groups
                        sections into topics for topic_map (seeded spherical
-                       k-means, far sections left out, maps cached 30
-                       minutes under a build ID derived from the content)
+                       k-means on 256-number vector prefixes, twice the
+                       groups merged back by Ward's rule so a big blob of
+                       mixed notes cannot swallow a small topic, far
+                       sections left out, maps cached 30 minutes after last
+                       use under a build ID derived from the content)
 internal/oidcauth/     OIDC bearer-token validation for any compliant IdP:
                        discovery (with internal-issuer override), JWKS via
                        go-oidc, audience check with Keycloak-style azp
