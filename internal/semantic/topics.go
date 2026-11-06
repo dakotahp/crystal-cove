@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"math"
 	"path"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -36,9 +37,19 @@ const (
 	// to lead its key words.
 	minWordNoteShare = 0.2
 	// nearCopy is the closeness above which two notes count as copies of
-	// one another for start_with.
-	nearCopy = 0.95
+	// one another for start_with. A note and its edited v2 measured 0.94,
+	// while an outline of the same letter and notes on the same theme
+	// measured 0.89 or less.
+	nearCopy = 0.92
+	// minLift is how many times more frequent in a topic than in the vault a
+	// word must be to lead its key words, so a word such as "someone",
+	// somewhat more frequent in reflective notes, does not lead them.
+	minLift = 2
 )
+
+// linkPattern matches web addresses, whose pieces such as "www" and "https"
+// are not words of a topic.
+var linkPattern = regexp.MustCompile(`(?i)(?:https?://|www\.)\S+`)
 
 // ErrTooFewSections means the scope holds too few indexed sections to group.
 var ErrTooFewSections = errors.New("too few indexed notes in scope to group into topics")
@@ -343,7 +354,8 @@ func keyWords(sections []entry, drafts []*draft, background *termIndex) [][]stri
 	held := map[string]int{}
 	for i, e := range sections {
 		seen := map[string]bool{}
-		for _, w := range tokens(noteTitle(e.path) + " " + strings.Join(e.chunk.HeadingPath, " ") + " " + e.chunk.Text) {
+		text := linkPattern.ReplaceAllString(e.chunk.Text, " ")
+		for _, w := range tokens(noteTitle(e.path) + " " + strings.Join(e.chunk.HeadingPath, " ") + " " + text) {
 			sectionWords[i] = append(sectionWords[i], w)
 			if !seen[w] {
 				seen[w] = true
@@ -387,7 +399,7 @@ func keyWords(sections []entry, drafts []*draft, background *termIndex) [][]stri
 			share := float64(n) / float64(totals[i])
 			lift := share / (float64(max(vaultCount(w), n)) / float64(max(vaultTotal, totals[i])))
 			tier := 0
-			if lift <= 1 || float64(held[w]) > commonSection*float64(len(sections)) {
+			if lift < minLift || float64(held[w]) > commonSection*float64(len(sections)) {
 				tier = 1
 			}
 			if len(noteSets[i][w]) < minWordNotes[i] {
