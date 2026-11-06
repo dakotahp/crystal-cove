@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.26.0](https://github.com/dakotahp/crystal-cove/compare/v0.25.0...v0.26.0) (2026-11-06)
+
+
+### Features
+
+* **semantic:** add seeded section grouping for topic maps ([c75e2f4](https://github.com/dakotahp/crystal-cove/commit/c75e2f466f96a9b3bf62adfe4f7ecca676e570ab))
+* **semantic:** add topic_map to show what a vault is about ([1d3d65b](https://github.com/dakotahp/crystal-cove/commit/1d3d65b127ca04cb901a9cce966177f6538c453c))
+* **semantic:** build cached topic maps from section vectors ([b05d3cb](https://github.com/dakotahp/crystal-cove/commit/b05d3cb5cd580b3b895d5dda14f36066dcb0cad5))
+* **semantic:** zoom into one topic of a cached map ([ea1c0f7](https://github.com/dakotahp/crystal-cove/commit/ea1c0f7254fd361a222aaed6159a76c3f1e168e1))
+
+
+### Bug Fixes
+
+* **semantic:** drop weak common words and links from topic key words ([205ef7e](https://github.com/dakotahp/crystal-cove/commit/205ef7ea1512cda7b60a8a1b767c7f0061d405fd))
+* **semantic:** keep mixed daily notes from leading or swallowing topics ([fd26fff](https://github.com/dakotahp/crystal-cove/commit/fd26fff3e8d6abc2dca82ebcb705d73b6cf1bc7c))
+* **semantic:** keep names and near-copies out of topic summaries ([80ecf50](https://github.com/dakotahp/crystal-cove/commit/80ecf50e36d94da852ac9d36e8e3fcef4d820b9c))
+* **semantic:** rank topic key words by lift over the whole vault ([496b104](https://github.com/dakotahp/crystal-cove/commit/496b1045478e4b381fff4f9224b74450b4ea536f))
+
 ## [0.25.0](https://github.com/dakotahp/crystal-cove/compare/v0.24.0...v0.25.0) (2026-11-05)
 
 
