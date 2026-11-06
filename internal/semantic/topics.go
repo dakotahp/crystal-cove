@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"math"
 	"path"
 	"slices"
@@ -29,6 +30,12 @@ const (
 
 // ErrTooFewSections means the scope holds too few indexed sections to group.
 var ErrTooFewSections = errors.New("too few indexed notes in scope to group into topics")
+
+// ErrStaleBuild means a zoom named a build that is unknown or has expired.
+var ErrStaleBuild = errors.New("topic map build is unknown or older than 30 minutes")
+
+// ErrTooSmallToSplit means a topic holds too few sections to split further.
+var ErrTooSmallToSplit = errors.New("topic is too small to split")
 
 // FolderCount is how many of a topic's notes sit in one folder.
 type FolderCount struct {
@@ -106,6 +113,67 @@ func (ix *Index) Topics(scope string, include func(string) bool) (TopicMap, Stat
 	ix.topics.maps[build] = b
 	ix.evictMaps()
 	return b.topicMap, status, nil
+}
+
+// Subtopics splits one topic of a cached build into sub-topics. It answers
+// from the sections the build was made from, so an edit since then does not
+// change the answer; a build that has expired or was never made gives
+// ErrStaleBuild.
+func (ix *Index) Subtopics(build, topic string) (TopicMap, Status, error) {
+	status := ix.currentStatus()
+	ix.topics.mu.Lock()
+	defer ix.topics.mu.Unlock()
+	ix.expireMaps()
+	node, ok := ix.topics.maps[build]
+	if !ok {
+		return TopicMap{}, status, fmt.Errorf("build %s: %w", build, ErrStaleBuild)
+	}
+	parts := strings.Split(topic, ".")
+	for depth := range parts {
+		id := strings.Join(parts[:depth+1], ".")
+		i := slices.IndexFunc(node.topicMap.Topics, func(t Topic) bool { return t.ID == id })
+		if i < 0 {
+			return TopicMap{}, status, fmt.Errorf("topic %s is not in build %s; its topics are %s", id, build, topicIDs(node.topicMap.Topics))
+		}
+		child, err := node.zoom(i)
+		if err != nil {
+			return TopicMap{}, status, fmt.Errorf("topic %s in build %s: %w", id, build, err)
+		}
+		node = child
+	}
+	return node.topicMap, status, nil
+}
+
+func (b *builtMap) zoom(i int) (*builtMap, error) {
+	id := b.topicMap.Topics[i].ID
+	if child, ok := b.children[id]; ok {
+		return child, nil
+	}
+	if len(b.members[i]) < 2*minGroupSections {
+		return nil, ErrTooSmallToSplit
+	}
+	sections := make([]entry, len(b.members[i]))
+	for j, s := range b.members[i] {
+		sections[j] = b.entries[s]
+	}
+	child := buildMap(sections, b.topicMap.Build, id)
+	if len(child.topicMap.Topics) < 2 {
+		return nil, ErrTooSmallToSplit
+	}
+	child.created = b.created
+	if b.children == nil {
+		b.children = map[string]*builtMap{}
+	}
+	b.children[id] = child
+	return child, nil
+}
+
+func topicIDs(topics []Topic) string {
+	ids := make([]string, len(topics))
+	for i, t := range topics {
+		ids[i] = t.ID
+	}
+	return strings.Join(ids, ", ")
 }
 
 func (ix *Index) expireMaps() {
